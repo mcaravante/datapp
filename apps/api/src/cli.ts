@@ -1,0 +1,41 @@
+import 'reflect-metadata';
+import { NestFactory } from '@nestjs/core';
+import { Logger } from 'nestjs-pino';
+import type { INestApplicationContext } from '@nestjs/common';
+import { AppModule } from './app.module';
+import { runBootstrapMagentoStore } from './cli/bootstrap-magento-store';
+import { runSyncCustomersInitial } from './cli/sync-customers-initial';
+
+type CliCommand = (app: INestApplicationContext, argv: string[]) => Promise<number>;
+
+const COMMANDS: Readonly<Record<string, CliCommand>> = {
+  'magento-store:bootstrap': runBootstrapMagentoStore,
+  'sync:customers:initial': runSyncCustomersInitial,
+};
+
+async function main(): Promise<void> {
+  const cmd = process.argv[2];
+  const rest = process.argv.slice(3);
+
+  if (!cmd || !(cmd in COMMANDS)) {
+    console.error('Usage: cli <command> [...args]');
+    console.error(`Available commands:`);
+    for (const name of Object.keys(COMMANDS)) console.error(`  - ${name}`);
+    process.exit(2);
+  }
+
+  const app = await NestFactory.createApplicationContext(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
+
+  let exitCode = 1;
+  try {
+    exitCode = await COMMANDS[cmd]!(app, rest);
+  } catch (err) {
+    console.error('CLI command threw:', err);
+  } finally {
+    await app.close();
+  }
+  process.exit(exitCode);
+}
+
+void main();

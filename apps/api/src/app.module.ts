@@ -9,6 +9,8 @@ import { CryptoModule } from './modules/crypto/crypto.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { MagentoModule } from './modules/magento/magento.module';
 import { QueueModule } from './modules/queue/queue.module';
+import { GeoModule } from './modules/geo/geo.module';
+import { CustomersModule } from './modules/customers/customers.module';
 import { HealthModule } from './modules/health/health.module';
 import { SyncModule } from './modules/sync/sync.module';
 
@@ -50,7 +52,9 @@ import { SyncModule } from './modules/sync/sync.module';
     CryptoModule,
     TenantModule,
     MagentoModule,
+    GeoModule,
     QueueModule,
+    CustomersModule,
     HealthModule,
     SyncModule,
   ],
