@@ -1,5 +1,5 @@
-import type { MagentoHttpClient } from './http.js';
-import { MagentoCategorySchema, type MagentoCategory } from './schemas.js';
+import type { MagentoHttpClient } from './http';
+import { MagentoCategorySchema, type MagentoCategory } from './schemas';
 
 export class MagentoCategoriesResource {
   constructor(private readonly http: MagentoHttpClient) {}

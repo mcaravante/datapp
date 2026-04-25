@@ -3,15 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "description": "Cross-app Zod schemas, types, and constants.",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./ingest": "./src/ingest.ts",
-    "./pagination": "./src/pagination.ts",
-    "./tenant": "./src/tenant.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./ingest": {
+      "types": "./dist/ingest.d.ts",
+      "default": "./dist/ingest.js"
+    },
+    "./pagination": {
+      "types": "./dist/pagination.d.ts",
+      "default": "./dist/pagination.js"
+    },
+    "./tenant": {
+      "types": "./dist/tenant.d.ts",
+      "default": "./dist/tenant.js"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",
     "lint": "echo 'lint via root config' && exit 0"
   },

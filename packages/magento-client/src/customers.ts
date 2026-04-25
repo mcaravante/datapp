@@ -1,11 +1,11 @@
-import type { MagentoHttpClient } from './http.js';
+import type { MagentoHttpClient } from './http';
 import {
   MagentoCustomerSchema,
   MagentoSearchResultSchema,
   type MagentoCustomer,
   type MagentoSearchResult,
-} from './schemas.js';
-import { buildSearchCriteriaParams, type SearchCriteria } from './search-criteria.js';
+} from './schemas';
+import { buildSearchCriteriaParams, type SearchCriteria } from './search-criteria';
 
 export class MagentoCustomersResource {
   constructor(private readonly http: MagentoHttpClient) {}

@@ -1,12 +1,12 @@
-import { MagentoHttpClient, type HttpOptions } from './http.js';
-import { MagentoCustomersResource } from './customers.js';
-import { MagentoOrdersResource } from './orders.js';
-import { MagentoProductsResource } from './products.js';
-import { MagentoCategoriesResource } from './categories.js';
+import { MagentoHttpClient, type HttpOptions } from './http';
+import { MagentoCustomersResource } from './customers';
+import { MagentoOrdersResource } from './orders';
+import { MagentoProductsResource } from './products';
+import { MagentoCategoriesResource } from './categories';
 
-export type { HttpOptions } from './http.js';
-export { MagentoApiError } from './http.js';
-export type { SearchCriteria, Filter, SortOrder, ConditionType } from './search-criteria.js';
+export type { HttpOptions } from './http';
+export { MagentoApiError } from './http';
+export type { SearchCriteria, Filter, SortOrder, ConditionType } from './search-criteria';
 export type {
   MagentoCustomer,
   MagentoAddress,
@@ -16,7 +16,7 @@ export type {
   MagentoProduct,
   MagentoCategory,
   MagentoSearchResult,
-} from './schemas.js';
+} from './schemas';
 
 export interface MagentoClient {
   readonly customers: MagentoCustomersResource;

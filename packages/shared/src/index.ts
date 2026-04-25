@@ -1,3 +1,3 @@
-export * from './ingest.js';
-export * from './pagination.js';
-export * from './tenant.js';
+export * from './ingest';
+export * from './pagination';
+export * from './tenant';
