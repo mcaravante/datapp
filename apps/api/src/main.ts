@@ -13,6 +13,8 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
+    // Required so the HmacGuard can verify signatures over the byte-exact body.
+    rawBody: true,
   });
   app.useLogger(app.get(Logger));
 
@@ -22,8 +24,10 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
+  // URI versioning produces `/v1/...` routes via the controller's
+  // `version: '1'` declaration. We don't add a separate globalPrefix to
+  // avoid stacking it into `/v1/v1/...`.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-  app.setGlobalPrefix('v1');
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CDP API')
@@ -32,7 +36,7 @@ async function bootstrap(): Promise<void> {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('v1/docs', app, document, {
+  SwaggerModule.setup('docs', app, document, {
     swaggerOptions: { persistAuthorization: true },
   });
 
