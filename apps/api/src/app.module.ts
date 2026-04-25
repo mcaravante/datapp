@@ -4,7 +4,13 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { loadEnv } from './config/env';
+import { PrismaModule } from './db/prisma.module';
+import { CryptoModule } from './modules/crypto/crypto.module';
+import { TenantModule } from './modules/tenant/tenant.module';
+import { MagentoModule } from './modules/magento/magento.module';
+import { QueueModule } from './modules/queue/queue.module';
 import { HealthModule } from './modules/health/health.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
@@ -37,11 +43,16 @@ import { HealthModule } from './modules/health/health.module';
           : {}),
       },
     }),
-    ThrottlerModule.forRoot([
-      { name: 'admin', ttl: 60_000, limit: 60 }, // 60 rpm per IP for admin
-      { name: 'ingest', ttl: 60_000, limit: 600 }, // 600 rpm per IP for ingest
-    ]),
+    // Default policy: 60 rpm per IP. Ingest endpoints override to 600 rpm
+    // via `@Throttle({ default: { ttl: 60_000, limit: 600 } })`.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
+    PrismaModule,
+    CryptoModule,
+    TenantModule,
+    MagentoModule,
+    QueueModule,
     HealthModule,
+    SyncModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

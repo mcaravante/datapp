@@ -1,0 +1,33 @@
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+  UsePipes,
+} from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
+import { ZodValidationPipe } from 'nestjs-zod';
+import { IngestEnvelopeSchema, type IngestEnvelope } from '@cdp/shared/ingest';
+import { HmacGuard } from './hmac.guard';
+import { SyncService } from './sync.service';
+import type { IngestRequest } from './types';
+
+@Controller({ path: 'ingest/magento', version: '1' })
+@ApiTags('ingest')
+export class IngestController {
+  constructor(private readonly syncService: SyncService) {}
+
+  @Post('events')
+  @UseGuards(HmacGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 600 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @UsePipes(new ZodValidationPipe(IngestEnvelopeSchema))
+  async receive(@Body() envelope: IngestEnvelope, @Req() req: IngestRequest) {
+    const rawBody = req.rawBody?.toString('utf8') ?? '';
+    return this.syncService.ingest(req.ingest, envelope, rawBody);
+  }
+}
