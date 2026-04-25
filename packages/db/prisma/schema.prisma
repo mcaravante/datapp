@@ -1,0 +1,775 @@
+// =====================================================================
+//  CDP — Prisma schema
+//  Phase 1 (active) + Phase 2 / Phase 3 schema-only stubs.
+//  See CLAUDE.md and docs/adr/ for rationale.
+// =====================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgcrypto, pg_trgm, citext, unaccent]
+}
+
+// =====================================================================
+//  Enums
+// =====================================================================
+
+enum UserRole {
+  super_admin
+  admin
+  analyst
+  viewer
+}
+
+enum AddressType {
+  billing
+  shipping
+  both
+}
+
+enum SegmentType {
+  static
+  dynamic // Phase 3 — declared so persisted rows can carry it.
+}
+
+enum RfmSegmentLabel {
+  champions
+  loyal
+  potential_loyalists
+  new_customers
+  promising
+  needing_attention
+  about_to_sleep
+  at_risk
+  cannot_lose_them
+  hibernating
+  lost
+}
+
+enum SyncEntity {
+  customers
+  orders
+  products
+  categories
+  newsletter
+}
+
+enum SyncStatus {
+  idle
+  running
+  error
+  paused
+}
+
+enum SyncEventStatus {
+  pending
+  processed
+  failed
+  skipped // duplicate event_id (idempotent no-op)
+}
+
+enum SyncEventType {
+  customer_created        @map("customer.created")
+  customer_updated        @map("customer.updated")
+  customer_deleted        @map("customer.deleted")
+  order_created           @map("order.created")
+  order_updated           @map("order.updated")
+  order_invoiced          @map("order.invoiced")
+  order_refunded          @map("order.refunded")
+  order_shipped           @map("order.shipped")
+  product_created         @map("product.created")
+  product_updated         @map("product.updated")
+  newsletter_subscribed   @map("newsletter.subscribed")
+  newsletter_unsubscribed @map("newsletter.unsubscribed")
+}
+
+enum SubscriptionStatus {
+  subscribed
+  unsubscribed
+  pending
+  complained
+  bounced
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  login
+  logout
+  export
+  erase
+}
+
+enum ProductStatus {
+  enabled
+  disabled
+}
+
+enum ProductVisibility {
+  not_visible
+  catalog
+  search
+  catalog_search
+}
+
+// =====================================================================
+//  Tenancy + admin
+// =====================================================================
+
+model Tenant {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String
+  slug      String   @unique
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  users           User[]
+  magentoStores   MagentoStore[]
+  customers       CustomerProfile[]
+  addresses       CustomerAddress[]
+  segments        CustomerSegment[]
+  rfmScores       RfmScore[]
+  rfmHistory      RfmScoreHistory[]
+  orders          Order[]
+  orderItems      OrderItem[]
+  products        Product[]
+  categories      ProductCategory[]
+  geoUnmatched    GeoUnmatched[]
+  syncStates      SyncState[]
+  syncEvents      SyncEventLog[]
+  auditLogs       AuditLog[]
+  visitors        Visitor[]
+  webEvents       WebEvent[]
+  forms           Form[]
+  formSubmissions FormSubmission[]
+  marketingLists  MarketingList[]
+  subscriptions   Subscription[]
+
+  @@map("tenant")
+}
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String?   @map("tenant_id") @db.Uuid // nullable for super_admin
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  role         UserRole  @default(viewer)
+  totpSecretId String?   @unique @map("totp_secret_id") @db.Uuid
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  totpSecret UserTotpSecret?   @relation(fields: [totpSecretId], references: [id], onDelete: SetNull)
+  sessions   Session[]
+  auditLogs  AuditLog[]
+  segments   CustomerSegment[]
+
+  @@index([tenantId, role])
+  @@map("user")
+}
+
+model UserTotpSecret {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  secretEncrypted Bytes     @map("secret_encrypted")
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User?
+
+  @@map("user_totp_secret")
+}
+
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("session")
+}
+
+model AuditLog {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  userId    String?     @map("user_id") @db.Uuid // null for system actions
+  action    AuditAction
+  entity    String
+  entityId  String?     @map("entity_id")
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?     @map("user_agent")
+  at        DateTime    @default(now()) @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, at(sort: Desc)])
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, userId, at(sort: Desc)])
+  @@map("audit_log")
+}
+
+// =====================================================================
+//  Magento integration
+// =====================================================================
+
+model MagentoStore {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  name                String
+  baseUrl             String   @map("base_url")
+  adminTokenEncrypted Bytes    @map("admin_token_encrypted")
+  hmacSecretEncrypted Bytes    @map("hmac_secret_encrypted")
+  currencyCode        String   @default("ARS") @map("currency_code") @db.Char(3)
+  defaultCountry      String   @default("AR") @map("default_country") @db.Char(2)
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  syncStates SyncState[]
+  syncEvents SyncEventLog[]
+  orders     Order[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+  @@map("magento_store")
+}
+
+model SyncState {
+  id                   String     @id @default(uuid(7)) @db.Uuid
+  tenantId             String     @map("tenant_id") @db.Uuid
+  magentoStoreId       String     @map("magento_store_id") @db.Uuid
+  entity               SyncEntity
+  lastProcessedEventId String?    @map("last_processed_event_id") @db.Uuid
+  lastProcessedAt      DateTime?  @map("last_processed_at") @db.Timestamptz(6)
+  cursor               String? // typically a Magento updated_at ISO string
+  status               SyncStatus @default(idle)
+  lastError            String?    @map("last_error")
+  updatedAt            DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  magentoStore MagentoStore @relation(fields: [magentoStoreId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, magentoStoreId, entity])
+  @@index([tenantId, status])
+  @@map("sync_state")
+}
+
+model SyncEventLog {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  magentoStoreId  String          @map("magento_store_id") @db.Uuid
+  eventId         String          @unique @map("event_id") @db.Uuid // UUIDv7 from sender — idempotency key
+  eventType       SyncEventType   @map("event_type")
+  magentoEntityId String          @map("magento_entity_id")
+  receivedAt      DateTime        @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt     DateTime?       @map("processed_at") @db.Timestamptz(6)
+  status          SyncEventStatus @default(pending)
+  error           String?
+  payloadHash     String          @map("payload_hash") @db.Char(64) // sha256 of raw body
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  magentoStore MagentoStore @relation(fields: [magentoStoreId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, eventType, receivedAt(sort: Desc)])
+  @@index([tenantId, magentoEntityId])
+  @@index([receivedAt]) // for retention cleanup
+  @@map("sync_event_log")
+}
+
+// =====================================================================
+//  Customer domain
+// =====================================================================
+
+model CustomerProfile {
+  id                        String             @id @default(uuid(7)) @db.Uuid
+  tenantId                  String             @map("tenant_id") @db.Uuid
+  magentoCustomerId         String             @map("magento_customer_id")
+  email                     String // lowercased on write
+  emailHash                 String             @map("email_hash") @db.Char(64) // sha256 hex of lowercased email
+  firstName                 String?            @map("first_name")
+  lastName                  String?            @map("last_name")
+  phone                     String?
+  dob                       DateTime?          @db.Date
+  gender                    String?
+  customerGroup             String?            @map("customer_group")
+  magentoCreatedAt          DateTime?          @map("magento_created_at") @db.Timestamptz(6)
+  magentoUpdatedAt          DateTime?          @map("magento_updated_at") @db.Timestamptz(6)
+  attributes                Json               @default("{}")
+  // Phase 2: anonymous device IDs stitched onto this profile.
+  anonymousIds              String[]           @default([]) @map("anonymous_ids")
+  // Subscription summary (denormalized cache; canonical state lives in `subscription`).
+  isSubscribed              Boolean            @default(false) @map("is_subscribed")
+  subscriptionStatus        SubscriptionStatus @default(unsubscribed) @map("subscription_status")
+  subscriptionConsentAt     DateTime?          @map("subscription_consent_at") @db.Timestamptz(6)
+  subscriptionConsentSource String?            @map("subscription_consent_source")
+  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  addresses       CustomerAddress[]
+  orders          Order[]
+  segmentMembers  CustomerSegmentMember[]
+  rfmScore        RfmScore?
+  rfmHistory      RfmScoreHistory[]
+  visitors        Visitor[]
+  webEvents       WebEvent[]
+  formSubmissions FormSubmission[]
+  subscriptions   Subscription[]
+
+  @@unique([tenantId, magentoCustomerId])
+  @@index([tenantId, emailHash])
+  @@index([tenantId, email])
+  @@index([tenantId, customerGroup])
+  @@index([tenantId, magentoUpdatedAt(sort: Desc)])
+  @@map("customer_profile")
+}
+
+model CustomerAddress {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  tenantId          String      @map("tenant_id") @db.Uuid
+  customerProfileId String      @map("customer_profile_id") @db.Uuid
+  type              AddressType
+  isDefaultBilling  Boolean     @default(false) @map("is_default_billing")
+  isDefaultShipping Boolean     @default(false) @map("is_default_shipping")
+  firstName         String?     @map("first_name")
+  lastName          String?     @map("last_name")
+  company           String?
+  street1           String?
+  street2           String?
+  city              String?
+  regionId          Int?        @map("region_id")
+  regionRaw         String?     @map("region_raw")
+  postalCode        String?     @map("postal_code")
+  countryCode       String      @default("AR") @map("country_code") @db.Char(2)
+  phone             String?
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+  region   Region?         @relation(fields: [regionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, customerProfileId])
+  @@index([tenantId, regionId])
+  @@index([tenantId, postalCode])
+  @@map("customer_address")
+}
+
+model CustomerSegment {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  definition  Json        @default("{}") // filter criteria
+  type        SegmentType @default(static)
+  createdById String?     @map("created_by_id") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User?                   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  members   CustomerSegmentMember[]
+
+  @@unique([tenantId, name])
+  @@map("customer_segment")
+}
+
+model CustomerSegmentMember {
+  segmentId         String   @map("segment_id") @db.Uuid
+  customerProfileId String   @map("customer_profile_id") @db.Uuid
+  addedAt           DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+
+  segment  CustomerSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  customer CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  @@id([segmentId, customerProfileId])
+  @@index([customerProfileId])
+  @@map("customer_segment_member")
+}
+
+model RfmScore {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  customerProfileId String          @unique @map("customer_profile_id") @db.Uuid
+  recencyDays       Int             @map("recency_days")
+  frequency         Int
+  monetary          Decimal         @db.Decimal(20, 4)
+  recencyScore      Int             @map("recency_score") @db.SmallInt
+  frequencyScore    Int             @map("frequency_score") @db.SmallInt
+  monetaryScore     Int             @map("monetary_score") @db.SmallInt
+  segment           RfmSegmentLabel
+  calculatedAt      DateTime        @default(now()) @map("calculated_at") @db.Timestamptz(6)
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, segment])
+  @@index([tenantId, calculatedAt(sort: Desc)])
+  @@map("rfm_score")
+}
+
+model RfmScoreHistory {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  customerProfileId String          @map("customer_profile_id") @db.Uuid
+  snapshotMonth     DateTime        @map("snapshot_month") @db.Date
+  recencyDays       Int             @map("recency_days")
+  frequency         Int
+  monetary          Decimal         @db.Decimal(20, 4)
+  recencyScore      Int             @map("recency_score") @db.SmallInt
+  frequencyScore    Int             @map("frequency_score") @db.SmallInt
+  monetaryScore     Int             @map("monetary_score") @db.SmallInt
+  segment           RfmSegmentLabel
+  calculatedAt      DateTime        @default(now()) @map("calculated_at") @db.Timestamptz(6)
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, customerProfileId, snapshotMonth])
+  @@index([tenantId, snapshotMonth])
+  @@map("rfm_score_history")
+}
+
+// =====================================================================
+//  Order domain
+// =====================================================================
+
+model Order {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  magentoStoreId     String   @map("magento_store_id") @db.Uuid
+  magentoOrderId     String   @map("magento_order_id")
+  magentoOrderNumber String   @map("magento_order_number")
+  customerProfileId  String?  @map("customer_profile_id") @db.Uuid // null for guest checkout / erased customers
+  customerEmail      String   @map("customer_email") // lowercased
+  customerEmailHash  String   @map("customer_email_hash") @db.Char(64)
+  status             String
+  state              String
+  currencyCode       String   @map("currency_code") @db.Char(3)
+  subtotal           Decimal  @db.Decimal(20, 4)
+  totalTax           Decimal  @default(0) @map("total_tax") @db.Decimal(20, 4)
+  shippingAmount     Decimal  @default(0) @map("shipping_amount") @db.Decimal(20, 4)
+  discountAmount     Decimal  @default(0) @map("discount_amount") @db.Decimal(20, 4)
+  grandTotal         Decimal  @map("grand_total") @db.Decimal(20, 4)
+  totalInvoiced      Decimal  @default(0) @map("total_invoiced") @db.Decimal(20, 4)
+  totalRefunded      Decimal  @default(0) @map("total_refunded") @db.Decimal(20, 4)
+  totalPaid          Decimal  @default(0) @map("total_paid") @db.Decimal(20, 4)
+  totalShipped       Decimal  @default(0) @map("total_shipped") @db.Decimal(20, 4)
+  // realRevenue is materialized as `GENERATED ALWAYS AS (total_invoiced - total_refunded) STORED`
+  // by a follow-up migration. Treat this column as read-only — never INSERT/UPDATE it from the
+  // application layer. Prisma will leave it untouched as long as we don't pass it in writes.
+  realRevenue        Decimal? @map("real_revenue") @db.Decimal(20, 4)
+  billingAddress     Json     @default("{}") @map("billing_address")
+  shippingAddress    Json     @default("{}") @map("shipping_address")
+  paymentMethod      String?  @map("payment_method")
+  shippingMethod     String?  @map("shipping_method")
+  itemCount          Int      @default(0) @map("item_count")
+  skuCount           Int      @default(0) @map("sku_count")
+  ipAddress          String?  @map("ip_address")
+  userAgent          String?  @map("user_agent")
+  placedAt           DateTime @map("placed_at") @db.Timestamptz(6)
+  magentoUpdatedAt   DateTime @map("magento_updated_at") @db.Timestamptz(6)
+  attributes         Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  magentoStore MagentoStore         @relation(fields: [magentoStoreId], references: [id], onDelete: Restrict)
+  customer     CustomerProfile?     @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  items        OrderItem[]
+  history      OrderStatusHistory[]
+
+  @@unique([tenantId, magentoStoreId, magentoOrderId])
+  @@unique([tenantId, magentoOrderNumber])
+  @@index([tenantId, customerProfileId])
+  @@index([tenantId, customerEmailHash])
+  @@index([tenantId, placedAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@index([tenantId, magentoUpdatedAt(sort: Desc)])
+  @@map("order")
+}
+
+model OrderItem {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  orderId            String   @map("order_id") @db.Uuid
+  magentoOrderItemId String   @map("magento_order_item_id")
+  productId          String?  @map("product_id") @db.Uuid // nullable: product may not be synced yet
+  sku                String
+  name               String
+  qtyOrdered         Decimal  @map("qty_ordered") @db.Decimal(20, 4)
+  qtyInvoiced        Decimal  @default(0) @map("qty_invoiced") @db.Decimal(20, 4)
+  qtyRefunded        Decimal  @default(0) @map("qty_refunded") @db.Decimal(20, 4)
+  qtyShipped         Decimal  @default(0) @map("qty_shipped") @db.Decimal(20, 4)
+  price              Decimal  @db.Decimal(20, 4)
+  discountAmount     Decimal  @default(0) @map("discount_amount") @db.Decimal(20, 4)
+  taxAmount          Decimal  @default(0) @map("tax_amount") @db.Decimal(20, 4)
+  rowTotal           Decimal  @map("row_total") @db.Decimal(20, 4)
+  attributes         Json     @default("{}") // Magento custom options + product options
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, magentoOrderItemId])
+  @@index([tenantId, sku])
+  @@index([tenantId, productId])
+  @@map("order_item")
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  orderId   String   @map("order_id") @db.Uuid
+  status    String
+  state     String?
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt(sort: Desc)])
+  @@map("order_status_history")
+}
+
+// =====================================================================
+//  Product domain
+// =====================================================================
+
+model Product {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  magentoProductId String            @map("magento_product_id")
+  sku              String
+  name             String
+  type             String            @default("simple") // simple, configurable, bundle, virtual, downloadable
+  status           ProductStatus     @default(enabled)
+  visibility       ProductVisibility @default(catalog_search)
+  price            Decimal?          @db.Decimal(20, 4)
+  specialPrice     Decimal?          @map("special_price") @db.Decimal(20, 4)
+  attributes       Json              @default("{}")
+  mainImageUrl     String?           @map("main_image_url")
+  magentoUpdatedAt DateTime?         @map("magento_updated_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  categories ProductCategoryMembership[]
+
+  @@unique([tenantId, sku])
+  @@unique([tenantId, magentoProductId])
+  @@index([tenantId, status, visibility])
+  @@index([tenantId, magentoUpdatedAt(sort: Desc)])
+  @@map("product")
+}
+
+model ProductCategory {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  magentoCategoryId String   @map("magento_category_id")
+  name              String
+  path              String[] // full path of category names, e.g. ["Women","Bags","Backpacks"]
+  parentId          String?  @map("parent_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent   ProductCategory?            @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children ProductCategory[]           @relation("CategoryTree")
+  products ProductCategoryMembership[]
+
+  @@unique([tenantId, magentoCategoryId])
+  @@index([tenantId, parentId])
+  @@map("product_category")
+}
+
+model ProductCategoryMembership {
+  productId  String @map("product_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+  position   Int?
+
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+  @@map("product_category_membership")
+}
+
+// =====================================================================
+//  Geo
+// =====================================================================
+
+model Region {
+  id          Int     @id @default(autoincrement())
+  countryCode String  @map("country_code") @db.Char(2)
+  code        String // ISO 3166-2 sub-code or INDEC code
+  name        String
+  isActive    Boolean @default(true) @map("is_active")
+
+  addresses CustomerAddress[]
+
+  @@unique([countryCode, code])
+  @@index([countryCode, name])
+  @@map("region")
+}
+
+model GeoUnmatched {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  regionRaw   String?  @map("region_raw")
+  cityRaw     String?  @map("city_raw")
+  postalCode  String?  @map("postal_code")
+  occurrences Int      @default(1)
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, regionRaw, cityRaw, postalCode])
+  @@index([tenantId, lastSeenAt(sort: Desc)])
+  @@map("geo_unmatched")
+}
+
+// =====================================================================
+//  Phase 2 — schema-only stubs (DO NOT implement business logic in Phase 1)
+// =====================================================================
+
+model Visitor {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  anonymousId       String   @map("anonymous_id")
+  customerProfileId String?  @map("customer_profile_id") @db.Uuid
+  firstSeenAt       DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt        DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  attributes        Json     @default("{}")
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  events   WebEvent[]
+  formSubs FormSubmission[]
+
+  @@unique([tenantId, anonymousId])
+  @@index([tenantId, customerProfileId])
+  @@index([tenantId, lastSeenAt(sort: Desc)])
+  @@map("visitor")
+}
+
+model WebEvent {
+  // NOTE: To be partitioned by month (range partitioning on occurred_at) when Phase 2 lands.
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  visitorId         String   @map("visitor_id") @db.Uuid
+  customerProfileId String?  @map("customer_profile_id") @db.Uuid
+  eventType         String   @map("event_type")
+  properties        Json     @default("{}")
+  occurredAt        DateTime @map("occurred_at") @db.Timestamptz(6)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  visitor  Visitor          @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  customer CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@index([tenantId, eventType, occurredAt(sort: Desc)])
+  @@index([tenantId, customerProfileId, occurredAt(sort: Desc)])
+  @@map("web_event")
+}
+
+model Form {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  fields    Json     @default("[]")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submissions FormSubmission[]
+
+  @@unique([tenantId, name])
+  @@map("form")
+}
+
+model FormSubmission {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  formId            String   @map("form_id") @db.Uuid
+  visitorId         String?  @map("visitor_id") @db.Uuid
+  customerProfileId String?  @map("customer_profile_id") @db.Uuid
+  payload           Json     @default("{}")
+  submittedAt       DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  form     Form             @relation(fields: [formId], references: [id], onDelete: Cascade)
+  visitor  Visitor?         @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  customer CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, formId, submittedAt(sort: Desc)])
+  @@map("form_submission")
+}
+
+// =====================================================================
+//  Phase 3 — schema-only stubs (DO NOT implement business logic in Phase 1)
+// =====================================================================
+
+model MarketingList {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@unique([tenantId, name])
+  @@map("marketing_list")
+}
+
+model Subscription {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  customerProfileId String             @map("customer_profile_id") @db.Uuid
+  listId            String             @map("list_id") @db.Uuid
+  status            SubscriptionStatus @default(subscribed)
+  consentAt         DateTime?          @map("consent_at") @db.Timestamptz(6)
+  consentSource     String?            @map("consent_source")
+  consentIp         String?            @map("consent_ip")
+  unsubscribedAt    DateTime?          @map("unsubscribed_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+  list     MarketingList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([customerProfileId, listId])
+  @@index([tenantId, status])
+  @@index([tenantId, listId])
+  @@map("subscription")
+}

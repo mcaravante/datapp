@@ -1,0 +1,24 @@
+{
+  "name": "@cdp/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cross-app Zod schemas, types, and constants.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ingest": "./src/ingest.ts",
+    "./pagination": "./src/pagination.ts",
+    "./tenant": "./src/tenant.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'lint via root config' && exit 0"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
