@@ -17,19 +17,26 @@ const CustomAttributeSchema = z
   })
   .passthrough();
 
+// Magento returns `region` either as the structured object (most REST
+// responses) or as a bare string (some shipping_assignments / nested
+// address payloads). Tolerate both — we normalize downstream against
+// our INDEC region table.
+const MagentoRegionSchema = z.union([
+  z.string(),
+  z
+    .object({
+      region: z.string().nullable().optional(),
+      region_code: z.string().nullable().optional(),
+      region_id: z.number().nullable().optional(),
+    })
+    .passthrough(),
+]);
+
 export const MagentoAddressSchema = z
   .object({
     id: z.number().optional(),
     customer_id: z.number().optional(),
-    region: z
-      .object({
-        region: z.string().nullable().optional(),
-        region_code: z.string().nullable().optional(),
-        region_id: z.number().nullable().optional(),
-      })
-      .passthrough()
-      .nullable()
-      .optional(),
+    region: MagentoRegionSchema.nullable().optional(),
     region_id: z.number().nullable().optional(),
     country_id: z.string().length(2).optional(),
     street: z.array(z.string()).optional(),
