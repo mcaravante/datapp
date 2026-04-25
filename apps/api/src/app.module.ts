@@ -27,10 +27,14 @@ import { HealthModule } from './modules/health/health.module';
           ],
           censor: '[redacted]',
         },
-        transport:
-          process.env['NODE_ENV'] === 'development'
-            ? { target: 'pino-pretty', options: { singleLine: true, colorize: true } }
-            : undefined,
+        ...(process.env['NODE_ENV'] === 'development'
+          ? {
+              transport: {
+                target: 'pino-pretty',
+                options: { singleLine: true, colorize: true },
+              },
+            }
+          : {}),
       },
     }),
     ThrottlerModule.forRoot([

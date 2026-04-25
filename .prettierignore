@@ -5,6 +5,7 @@ build/
 .turbo/
 out/
 coverage/
+.claude/
 **/generated/**
 **/migrations/**
 pnpm-lock.yaml

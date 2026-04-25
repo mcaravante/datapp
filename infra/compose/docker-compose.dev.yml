@@ -15,8 +15,9 @@ services:
       # Tune for dev only.
       POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
     command: ['postgres', '-c', 'max_connections=200', '-c', 'shared_buffers=256MB']
+    # Host port 5433 to avoid clashing with other Postgres instances on 5432.
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -39,8 +40,9 @@ services:
         '--maxmemory-policy',
         'noeviction',
       ]
+    # Host port 6380 to avoid clashing with other Redis instances on 6379.
     ports:
-      - '6379:6379'
+      - '6380:6379'
     volumes:
       - redis_data:/data
     healthcheck:
