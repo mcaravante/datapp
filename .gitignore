@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma generated client (kept inside the package, but never committed)
+packages/db/generated/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Crypto material
+*.pem
+*.key
+!**/keys/*.example.pem
+!**/keys/*.example.key
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Misc
+.cache/

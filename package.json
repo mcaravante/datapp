@@ -1,0 +1,52 @@
+{
+  "name": "cdp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Custom CDP for Adobe Commerce — Phase 1 (data centralization + analytics)",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.11.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --fix",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "db:generate": "pnpm --filter @cdp/db generate",
+    "db:migrate": "pnpm --filter @cdp/db migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @cdp/db migrate:deploy",
+    "db:reset": "pnpm --filter @cdp/db reset",
+    "db:seed": "pnpm --filter @cdp/db seed",
+    "db:studio": "pnpm --filter @cdp/db studio",
+    "compose:up": "docker compose -f infra/compose/docker-compose.dev.yml up -d",
+    "compose:down": "docker compose -f infra/compose/docker-compose.dev.yml down",
+    "compose:logs": "docker compose -f infra/compose/docker-compose.dev.yml logs -f",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "unrs-resolver"
+    ]
+  }
+}

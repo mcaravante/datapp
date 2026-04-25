@@ -1,0 +1,58 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": ["**/.env"],
+  "globalEnv": [
+    "NODE_ENV",
+    "LOG_LEVEL",
+    "DATABASE_URL",
+    "DIRECT_URL",
+    "REDIS_URL",
+    "AUTH_SECRET",
+    "AUTH_URL",
+    "JWT_PRIVATE_KEY",
+    "JWT_PUBLIC_KEY",
+    "ENCRYPTION_MASTER_KEY",
+    "APP_URL_API",
+    "APP_URL_ADMIN",
+    "CORS_ALLOWED_ORIGINS",
+    "MAGENTO_BASE_URL",
+    "MAGENTO_ADMIN_TOKEN",
+    "MAGENTO_HMAC_SECRET",
+    "MAGENTO_RATE_LIMIT_RPS",
+    "SENTRY_DSN_API",
+    "SENTRY_DSN_ADMIN",
+    "SENTRY_ENVIRONMENT",
+    "DEFAULT_TIMEZONE",
+    "DEFAULT_TENANT_SLUG",
+    "FEATURE_2FA_ENFORCED"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "generated/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^db:generate"]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build", "^db:generate"],
+      "outputs": ["coverage/**"]
+    },
+    "type-check": {
+      "dependsOn": ["^build", "^db:generate"],
+      "outputs": []
+    },
+    "db:generate": {
+      "cache": false,
+      "outputs": ["generated/**"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

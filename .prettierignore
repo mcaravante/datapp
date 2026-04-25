@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+out/
+coverage/
+**/generated/**
+**/migrations/**
+pnpm-lock.yaml
+*.tsbuildinfo
