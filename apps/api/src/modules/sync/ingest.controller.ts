@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-  UseGuards,
-  UsePipes,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -25,8 +16,10 @@ export class IngestController {
   @UseGuards(HmacGuard)
   @Throttle({ default: { ttl: 60_000, limit: 600 } })
   @HttpCode(HttpStatus.ACCEPTED)
-  @UsePipes(new ZodValidationPipe(IngestEnvelopeSchema))
-  async receive(@Body() envelope: IngestEnvelope, @Req() req: IngestRequest) {
+  async receive(
+    @Body(new ZodValidationPipe(IngestEnvelopeSchema)) envelope: IngestEnvelope,
+    @Req() req: IngestRequest,
+  ) {
     const rawBody = req.rawBody?.toString('utf8') ?? '';
     return this.syncService.ingest(req.ingest, envelope, rawBody);
   }

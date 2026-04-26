@@ -5,12 +5,14 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { runBootstrapMagentoStore } from './cli/bootstrap-magento-store';
 import { runSyncCustomersInitial } from './cli/sync-customers-initial';
+import { runCreateAdmin } from './cli/create-admin';
 
 type CliCommand = (app: INestApplicationContext, argv: string[]) => Promise<number>;
 
 const COMMANDS: Readonly<Record<string, CliCommand>> = {
   'magento-store:bootstrap': runBootstrapMagentoStore,
   'sync:customers:initial': runSyncCustomersInitial,
+  'create-admin': runCreateAdmin,
 };
 
 async function main(): Promise<void> {
