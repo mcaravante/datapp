@@ -6,13 +6,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  // Standalone output traces files from this root so workspace packages get
-  // copied into the bundle. Without this, `@cdp/shared` is missing at runtime.
-  outputFileTracingRoot: path.join(__dirname, '../../'),
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
     typedRoutes: true,
+    // Standalone tracing root (Next 14 keeps this under `experimental`).
+    // Without it, workspace packages like `@cdp/shared` are missing from
+    // the bundle at runtime.
+    outputFileTracingRoot: path.join(__dirname, '../../'),
   },
   transpilePackages: ['@cdp/shared'],
 };

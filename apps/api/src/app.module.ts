@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthModule } from './modules/health/health.module';
 import { SyncModule } from './modules/sync/sync.module';
 
@@ -59,6 +60,7 @@ import { SyncModule } from './modules/sync/sync.module';
     AuthModule,
     CustomersModule,
     OrdersModule,
+    AnalyticsModule,
     HealthModule,
     SyncModule,
   ],

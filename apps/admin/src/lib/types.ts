@@ -66,3 +66,40 @@ export interface SyncStatusRow {
 export interface SyncStatusResponse {
   data: SyncStatusRow[];
 }
+
+export interface KpiBlock {
+  revenue: string;
+  orders: number;
+  aov: string;
+  customers: number;
+  new_customers: number;
+  returning_customers: number;
+  repeat_purchase_rate: number;
+}
+
+export interface KpisResponse {
+  range: { from: string; to: string };
+  previous_range: { from: string; to: string };
+  current: KpiBlock;
+  previous: KpiBlock;
+  delta: {
+    revenue_pct: number | null;
+    orders_pct: number | null;
+    aov_pct: number | null;
+    customers_pct: number | null;
+  };
+}
+
+export interface TopProductRow {
+  sku: string;
+  name: string;
+  units: number;
+  revenue: string;
+  orders: number;
+}
+
+export interface TopProductsResponse {
+  range: { from: string; to: string };
+  order_by: 'units' | 'revenue';
+  data: TopProductRow[];
+}
