@@ -1,0 +1,137 @@
+# Production stack deployed via Dokploy (Hostinger VPS).
+# - Build images locally (or in CI) and push to a registry, OR rely on
+#   Dokploy's `build` mode which builds from the linked Git repo.
+# - Secrets come from Dokploy's encrypted env store, NOT from a local .env.
+# - Cloudflare proxies admin.cdp.example.com → admin:3001 and
+#   api.cdp.example.com → api:3000.
+
+name: cdp
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+      target: api
+    image: cdp-api:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      LOG_LEVEL: info
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+      REDIS_URL: ${REDIS_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
+      APP_URL_API: ${APP_URL_API}
+      APP_URL_ADMIN: ${APP_URL_ADMIN}
+      CORS_ALLOWED_ORIGINS: ${APP_URL_ADMIN}
+      MAGENTO_BASE_URL: ${MAGENTO_BASE_URL}
+      MAGENTO_ADMIN_TOKEN: ${MAGENTO_ADMIN_TOKEN}
+      MAGENTO_HMAC_SECRET: ${MAGENTO_HMAC_SECRET}
+      MAGENTO_RATE_LIMIT_RPS: '4'
+      SENTRY_DSN_API: ${SENTRY_DSN_API}
+      SENTRY_ENVIRONMENT: production
+      DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
+      DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG}
+      FEATURE_2FA_ENFORCED: 'false'
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    expose: ['3000']
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+      target: worker
+    image: cdp-api-worker:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+      REDIS_URL: ${REDIS_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
+      APP_URL_API: ${APP_URL_API}
+      APP_URL_ADMIN: ${APP_URL_ADMIN}
+      CORS_ALLOWED_ORIGINS: ${APP_URL_ADMIN}
+      MAGENTO_BASE_URL: ${MAGENTO_BASE_URL}
+      MAGENTO_ADMIN_TOKEN: ${MAGENTO_ADMIN_TOKEN}
+      MAGENTO_HMAC_SECRET: ${MAGENTO_HMAC_SECRET}
+      MAGENTO_RATE_LIMIT_RPS: '4'
+      SENTRY_DSN_API: ${SENTRY_DSN_API}
+      SENTRY_ENVIRONMENT: production
+      DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
+      DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG}
+      FEATURE_2FA_ENFORCED: 'false'
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  admin:
+    build:
+      context: ../..
+      dockerfile: infra/docker/admin.Dockerfile
+    image: cdp-admin:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${APP_URL_ADMIN}
+      APP_URL_API: http://api:3000
+      SENTRY_DSN_ADMIN: ${SENTRY_DSN_ADMIN}
+      SENTRY_ENVIRONMENT: production
+      DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
+    depends_on:
+      api: { condition: service_healthy }
+    expose: ['3001']
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cdp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-cdp}
+    command: ['postgres', '-c', 'max_connections=200', '-c', 'shared_buffers=512MB']
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-cdp} -d ${POSTGRES_DB:-cdp}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--save',
+        '60 1000',
+        '--maxmemory-policy',
+        'noeviction',
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

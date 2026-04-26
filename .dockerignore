@@ -1,0 +1,42 @@
+# Big folders that the Docker build doesn't need
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+coverage
+**/coverage
+
+# Local env / secrets — Docker images get config via env vars at runtime
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client (rebuilt inside the image)
+packages/db/generated
+
+# Editor / OS noise
+.git
+.gitignore
+.github
+.vscode
+.idea
+.DS_Store
+*.log
+**/*.tsbuildinfo
+
+# Local Claude state
+.claude
+
+# Test / dev only
+test-results
+playwright-report
+playwright/.cache
+
+# Docs that don't ship in the image
+docs
+README.md
+CLAUDE.md
