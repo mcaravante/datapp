@@ -4,9 +4,9 @@
   "private": true,
   "description": "CDP admin dashboard (Next.js 14, App Router).",
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "next build",
-    "start": "next start --port 3001",
+    "dev": "dotenv -e ../../.env -- next dev --port 3001",
+    "build": "dotenv -e ../../.env -- next build",
+    "start": "dotenv -e ../../.env -- next start --port 3001",
     "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },
@@ -20,6 +20,7 @@
     "next-auth": "5.0.0-beta.25",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^2.5.5",
     "zod": "^3.23.8"
   },
@@ -29,6 +30,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
+    "dotenv-cli": "^7.4.4",
     "eslint": "^9.16.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",

@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description: 'Customer Data Platform — admin',
 };
 
+// Admin app is 100% authenticated; nothing benefits from static generation,
+// and Next's prerender chokes on the next-auth import chain in /_error.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{
