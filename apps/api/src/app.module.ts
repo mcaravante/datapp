@@ -12,6 +12,7 @@ import { QueueModule } from './modules/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { HealthModule } from './modules/health/health.module';
 import { SyncModule } from './modules/sync/sync.module';
 
@@ -57,6 +58,7 @@ import { SyncModule } from './modules/sync/sync.module';
     QueueModule,
     AuthModule,
     CustomersModule,
+    OrdersModule,
     HealthModule,
     SyncModule,
   ],
