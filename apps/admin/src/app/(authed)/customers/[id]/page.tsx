@@ -59,6 +59,36 @@ export default async function CustomerDetailPage({
         />
       </Section>
 
+      {customer.rfm && (
+        <section className="rounded-lg border border-neutral-200 bg-white p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            RFM segment
+          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${segmentToneClass(customer.rfm.segment)}`}
+            >
+              {prettySegment(customer.rfm.segment)}
+            </span>
+            <span className="font-mono text-xs text-neutral-500">
+              R{customer.rfm.recency_score} F{customer.rfm.frequency_score} M
+              {customer.rfm.monetary_score}
+            </span>
+            <span className="text-xs text-neutral-400">
+              calculated {formatBuenosAires(customer.rfm.calculated_at)}
+            </span>
+          </div>
+          <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-3">
+            <Field
+              label="Recency (days since last order)"
+              value={String(customer.rfm.recency_days)}
+            />
+            <Field label="Frequency (orders / 365d)" value={String(customer.rfm.frequency)} />
+            <Field label="Monetary (revenue / 365d)" value={`${customer.rfm.monetary} ARS`} />
+          </dl>
+        </section>
+      )}
+
       <Section title="Lifetime metrics">
         <Field label="Orders" value={String(customer.metrics.total_orders)} />
         <Field label="Total spent" value={`${customer.metrics.total_spent} ARS`} />
@@ -157,6 +187,31 @@ function Field({ label, value }: { label: string; value: string }): React.ReactE
       <dd className="mt-0.5 text-sm text-neutral-900">{value}</dd>
     </div>
   );
+}
+
+const SEGMENT_TONE: Record<string, string> = {
+  champions: 'bg-emerald-100 text-emerald-800',
+  loyal: 'bg-emerald-50 text-emerald-700',
+  potential_loyalists: 'bg-sky-50 text-sky-700',
+  new_customers: 'bg-blue-50 text-blue-700',
+  promising: 'bg-indigo-50 text-indigo-700',
+  needing_attention: 'bg-amber-50 text-amber-700',
+  about_to_sleep: 'bg-amber-100 text-amber-800',
+  at_risk: 'bg-orange-100 text-orange-800',
+  cannot_lose_them: 'bg-rose-100 text-rose-800',
+  hibernating: 'bg-neutral-200 text-neutral-700',
+  lost: 'bg-neutral-300 text-neutral-800',
+};
+
+function segmentToneClass(segment: string): string {
+  return SEGMENT_TONE[segment] ?? 'bg-neutral-100 text-neutral-700';
+}
+
+function prettySegment(segment: string): string {
+  return segment
+    .split('_')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(' ');
 }
 
 const FORMATTER = new Intl.DateTimeFormat('es-AR', {

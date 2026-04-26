@@ -7,6 +7,7 @@ import { runBootstrapMagentoStore } from './cli/bootstrap-magento-store';
 import { runSyncCustomersInitial } from './cli/sync-customers-initial';
 import { runSyncOrdersInitial } from './cli/sync-orders-initial';
 import { runCreateAdmin } from './cli/create-admin';
+import { runRfmCompute } from './cli/rfm-compute';
 
 type CliCommand = (app: INestApplicationContext, argv: string[]) => Promise<number>;
 
@@ -14,6 +15,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   'magento-store:bootstrap': runBootstrapMagentoStore,
   'sync:customers:initial': runSyncCustomersInitial,
   'sync:orders:initial': runSyncOrdersInitial,
+  'rfm:compute': runRfmCompute,
   'create-admin': runCreateAdmin,
 };
 

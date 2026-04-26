@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@cdp/db';
 import { PrismaService } from '../../db/prisma.service';
+import { RfmService } from '../rfm/rfm.service';
 import type { ListCustomersQuery } from './dto/list-customers.query';
 
 export interface CustomerListItem {
@@ -50,11 +51,24 @@ export interface CustomerDetail extends CustomerListItem {
     first_order_at: string | null;
     last_order_at: string | null;
   };
+  rfm: {
+    segment: string;
+    recency_days: number;
+    frequency: number;
+    monetary: string;
+    recency_score: number;
+    frequency_score: number;
+    monetary_score: number;
+    calculated_at: string;
+  } | null;
 }
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rfm: RfmService,
+  ) {}
 
   async list(tenantId: string, query: ListCustomersQuery): Promise<CustomerListPage> {
     const where: Prisma.CustomerProfileWhereInput = { tenantId };
@@ -143,6 +157,8 @@ export class CustomersService {
     const sum = aggregate._sum.realRevenue;
     const aov = total > 0 && sum ? sum.div(total) : null;
 
+    const rfm = await this.rfm.forCustomer(tenantId, id);
+
     return {
       id: profile.id,
       magento_customer_id: profile.magentoCustomerId,
@@ -182,6 +198,18 @@ export class CustomersService {
         first_order_at: aggregate._min.placedAt?.toISOString() ?? null,
         last_order_at: aggregate._max.placedAt?.toISOString() ?? null,
       },
+      rfm: rfm
+        ? {
+            segment: rfm.segment,
+            recency_days: rfm.recencyDays,
+            frequency: rfm.frequency,
+            monetary: rfm.monetary,
+            recency_score: rfm.recencyScore,
+            frequency_score: rfm.frequencyScore,
+            monetary_score: rfm.monetaryScore,
+            calculated_at: rfm.calculatedAt,
+          }
+        : null,
     };
   }
 }

@@ -51,6 +51,16 @@ export interface CustomerDetail extends CustomerListItem {
     first_order_at: string | null;
     last_order_at: string | null;
   };
+  rfm: {
+    segment: string;
+    recency_days: number;
+    frequency: number;
+    monetary: string;
+    recency_score: number;
+    frequency_score: number;
+    monetary_score: number;
+    calculated_at: string;
+  } | null;
 }
 
 export interface SyncStatusRow {
