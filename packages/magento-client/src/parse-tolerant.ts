@@ -1,12 +1,12 @@
 import type { z } from 'zod';
 
 /**
- * Pull `items[]` out of a Magento `*/search` response and parse them
- * one-by-one with the given schema. Items that fail validation are
- * skipped; their index + error message land on `console.warn` and the
- * skipped count is returned.
+ * Pull `items[]` out of a Magento search response (`/rest/V1/customers/search`,
+ * `/rest/V1/orders`, etc.) and parse them one-by-one with the given schema.
+ * Items that fail validation are skipped; their index + error message land
+ * on `console.warn` and the skipped count is returned.
  *
- * Used by every resource's `iterate()` so a single bad row in a 86k
+ * Used by every resource's `iterate()` so a single bad row in an 86k
  * customer catalogue doesn't kill the whole sync. Strict callers who
  * actually want to fail on bad data can keep using `search()` directly.
  */
