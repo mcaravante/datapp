@@ -144,3 +144,66 @@ export interface GeoResponse {
   data: GeoRegionRow[];
   unmatched: GeoUnmatchedRow[];
 }
+
+export interface OrderListItem {
+  id: string;
+  magento_order_number: string;
+  customer_id: string | null;
+  customer_email: string;
+  customer_name: string | null;
+  status: string;
+  state: string;
+  currency_code: string;
+  grand_total: string;
+  real_revenue: string | null;
+  item_count: number;
+  placed_at: string;
+}
+
+export interface OrderListPage {
+  data: OrderListItem[];
+  next_cursor: string | null;
+}
+
+export interface OrderItemView {
+  id: string;
+  sku: string;
+  name: string;
+  qty_ordered: string;
+  qty_invoiced: string;
+  qty_refunded: string;
+  qty_shipped: string;
+  price: string;
+  discount_amount: string;
+  tax_amount: string;
+  row_total: string;
+}
+
+export interface OrderHistoryEntry {
+  id: string;
+  status: string;
+  state: string | null;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface OrderDetail extends OrderListItem {
+  magento_order_id: string;
+  subtotal: string;
+  total_tax: string;
+  shipping_amount: string;
+  discount_amount: string;
+  total_invoiced: string;
+  total_refunded: string;
+  total_paid: string;
+  total_shipped: string;
+  payment_method: string | null;
+  shipping_method: string | null;
+  sku_count: number;
+  billing_address: Record<string, unknown>;
+  shipping_address: Record<string, unknown>;
+  items: OrderItemView[];
+  history: OrderHistoryEntry[];
+  attributes: Record<string, unknown>;
+  magento_updated_at: string;
+}

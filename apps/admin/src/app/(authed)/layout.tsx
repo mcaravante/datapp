@@ -15,11 +15,11 @@ export default async function AuthedLayout({
   if (!session) redirect('/login');
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col">
         <Topbar user={{ name: session.user?.name, email: session.user?.email }} />
-        <div className="flex-1 overflow-auto bg-neutral-50">{children}</div>
+        <main className="flex-1 overflow-auto bg-background">{children}</main>
       </div>
     </div>
   );

@@ -35,6 +35,28 @@ export function formatCurrencyArs(value: string | number): string {
   return CURRENCY_AR.format(n);
 }
 
+const currencyCache = new Map<string, Intl.NumberFormat>();
+
+export function formatCurrency(value: string | number, currencyCode: string): string {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(n)) return '—';
+  let fmt = currencyCache.get(currencyCode);
+  if (!fmt) {
+    try {
+      fmt = new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: currencyCode,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+    } catch {
+      fmt = CURRENCY_AR;
+    }
+    currencyCache.set(currencyCode, fmt);
+  }
+  return fmt.format(n);
+}
+
 export function formatNumber(value: number): string {
   if (!Number.isFinite(value)) return '—';
   return NUMBER_AR.format(value);

@@ -22,8 +22,8 @@ const PRESETS = [
 
 function rangeFromPreset(presetId: string): { from: string; to: string } {
   const to = new Date();
-  const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[1]!;
-  if (preset.days === null) {
+  const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[1];
+  if (!preset || preset.days === null) {
     return { from: '2010-01-01T00:00:00.000Z', to: to.toISOString() };
   }
   const from = new Date(to.getTime() - preset.days * 24 * 60 * 60 * 1000);
@@ -57,16 +57,19 @@ export default async function TopProductsPage({
     return `/products?${next.toString()}`;
   };
 
+  const maxRevenue = result.data.reduce((max, row) => Math.max(max, Number(row.revenue)), 0);
+  const maxUnits = result.data.reduce((max, row) => Math.max(max, row.units), 0);
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Top products</h1>
-          <p className="mt-1 text-sm text-neutral-500">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Top products</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Aggregated by SKU. Configurable parents are filtered out automatically.
           </p>
         </div>
-        <nav className="flex gap-1 rounded-md border border-neutral-200 bg-white p-1 text-xs">
+        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
           {PRESETS.map((p) => {
             const active = windowParam === p.id;
             return (
@@ -75,8 +78,8 @@ export default async function TopProductsPage({
                 href={buildHref({ window: p.id })}
                 className={
                   active
-                    ? 'rounded bg-neutral-900 px-3 py-1.5 font-medium text-white'
-                    : 'rounded px-3 py-1.5 text-neutral-700 transition hover:bg-neutral-100'
+                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
+                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
                 }
               >
                 {p.label}
@@ -87,13 +90,13 @@ export default async function TopProductsPage({
       </div>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-neutral-500">Sort by:</span>
+        <span className="text-muted-foreground">Sort by:</span>
         <Link
           href={buildHref({ order_by: 'revenue' })}
           className={
             orderBy === 'revenue'
-              ? 'rounded-md bg-neutral-900 px-3 py-1 text-xs text-white'
-              : 'rounded-md border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-100'
+              ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
+              : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
           }
         >
           Revenue
@@ -102,48 +105,69 @@ export default async function TopProductsPage({
           href={buildHref({ order_by: 'units' })}
           className={
             orderBy === 'units'
-              ? 'rounded-md bg-neutral-900 px-3 py-1 text-xs text-white'
-              : 'rounded-md border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-700 transition hover:bg-neutral-100'
+              ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
+              : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
           }
         >
           Units
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+          <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="w-12 px-4 py-3 text-right font-medium">#</th>
-              <th className="px-4 py-3 font-medium">Product</th>
-              <th className="px-4 py-3 font-medium">SKU</th>
-              <th className="px-4 py-3 text-right font-medium">Units</th>
-              <th className="px-4 py-3 text-right font-medium">Revenue</th>
-              <th className="px-4 py-3 text-right font-medium">Orders</th>
+              <th className="w-12 px-4 py-3 text-right font-semibold">#</th>
+              <th className="px-4 py-3 font-semibold">Product</th>
+              <th className="px-4 py-3 font-semibold">SKU</th>
+              <th className="px-4 py-3 text-right font-semibold">Units</th>
+              <th className="px-4 py-3 text-right font-semibold">Revenue</th>
+              <th className="px-4 py-3 text-right font-semibold">Orders</th>
             </tr>
           </thead>
           <tbody>
             {result.data.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-neutral-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                   No orders in this window.
                 </td>
               </tr>
             )}
-            {result.data.map((row, i) => (
-              <tr key={row.sku} className="border-b border-neutral-100 last:border-0">
-                <td className="px-4 py-3 text-right font-mono text-xs text-neutral-400">{i + 1}</td>
-                <td className="px-4 py-3 text-neutral-900">{row.name}</td>
-                <td className="px-4 py-3 font-mono text-xs text-neutral-500">{row.sku}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
-                  {formatNumber(row.units)}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums font-medium text-neutral-900">
-                  {formatCurrencyArs(row.revenue)}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-neutral-500">{row.orders}</td>
-              </tr>
-            ))}
+            {result.data.map((row, i) => {
+              const max = orderBy === 'revenue' ? maxRevenue : maxUnits;
+              const value = orderBy === 'revenue' ? Number(row.revenue) : row.units;
+              const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+              return (
+                <tr
+                  key={row.sku}
+                  className="relative border-b border-border last:border-0 transition hover:bg-muted/30"
+                >
+                  <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
+                    {i + 1}
+                  </td>
+                  <td className="px-4 py-3 text-foreground">{row.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.sku}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
+                    {formatNumber(row.units)}
+                  </td>
+                  <td className="relative px-4 py-3 text-right">
+                    <div className="relative inline-flex items-center justify-end gap-2">
+                      <span className="tabular-nums font-medium text-foreground">
+                        {formatCurrencyArs(row.revenue)}
+                      </span>
+                    </div>
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-1 right-0 hidden rounded-l bg-primary/10 lg:block"
+                      style={{ width: `${pct.toFixed(1)}%`, maxWidth: '60%' }}
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                    {row.orders}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
