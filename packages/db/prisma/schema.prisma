@@ -79,6 +79,7 @@ enum SyncEventType {
   customer_created        @map("customer.created")
   customer_updated        @map("customer.updated")
   customer_deleted        @map("customer.deleted")
+  customer_logged_in      @map("customer.logged_in")
   order_created           @map("order.created")
   order_updated           @map("order.updated")
   order_invoiced          @map("order.invoiced")
@@ -88,6 +89,8 @@ enum SyncEventType {
   product_updated         @map("product.updated")
   newsletter_subscribed   @map("newsletter.subscribed")
   newsletter_unsubscribed @map("newsletter.unsubscribed")
+  newsletter_deleted      @map("newsletter.deleted")
+  cart_item_added         @map("cart.item_added")
 }
 
 enum SubscriptionStatus {

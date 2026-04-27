@@ -12,6 +12,7 @@ export const IngestEventTypeSchema = z.enum([
   'customer.created',
   'customer.updated',
   'customer.deleted',
+  'customer.logged_in',
   'order.created',
   'order.updated',
   'order.invoiced',
@@ -21,6 +22,8 @@ export const IngestEventTypeSchema = z.enum([
   'product.updated',
   'newsletter.subscribed',
   'newsletter.unsubscribed',
+  'newsletter.deleted',
+  'cart.item_added',
 ]);
 
 export type IngestEventType = z.infer<typeof IngestEventTypeSchema>;

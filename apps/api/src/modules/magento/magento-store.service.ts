@@ -31,6 +31,28 @@ export class MagentoStoreService {
       this.logger.debug(`Magento store not found or inactive: ${tenantId}/${name}`);
       throw new NotFoundException(`Magento store '${name}' not found for tenant`);
     }
+    return this.toResolved(store);
+  }
+
+  async findById(id: string): Promise<ResolvedMagentoStore> {
+    const store = await this.prisma.magentoStore.findUnique({ where: { id } });
+    if (!store || !store.isActive) {
+      this.logger.debug(`Magento store not found or inactive: id=${id}`);
+      throw new NotFoundException(`Magento store ${id} not found or inactive`);
+    }
+    return this.toResolved(store);
+  }
+
+  private toResolved(store: {
+    id: string;
+    tenantId: string;
+    name: string;
+    baseUrl: string;
+    hmacSecretEncrypted: Uint8Array;
+    adminTokenEncrypted: Uint8Array;
+    currencyCode: string;
+    defaultCountry: string;
+  }): ResolvedMagentoStore {
     return {
       id: store.id,
       tenantId: store.tenantId,
