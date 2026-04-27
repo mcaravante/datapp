@@ -10,6 +10,7 @@ import {
   type TopProductsQuery,
   type TopProductsResponse,
 } from './dto/top-products.dto';
+import { GeoQuerySchema, type GeoQuery, type GeoResponse } from './dto/geo.dto';
 import { AnalyticsService, type KpisResponse } from './analytics.service';
 
 @Controller({ path: 'admin/analytics', version: '1' })
@@ -33,6 +34,14 @@ export class AnalyticsController {
     @Query(new ZodValidationPipe(TopProductsQuerySchema)) query: TopProductsQuery,
   ): Promise<TopProductsResponse> {
     return this.analytics.topProducts(this.tenantOrThrow(user), query);
+  }
+
+  @Get('geo')
+  async geo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(GeoQuerySchema)) query: GeoQuery,
+  ): Promise<GeoResponse> {
+    return this.analytics.geo(this.tenantOrThrow(user), query);
   }
 
   private tenantOrThrow(user: AuthenticatedUser): string {

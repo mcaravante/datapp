@@ -113,3 +113,34 @@ export interface TopProductsResponse {
   order_by: 'units' | 'revenue';
   data: TopProductRow[];
 }
+
+export interface GeoRegionRow {
+  region_id: number;
+  region_code: string;
+  region_name: string;
+  customers: number;
+  buyers: number;
+  orders: number;
+  revenue: string;
+}
+
+export interface GeoUnmatchedRow {
+  region_raw: string | null;
+  city_raw: string | null;
+  postal_code: string | null;
+  occurrences: number;
+  last_seen_at: string;
+}
+
+export interface GeoResponse {
+  range: { from: string; to: string };
+  country: string;
+  totals: {
+    customers: number;
+    buyers: number;
+    orders: number;
+    revenue: string;
+  };
+  data: GeoRegionRow[];
+  unmatched: GeoUnmatchedRow[];
+}
