@@ -6,6 +6,7 @@ import {
   type MagentoSearchResult,
 } from './schemas';
 import { buildSearchCriteriaParams, type SearchCriteria } from './search-criteria';
+import { parseSearchPageTolerant } from './parse-tolerant';
 
 export class MagentoCustomersResource {
   constructor(private readonly http: MagentoHttpClient) {}
@@ -16,7 +17,7 @@ export class MagentoCustomersResource {
     return MagentoCustomerSchema.parse(raw);
   }
 
-  /** `GET /rest/V1/customers/search?searchCriteria...` */
+  /** `GET /rest/V1/customers/search?searchCriteria...` (strict — every item must validate). */
   async search(criteria: SearchCriteria): Promise<MagentoSearchResult<MagentoCustomer>> {
     const params = buildSearchCriteriaParams(criteria);
     const raw = await this.http.getJson<unknown>('/rest/V1/customers/search', params);
@@ -26,8 +27,11 @@ export class MagentoCustomersResource {
   }
 
   /**
-   * Iterate every customer matching the given criteria, fetching one page
-   * at a time. Resets `currentPage` automatically.
+   * Iterate every customer matching the given criteria. Tolerant mode:
+   * a single malformed row logs a warning and is skipped instead of
+   * killing the whole sync. End-of-pagination is detected by the raw
+   * item count (not the validated one) so we don't loop forever on a
+   * page where every row was bad.
    */
   async *iterate(
     baseCriteria: Omit<SearchCriteria, 'currentPage'>,
@@ -35,9 +39,11 @@ export class MagentoCustomersResource {
     const pageSize = baseCriteria.pageSize ?? 100;
     let page = 1;
     while (true) {
-      const result = await this.search({ ...baseCriteria, pageSize, currentPage: page });
-      for (const customer of result.items) yield customer;
-      if (result.items.length < pageSize) return;
+      const params = buildSearchCriteriaParams({ ...baseCriteria, pageSize, currentPage: page });
+      const raw = await this.http.getJson<unknown>('/rest/V1/customers/search', params);
+      const parsed = parseSearchPageTolerant(raw, MagentoCustomerSchema, 'customers.iterate');
+      for (const customer of parsed.items) yield customer;
+      if (parsed.rawCount < pageSize) return;
       page += 1;
     }
   }
