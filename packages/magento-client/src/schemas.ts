@@ -55,7 +55,10 @@ export type MagentoAddress = z.infer<typeof MagentoAddressSchema>;
 export const MagentoCustomerSchema = z
   .object({
     id: z.number(),
-    email: z.string().email(),
+    // Loose: Magento has historical rows with non-RFC emails (whitespace,
+    // legacy formats, etc). Accept any non-empty string here; the mapper
+    // lowercases and hashes whatever Magento gave us.
+    email: z.string().min(1),
     firstname: z.string().nullable().optional(),
     lastname: z.string().nullable().optional(),
     middlename: z.string().nullable().optional(),
