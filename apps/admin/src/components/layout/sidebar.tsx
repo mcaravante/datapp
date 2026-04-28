@@ -36,6 +36,12 @@ const NAV: readonly NavItem[] = [
     icon: MapIcon,
     match: (p) => p.startsWith('/regions'),
   },
+  {
+    href: '/insights',
+    label: 'Insights',
+    icon: ActivityIcon,
+    match: (p) => p.startsWith('/insights'),
+  },
   { href: '/sync', label: 'Sync', icon: RefreshIcon, match: (p) => p.startsWith('/sync') },
 ];
 
@@ -198,6 +204,23 @@ function MapIcon({ className }: { className?: string }): React.ReactElement {
       <path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z" />
       <path d="M9 3v15" />
       <path d="M15 6v15" />
+    </svg>
+  );
+}
+
+function ActivityIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
     </svg>
   );
 }

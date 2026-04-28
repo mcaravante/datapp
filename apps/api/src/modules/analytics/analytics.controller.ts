@@ -11,6 +11,8 @@ import {
   type TopProductsResponse,
 } from './dto/top-products.dto';
 import { GeoQuerySchema, type GeoQuery, type GeoResponse } from './dto/geo.dto';
+import { TimingQuerySchema, type TimingQuery, type TimingResponse } from './dto/timing.dto';
+import { CohortsQuerySchema, type CohortsQuery, type CohortsResponse } from './dto/cohorts.dto';
 import { AnalyticsService, type KpisResponse } from './analytics.service';
 
 @Controller({ path: 'admin/analytics', version: '1' })
@@ -42,6 +44,22 @@ export class AnalyticsController {
     @Query(new ZodValidationPipe(GeoQuerySchema)) query: GeoQuery,
   ): Promise<GeoResponse> {
     return this.analytics.geo(this.tenantOrThrow(user), query);
+  }
+
+  @Get('timing')
+  async timing(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(TimingQuerySchema)) query: TimingQuery,
+  ): Promise<TimingResponse> {
+    return this.analytics.timing(this.tenantOrThrow(user), query);
+  }
+
+  @Get('cohorts')
+  async cohorts(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(CohortsQuerySchema)) query: CohortsQuery,
+  ): Promise<CohortsResponse> {
+    return this.analytics.cohorts(this.tenantOrThrow(user), query);
   }
 
   private tenantOrThrow(user: AuthenticatedUser): string {

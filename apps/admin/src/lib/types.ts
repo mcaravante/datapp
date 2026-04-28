@@ -187,6 +187,44 @@ export interface OrderHistoryEntry {
   created_at: string;
 }
 
+export interface HeatmapCell {
+  dow: number;
+  hour: number;
+  orders: number;
+  revenue: string;
+}
+
+export interface CadenceBucket {
+  days_min: number;
+  days_max: number | null;
+  label: string;
+  count: number;
+  percent: number;
+}
+
+export interface TimingResponse {
+  range: { from: string; to: string };
+  timezone: string;
+  heatmap: HeatmapCell[];
+  cadence: {
+    repeat_customers: number;
+    median_days: number | null;
+    buckets: CadenceBucket[];
+  };
+}
+
+export interface CohortRow {
+  cohort_month: string;
+  size: number;
+  retained: (number | null)[];
+}
+
+export interface CohortsResponse {
+  timezone: string;
+  horizon: number;
+  cohorts: CohortRow[];
+}
+
 export interface OrderDetail extends OrderListItem {
   magento_order_id: string;
   subtotal: string;
