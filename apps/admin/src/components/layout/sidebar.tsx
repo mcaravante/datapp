@@ -19,6 +19,12 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/customers'),
   },
   {
+    href: '/segments',
+    label: 'Segments',
+    icon: TagIcon,
+    match: (p) => p.startsWith('/segments'),
+  },
+  {
     href: '/orders',
     label: 'Orders',
     icon: ReceiptIcon,
@@ -146,6 +152,24 @@ function UsersIcon({ className }: { className?: string }): React.ReactElement {
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function TagIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20.59 13.41 13 21a2 2 0 0 1-2.83 0L3 13.83V4a1 1 0 0 1 1-1h9.83l6.76 6.76a2 2 0 0 1 0 2.83z" />
+      <circle cx="7.5" cy="7.5" r="1.5" />
     </svg>
   );
 }

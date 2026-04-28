@@ -37,6 +37,12 @@ export default async function CustomersListPage({
     exportParams.toString() ? `?${exportParams.toString()}` : ''
   }`;
 
+  const segmentParams = new URLSearchParams();
+  if (q) segmentParams.set('q', q);
+  const segmentHref = `/segments/new${
+    segmentParams.toString() ? `?${segmentParams.toString()}` : ''
+  }`;
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-8">
       <div className="flex items-baseline justify-between">
@@ -44,7 +50,16 @@ export default async function CustomersListPage({
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Customers</h1>
           <p className="mt-1 text-sm text-muted-foreground">{page.data.length} on this page.</p>
         </div>
-        <ExportButton href={exportHref} />
+        <div className="flex items-center gap-2">
+          <Link
+            href={segmentHref}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-soft transition hover:bg-muted"
+          >
+            <BookmarkIcon className="h-3.5 w-3.5" />
+            Save as segment
+          </Link>
+          <ExportButton href={exportHref} />
+        </div>
       </div>
 
       <form className="flex gap-2" action="/customers">
@@ -136,6 +151,23 @@ export default async function CustomersListPage({
         )}
       </div>
     </div>
+  );
+}
+
+function BookmarkIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
   );
 }
 
