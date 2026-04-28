@@ -185,6 +185,35 @@ export interface CouponsResponse {
   data: CouponRow[];
 }
 
+export interface AbandonedCartRow {
+  cart_id: number;
+  customer_id: string | null;
+  magento_customer_id: number | null;
+  email: string | null;
+  customer_name: string | null;
+  is_guest: boolean;
+  items_count: number;
+  items_qty: number;
+  subtotal: string;
+  grand_total: string;
+  currency_code: string | null;
+  created_at: string;
+  updated_at: string;
+  minutes_idle: number;
+}
+
+export interface AbandonedCartsResponse {
+  generated_at: string;
+  threshold_minutes: number;
+  totals: {
+    carts: number;
+    items_qty: number;
+    grand_total: string;
+    recoverable_customers: number;
+  };
+  data: AbandonedCartRow[];
+}
+
 export interface OrderListPage {
   data: OrderListItem[];
   next_cursor: string | null;

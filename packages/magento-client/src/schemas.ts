@@ -236,6 +236,55 @@ export interface MagentoCategory {
   [key: string]: unknown;
 }
 
+/**
+ * Quote (cart) — Magento's `Magento\Quote\Api\Data\CartInterface`.
+ * Schema is conservative: we model the fields the abandoned-cart UI
+ * actually consumes; everything else passes through.
+ */
+const MagentoCartCustomerSchema = z
+  .object({
+    id: z.number().nullable().optional(),
+    email: z.string().nullable().optional(),
+    firstname: z.string().nullable().optional(),
+    lastname: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const MagentoCartSchema = z
+  .object({
+    id: z.number(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    is_active: z.boolean().optional(),
+    is_virtual: z.boolean().optional(),
+    items_count: z.number(),
+    items_qty: z.number(),
+    // Magento returns customer info either as a nested object (registered
+    // users) or scattered as top-level customer_email / customer_firstname
+    // (guest checkouts that started typing). Tolerate both shapes.
+    customer: MagentoCartCustomerSchema.optional(),
+    customer_email: z.string().nullable().optional(),
+    customer_firstname: z.string().nullable().optional(),
+    customer_lastname: z.string().nullable().optional(),
+    customer_is_guest: z.union([z.boolean(), z.number()]).optional(),
+    subtotal: z.number().optional(),
+    grand_total: z.number().optional(),
+    base_grand_total: z.number().optional(),
+    subtotal_with_discount: z.number().optional(),
+    currency: z
+      .object({
+        global_currency_code: z.string().optional(),
+        store_currency_code: z.string().optional(),
+        quote_currency_code: z.string().optional(),
+        base_currency_code: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    store_id: z.number().optional(),
+  })
+  .passthrough();
+export type MagentoCart = z.infer<typeof MagentoCartSchema>;
+
 export const MagentoSearchResultSchema = <T extends z.ZodTypeAny>(item: T) =>
   z
     .object({

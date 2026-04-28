@@ -34,6 +34,22 @@ export class MagentoStoreService {
     return this.toResolved(store);
   }
 
+  /**
+   * First active store for the tenant. Phase 1 has exactly one store
+   * per tenant; once that changes the caller will need to pass a
+   * specific name or id.
+   */
+  async findFirstByTenant(tenantId: string): Promise<ResolvedMagentoStore> {
+    const store = await this.prisma.magentoStore.findFirst({
+      where: { tenantId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!store) {
+      throw new NotFoundException(`No active Magento store found for tenant ${tenantId}`);
+    }
+    return this.toResolved(store);
+  }
+
   async findById(id: string): Promise<ResolvedMagentoStore> {
     const store = await this.prisma.magentoStore.findUnique({ where: { id } });
     if (!store || !store.isActive) {

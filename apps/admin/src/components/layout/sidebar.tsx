@@ -31,6 +31,12 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/orders'),
   },
   {
+    href: '/carts',
+    label: 'Abandoned carts',
+    icon: CartIcon,
+    match: (p) => p.startsWith('/carts'),
+  },
+  {
     href: '/products',
     label: 'Top products',
     icon: BoxIcon,
@@ -215,6 +221,25 @@ function BoxIcon({ className }: { className?: string }): React.ReactElement {
       <path d="M21 16V8a2 2 0 0 0-1-1.73L13 2.27a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4.04a2 2 0 0 0 2 0l7-4.04A2 2 0 0 0 21 16z" />
       <path d="m3.3 7 8.7 5 8.7-5" />
       <path d="M12 22V12" />
+    </svg>
+  );
+}
+
+function CartIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="20" r="1.4" />
+      <circle cx="18" cy="20" r="1.4" />
+      <path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6" />
     </svg>
   );
 }

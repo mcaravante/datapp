@@ -13,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { CartsModule } from './modules/carts/carts.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { SegmentsModule } from './modules/segments/segments.module';
 import { RfmModule } from './modules/rfm/rfm.module';
@@ -62,6 +63,7 @@ import { SyncModule } from './modules/sync/sync.module';
     AuthModule,
     CustomersModule,
     OrdersModule,
+    CartsModule,
     AnalyticsModule,
     SegmentsModule,
     RfmModule,
