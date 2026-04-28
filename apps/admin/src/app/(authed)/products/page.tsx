@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { ExportButton } from '@/components/export-button';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { TopProductsResponse } from '@/lib/types';
 
@@ -69,6 +70,10 @@ export default async function TopProductsPage({
             Aggregated by SKU. Configurable parents are filtered out automatically.
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            href={`/api/export/products?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&order_by=${orderBy}&limit=50000`}
+          />
         <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
           {PRESETS.map((p) => {
             const active = windowParam === p.id;
@@ -87,6 +92,7 @@ export default async function TopProductsPage({
             );
           })}
         </nav>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 text-sm">
@@ -145,8 +151,22 @@ export default async function TopProductsPage({
                   <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
                     {i + 1}
                   </td>
-                  <td className="px-4 py-3 text-foreground">{row.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.sku}</td>
+                  <td className="px-4 py-3 text-foreground">
+                    <Link
+                      href={`/products/${encodeURIComponent(row.sku)}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {row.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                    <Link
+                      href={`/products/${encodeURIComponent(row.sku)}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {row.sku}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
                     {formatNumber(row.units)}
                   </td>

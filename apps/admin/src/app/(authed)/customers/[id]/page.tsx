@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ApiError, apiFetch } from '@/lib/api-client';
-import { formatCurrency, formatNumber } from '@/lib/format';
-import type { CustomerDetail, OrderListPage } from '@/lib/types';
+import { formatCurrency, formatCurrencyArs, formatNumber } from '@/lib/format';
+import { GdprActions } from '@/components/gdpr-actions';
+import type { CustomerDetail, CustomerProductsResponse, OrderListPage } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Customer' };
 
@@ -25,12 +26,13 @@ export default async function CustomerDetailPage({
 
   const fullName = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—';
 
-  // Recent orders timeline. Independent fetch so a slow timeline doesn't
-  // block the rest of the customer 360.
+  // Recent orders + lifetime SKU breakdown. Both independent of the
+  // headline customer fetch so we don't gate the page on either.
   const ordersParams = new URLSearchParams({ customer_id: id, limit: '10' });
-  const orders = await apiFetch<OrderListPage>(
-    `/v1/admin/orders?${ordersParams.toString()}`,
-  ).catch(() => null);
+  const [orders, products] = await Promise.all([
+    apiFetch<OrderListPage>(`/v1/admin/orders?${ordersParams.toString()}`).catch(() => null),
+    apiFetch<CustomerProductsResponse>(`/v1/admin/customers/${id}/products`).catch(() => null),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
@@ -180,6 +182,61 @@ export default async function CustomerDetailPage({
         </section>
       )}
 
+      {products && products.data.length > 0 && (
+        <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
+          <div className="border-b border-border bg-muted/30 px-5 py-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Products purchased ({products.data.length})
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Lifetime SKUs aggregated from order items.
+            </p>
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2 font-semibold">SKU</th>
+                <th className="px-4 py-2 font-semibold">Product</th>
+                <th className="px-4 py-2 text-right font-semibold">Units</th>
+                <th className="px-4 py-2 text-right font-semibold">Orders</th>
+                <th className="px-4 py-2 text-right font-semibold">Revenue</th>
+                <th className="px-4 py-2 font-semibold">Last bought</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.data.map((p) => (
+                <tr
+                  key={p.sku}
+                  className="border-b border-border last:border-0 transition hover:bg-muted/30"
+                >
+                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                    <Link
+                      href={`/products/${encodeURIComponent(p.sku)}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {p.sku}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-foreground">{p.name}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-foreground/80">
+                    {formatNumber(Number(p.units))}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                    {formatNumber(p.orders)}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums font-medium text-foreground">
+                    {formatCurrencyArs(p.revenue)}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">
+                    {formatBuenosAires(p.last_purchased_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       <Section title={`Addresses (${customer.addresses.length})`}>
         {customer.addresses.length === 0 ? (
           <p className="col-span-full text-sm text-muted-foreground">
@@ -225,6 +282,8 @@ export default async function CustomerDetailPage({
           ))}
         </Section>
       )}
+
+      <GdprActions customerId={customer.id} customerEmail={customer.email} />
     </div>
   );
 }

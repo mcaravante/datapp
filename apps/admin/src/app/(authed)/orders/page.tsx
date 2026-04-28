@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { ExportButton } from '@/components/export-button';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
 import type { OrderListPage } from '@/lib/types';
 
@@ -95,6 +96,13 @@ export default async function OrdersListPage({
   const activeStatus =
     typeof statusFilter === 'string' ? statusFilter : statusFilter === null ? 'all' : 'all';
 
+  const exportQs = new URLSearchParams();
+  if (q) exportQs.set('q', q);
+  if (typeof statusFilter === 'string') exportQs.set('status', statusFilter);
+  if (range.from) exportQs.set('from', range.from);
+  if (range.to) exportQs.set('to', range.to);
+  const exportHref = `/api/export/orders${exportQs.toString() ? `?${exportQs.toString()}` : ''}`;
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
@@ -104,6 +112,8 @@ export default async function OrdersListPage({
             {page.data.length} on this page · sorted by placed_at desc.
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <ExportButton href={exportHref} />
         <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
           {PRESETS.map((p) => {
             const active = windowParam === p.id;
@@ -122,6 +132,7 @@ export default async function OrdersListPage({
             );
           })}
         </nav>
+        </div>
       </div>
 
       <form className="flex flex-wrap items-center gap-2" action="/orders">

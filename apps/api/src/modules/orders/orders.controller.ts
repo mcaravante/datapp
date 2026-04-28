@@ -2,16 +2,20 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ZodValidationPipe } from 'nestjs-zod';
+import type { Response } from 'express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtGuard } from '../auth/jwt.guard';
 import type { AuthenticatedUser } from '../auth/types';
+import { csvFilename, toCsv } from '../../lib/csv';
 import { OrdersService } from './orders.service';
 import type { OrderDetail, OrderListPage } from './orders.service';
 import { ListOrdersQuerySchema } from './dto/list-orders.query';
@@ -30,6 +34,19 @@ export class OrdersController {
     @Query(new ZodValidationPipe(ListOrdersQuerySchema)) query: ListOrdersQuery,
   ): Promise<OrderListPage> {
     return this.orders.list(this.tenantOrThrow(user), query);
+  }
+
+  @Get('export.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportCsv(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(ListOrdersQuerySchema)) query: ListOrdersQuery,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const tenantId = this.tenantOrThrow(user);
+    const { headers, rows } = await this.orders.exportRows(tenantId, query);
+    res.setHeader('Content-Disposition', `attachment; filename="${csvFilename('orders')}"`);
+    return toCsv(headers, rows);
   }
 
   @Get(':id')

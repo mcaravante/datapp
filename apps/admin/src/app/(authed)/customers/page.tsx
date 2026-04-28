@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { ExportButton } from '@/components/export-button';
 import type { CustomerListPage } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Customers' };
@@ -30,6 +31,12 @@ export default async function CustomersListPage({
     return qs ? `/customers?${qs}` : '/customers';
   };
 
+  const exportParams = new URLSearchParams();
+  if (q) exportParams.set('q', q);
+  const exportHref = `/api/export/customers${
+    exportParams.toString() ? `?${exportParams.toString()}` : ''
+  }`;
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-8">
       <div className="flex items-baseline justify-between">
@@ -37,6 +44,7 @@ export default async function CustomersListPage({
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Customers</h1>
           <p className="mt-1 text-sm text-muted-foreground">{page.data.length} on this page.</p>
         </div>
+        <ExportButton href={exportHref} />
       </div>
 
       <form className="flex gap-2" action="/customers">

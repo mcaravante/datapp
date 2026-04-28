@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { ExportButton } from '@/components/export-button';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { GeoResponse } from '@/lib/types';
 
@@ -49,6 +50,10 @@ export default async function RegionsPage({
             (independent of date range); buyers / orders / revenue are window-bound.
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            href={`/api/export/regions?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&country=AR`}
+          />
         <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
           {PRESETS.map((p) => {
             const active = windowParam === p.id;
@@ -67,6 +72,7 @@ export default async function RegionsPage({
             );
           })}
         </nav>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">

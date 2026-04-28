@@ -225,6 +225,38 @@ export interface CohortsResponse {
   cohorts: CohortRow[];
 }
 
+export interface CustomerProductRow {
+  sku: string;
+  name: string;
+  product_id: string | null;
+  units: string;
+  revenue: string;
+  orders: number;
+  first_purchased_at: string;
+  last_purchased_at: string;
+}
+
+export interface CustomerProductsResponse {
+  data: CustomerProductRow[];
+}
+
+export interface ProductAffinityItem {
+  sku: string;
+  name: string;
+  co_orders: number;
+  total_orders: number;
+  confidence: number;
+  lift: number;
+}
+
+export interface ProductAffinityResponse {
+  sku: string;
+  name: string | null;
+  focus_orders: number;
+  total_orders: number;
+  data: ProductAffinityItem[];
+}
+
 export interface OrderDetail extends OrderListItem {
   magento_order_id: string;
   subtotal: string;

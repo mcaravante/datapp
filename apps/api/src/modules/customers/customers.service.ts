@@ -20,6 +20,21 @@ export interface CustomerListPage {
   next_cursor: string | null;
 }
 
+export interface CustomerProductRow {
+  sku: string;
+  name: string;
+  product_id: string | null;
+  units: string; // Decimal as string (qty_ordered can be fractional)
+  revenue: string; // Decimal as string
+  orders: number;
+  first_purchased_at: string;
+  last_purchased_at: string;
+}
+
+export interface CustomerProductsResponse {
+  data: CustomerProductRow[];
+}
+
 export interface CustomerDetail extends CustomerListItem {
   phone: string | null;
   dob: string | null;
@@ -69,6 +84,77 @@ export class CustomersService {
     private readonly prisma: PrismaService,
     private readonly rfm: RfmService,
   ) {}
+
+  /**
+   * CSV-shaped export of all customers matching the same filters as
+   * `list()`, but without cursor pagination. Capped to keep memory and
+   * download size reasonable.
+   */
+  async exportRows(
+    tenantId: string,
+    query: Omit<ListCustomersQuery, 'cursor' | 'limit'>,
+    cap = 50_000,
+  ): Promise<{ headers: string[]; rows: unknown[][] }> {
+    const where: Prisma.CustomerProfileWhereInput = { tenantId };
+    if (query.q) {
+      where.OR = [
+        { email: { contains: query.q, mode: 'insensitive' } },
+        { firstName: { contains: query.q, mode: 'insensitive' } },
+        { lastName: { contains: query.q, mode: 'insensitive' } },
+      ];
+    }
+    if (query.region_id !== undefined && query.region_id.length > 0) {
+      where.addresses = { some: { regionId: { in: query.region_id } } };
+    }
+    if (query.customer_group !== undefined) {
+      where.customerGroup = query.customer_group;
+    }
+
+    const rows = await this.prisma.customerProfile.findMany({
+      where,
+      orderBy: [{ magentoUpdatedAt: 'desc' }, { id: 'desc' }],
+      take: cap,
+      select: {
+        id: true,
+        magentoCustomerId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        customerGroup: true,
+        phone: true,
+        isSubscribed: true,
+        magentoCreatedAt: true,
+        magentoUpdatedAt: true,
+      },
+    });
+
+    return {
+      headers: [
+        'id',
+        'magento_customer_id',
+        'email',
+        'first_name',
+        'last_name',
+        'customer_group',
+        'phone',
+        'is_subscribed',
+        'magento_created_at',
+        'magento_updated_at',
+      ],
+      rows: rows.map((r) => [
+        r.id,
+        r.magentoCustomerId,
+        r.email,
+        r.firstName ?? '',
+        r.lastName ?? '',
+        r.customerGroup ?? '',
+        r.phone ?? '',
+        r.isSubscribed ? 'true' : 'false',
+        r.magentoCreatedAt?.toISOString() ?? '',
+        r.magentoUpdatedAt?.toISOString() ?? '',
+      ]),
+    };
+  }
 
   async list(tenantId: string, query: ListCustomersQuery): Promise<CustomerListPage> {
     const where: Prisma.CustomerProfileWhereInput = { tenantId };
@@ -133,6 +219,67 @@ export class CustomersService {
         magento_updated_at: r.magentoUpdatedAt?.toISOString() ?? null,
       })),
       next_cursor: nextCursor,
+    };
+  }
+
+  /**
+   * Aggregate every SKU this customer has ever bought, with units +
+   * revenue + first/last purchase. SKU is the unit of aggregation; the
+   * `row_total > 0` filter drops the zero-priced parent shells of
+   * configurable products so units and revenue match what the customer
+   * actually paid for.
+   */
+  async products(tenantId: string, customerId: string): Promise<CustomerProductsResponse> {
+    // Make sure the customer belongs to this tenant before we expose
+    // their order_item history (defense in depth — the controller has
+    // already JwtGuard'd, but tenant scoping must be explicit).
+    const profile = await this.prisma.customerProfile.findFirst({
+      where: { id: customerId, tenantId },
+      select: { id: true },
+    });
+    if (!profile) throw new NotFoundException(`Customer ${customerId} not found`);
+
+    const rows = await this.prisma.$queryRaw<
+      {
+        sku: string;
+        name: string;
+        product_id: string | null;
+        units: Prisma.Decimal;
+        revenue: Prisma.Decimal;
+        orders: bigint;
+        first_at: Date;
+        last_at: Date;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        oi.sku,
+        (ARRAY_AGG(oi.name ORDER BY length(oi.name) DESC, oi.name ASC))[1] AS name,
+        (ARRAY_AGG(oi.product_id) FILTER (WHERE oi.product_id IS NOT NULL))[1] AS product_id,
+        SUM(oi.qty_ordered) FILTER (WHERE oi.row_total > 0)::numeric(20,4) AS units,
+        SUM(oi.row_total)::numeric(20,4)                                    AS revenue,
+        COUNT(DISTINCT oi.order_id)::bigint                                 AS orders,
+        MIN(o.placed_at)                                                    AS first_at,
+        MAX(o.placed_at)                                                    AS last_at
+      FROM order_item oi
+      JOIN "order" o ON o.id = oi.order_id
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.customer_profile_id = ${customerId}::uuid
+      GROUP BY oi.sku
+      HAVING SUM(oi.row_total) > 0
+      ORDER BY revenue DESC NULLS LAST, oi.sku ASC
+    `);
+
+    return {
+      data: rows.map((r) => ({
+        sku: r.sku,
+        name: r.name,
+        product_id: r.product_id,
+        units: r.units.toString(),
+        revenue: r.revenue.toString(),
+        orders: Number(r.orders),
+        first_purchased_at: r.first_at.toISOString(),
+        last_purchased_at: r.last_at.toISOString(),
+      })),
     };
   }
 

@@ -141,7 +141,14 @@ export default async function OrderDetailPage({
                   key={it.id}
                   className="border-b border-border last:border-0 transition hover:bg-muted/30"
                 >
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{it.sku}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                    <Link
+                      href={`/products/${encodeURIComponent(it.sku)}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {it.sku}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-foreground">
                     {it.name}
                     {refunded && (

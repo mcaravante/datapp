@@ -11,6 +11,11 @@ import type {
   TimingResponse,
 } from './dto/timing.dto';
 import type { CohortRow, CohortsQuery, CohortsResponse } from './dto/cohorts.dto';
+import type {
+  ProductAffinityItem,
+  ProductAffinityQuery,
+  ProductAffinityResponse,
+} from './dto/product-affinity.dto';
 
 const BA_TZ = 'America/Argentina/Buenos_Aires';
 
@@ -76,6 +81,45 @@ export class AnalyticsService {
         aov_pct: pctDelta(current.aov, previous.aov),
         customers_pct: pctDeltaInt(current.customers, previous.customers),
       },
+    };
+  }
+
+  async topProductsExport(
+    tenantId: string,
+    query: TopProductsQuery,
+    cap = 50_000,
+  ): Promise<{ headers: string[]; rows: unknown[][] }> {
+    const result = await this.topProducts(tenantId, { ...query, limit: cap });
+    return {
+      headers: ['sku', 'name', 'units', 'revenue', 'orders'],
+      rows: result.data.map((r) => [r.sku, r.name, r.units, r.revenue, r.orders]),
+    };
+  }
+
+  async geoExport(
+    tenantId: string,
+    query: GeoQuery,
+  ): Promise<{ headers: string[]; rows: unknown[][] }> {
+    const result = await this.geo(tenantId, query);
+    return {
+      headers: [
+        'region_id',
+        'region_code',
+        'region_name',
+        'customers',
+        'buyers',
+        'orders',
+        'revenue',
+      ],
+      rows: result.data.map((r) => [
+        r.region_id,
+        r.region_code,
+        r.region_name,
+        r.customers,
+        r.buyers,
+        r.orders,
+        r.revenue,
+      ]),
     };
   }
 
@@ -466,6 +510,130 @@ export class AnalyticsService {
       timezone: BA_TZ,
       horizon,
       cohorts,
+    };
+  }
+
+  /**
+   * Frequently bought together. For all orders containing the focus
+   * SKU, count co-occurring SKUs and compute confidence (P(co | focus))
+   * and lift (confidence / P(co)). The denominator for lift is total
+   * orders in the tenant — gives a stable baseline regardless of date
+   * window.
+   *
+   * Includes only co-SKUs that appear in at least 2 orders together
+   * with the focus to avoid noisy long-tail single-coincidences.
+   */
+  async productAffinity(
+    tenantId: string,
+    query: ProductAffinityQuery,
+  ): Promise<ProductAffinityResponse> {
+    const totalsRow = await this.prisma.$queryRaw<
+      { focus_orders: bigint; total_orders: bigint; focus_name: string | null }[]
+    >(Prisma.sql`
+      WITH focus_orders AS (
+        SELECT DISTINCT oi.order_id
+        FROM order_item oi
+        JOIN "order" o ON o.id = oi.order_id
+        WHERE o.tenant_id = ${tenantId}::uuid
+          AND oi.sku = ${query.sku}
+          AND oi.row_total > 0
+      ),
+      total_orders AS (
+        SELECT COUNT(*)::bigint AS c
+        FROM "order"
+        WHERE tenant_id = ${tenantId}::uuid
+      ),
+      focus_name AS (
+        SELECT (ARRAY_AGG(oi.name ORDER BY length(oi.name) DESC, oi.name ASC))[1] AS name
+        FROM order_item oi
+        JOIN "order" o ON o.id = oi.order_id
+        WHERE o.tenant_id = ${tenantId}::uuid
+          AND oi.sku = ${query.sku}
+      )
+      SELECT
+        (SELECT COUNT(*) FROM focus_orders)::bigint AS focus_orders,
+        (SELECT c FROM total_orders)                AS total_orders,
+        (SELECT name FROM focus_name)               AS focus_name
+    `);
+
+    const focusOrders = Number(totalsRow[0]?.focus_orders ?? 0n);
+    const totalOrders = Number(totalsRow[0]?.total_orders ?? 0n);
+    const focusName = totalsRow[0]?.focus_name ?? null;
+
+    if (focusOrders === 0) {
+      return {
+        sku: query.sku,
+        name: focusName,
+        focus_orders: 0,
+        total_orders: totalOrders,
+        data: [],
+      };
+    }
+
+    const rows = await this.prisma.$queryRaw<
+      { sku: string; name: string; co_orders: bigint; total_orders: bigint }[]
+    >(Prisma.sql`
+      WITH focus_orders AS (
+        SELECT DISTINCT oi.order_id
+        FROM order_item oi
+        JOIN "order" o ON o.id = oi.order_id
+        WHERE o.tenant_id = ${tenantId}::uuid
+          AND oi.sku = ${query.sku}
+          AND oi.row_total > 0
+      ),
+      co_items AS (
+        SELECT
+          oi.sku,
+          oi.name,
+          oi.order_id
+        FROM order_item oi
+        JOIN focus_orders fo ON fo.order_id = oi.order_id
+        WHERE oi.sku <> ${query.sku}
+          AND oi.row_total > 0
+      ),
+      sku_totals AS (
+        SELECT oi.sku, COUNT(DISTINCT oi.order_id)::bigint AS total_orders
+        FROM order_item oi
+        JOIN "order" o ON o.id = oi.order_id
+        WHERE o.tenant_id = ${tenantId}::uuid
+          AND oi.row_total > 0
+        GROUP BY oi.sku
+      )
+      SELECT
+        ci.sku,
+        (ARRAY_AGG(ci.name ORDER BY length(ci.name) DESC, ci.name ASC))[1] AS name,
+        COUNT(DISTINCT ci.order_id)::bigint                                AS co_orders,
+        st.total_orders                                                    AS total_orders
+      FROM co_items ci
+      JOIN sku_totals st ON st.sku = ci.sku
+      GROUP BY ci.sku, st.total_orders
+      HAVING COUNT(DISTINCT ci.order_id) >= 2
+      ORDER BY co_orders DESC, ci.sku ASC
+      LIMIT ${query.limit}
+    `);
+
+    const data: ProductAffinityItem[] = rows.map((r) => {
+      const co = Number(r.co_orders);
+      const tot = Number(r.total_orders);
+      const confidence = co / focusOrders;
+      const baseline = totalOrders > 0 ? tot / totalOrders : 0;
+      const lift = baseline > 0 ? confidence / baseline : 0;
+      return {
+        sku: r.sku,
+        name: r.name,
+        co_orders: co,
+        total_orders: tot,
+        confidence: Math.round(confidence * 10_000) / 10_000,
+        lift: Math.round(lift * 100) / 100,
+      };
+    });
+
+    return {
+      sku: query.sku,
+      name: focusName,
+      focus_orders: focusOrders,
+      total_orders: totalOrders,
+      data,
     };
   }
 

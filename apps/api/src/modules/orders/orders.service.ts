@@ -70,6 +70,108 @@ export interface OrderHistoryEntry {
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async exportRows(
+    tenantId: string,
+    query: Omit<ListOrdersQuery, 'cursor' | 'limit'>,
+    cap = 50_000,
+  ): Promise<{ headers: string[]; rows: unknown[][] }> {
+    const where: Prisma.OrderWhereInput = { tenantId };
+    if (query.q) {
+      where.OR = [
+        { magentoOrderNumber: { contains: query.q, mode: 'insensitive' } },
+        { customerEmail: { contains: query.q, mode: 'insensitive' } },
+      ];
+    }
+    if (query.customer_id) where.customerProfileId = query.customer_id;
+    if (query.status && query.status.length > 0) where.status = { in: query.status };
+    if (query.from || query.to) {
+      where.placedAt = {};
+      if (query.from) where.placedAt.gte = new Date(query.from);
+      if (query.to) where.placedAt.lt = new Date(query.to);
+    }
+
+    const rows = await this.prisma.order.findMany({
+      where,
+      orderBy: [{ placedAt: 'desc' }, { id: 'desc' }],
+      take: cap,
+      select: {
+        id: true,
+        magentoOrderNumber: true,
+        magentoOrderId: true,
+        customerProfileId: true,
+        customerEmail: true,
+        status: true,
+        state: true,
+        currencyCode: true,
+        subtotal: true,
+        totalTax: true,
+        shippingAmount: true,
+        discountAmount: true,
+        grandTotal: true,
+        totalInvoiced: true,
+        totalRefunded: true,
+        realRevenue: true,
+        itemCount: true,
+        skuCount: true,
+        paymentMethod: true,
+        shippingMethod: true,
+        placedAt: true,
+        magentoUpdatedAt: true,
+      },
+    });
+
+    return {
+      headers: [
+        'id',
+        'order_number',
+        'magento_order_id',
+        'customer_id',
+        'customer_email',
+        'status',
+        'state',
+        'currency',
+        'subtotal',
+        'total_tax',
+        'shipping_amount',
+        'discount_amount',
+        'grand_total',
+        'total_invoiced',
+        'total_refunded',
+        'real_revenue',
+        'item_count',
+        'sku_count',
+        'payment_method',
+        'shipping_method',
+        'placed_at',
+        'magento_updated_at',
+      ],
+      rows: rows.map((r) => [
+        r.id,
+        r.magentoOrderNumber,
+        r.magentoOrderId,
+        r.customerProfileId ?? '',
+        r.customerEmail,
+        r.status,
+        r.state,
+        r.currencyCode,
+        r.subtotal.toString(),
+        r.totalTax.toString(),
+        r.shippingAmount.toString(),
+        r.discountAmount.toString(),
+        r.grandTotal.toString(),
+        r.totalInvoiced.toString(),
+        r.totalRefunded.toString(),
+        r.realRevenue ? r.realRevenue.toString() : '',
+        r.itemCount,
+        r.skuCount,
+        r.paymentMethod ?? '',
+        r.shippingMethod ?? '',
+        r.placedAt.toISOString(),
+        r.magentoUpdatedAt.toISOString(),
+      ]),
+    };
+  }
+
   async list(tenantId: string, query: ListOrdersQuery): Promise<OrderListPage> {
     const where: Prisma.OrderWhereInput = { tenantId };
 
