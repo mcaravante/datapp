@@ -398,7 +398,7 @@
   },
   "insights": {
     "title": "Insights",
-    "subtitle": "Cuándo compran tus clientes y cuánto siguen comprando. Todos los horarios en {tz}.",
+    "subtitlePrefix": "Cuándo compran tus clientes y cuánto siguen comprando. Todos los horarios en",
     "heatmap": {
       "title": "Heatmap día × hora",
       "summary": "{orders} pedidos · {revenue} de facturación.",
@@ -510,7 +510,7 @@
       "status": "Estado",
       "lastProcessed": "Último procesado",
       "cursor": "Cursor",
-      "empty": "Sin actividad de sincronización todavía. Ejecutá {cmd}."
+      "emptyPrefix": "Sin actividad de sincronización todavía. Ejecutá"
     },
     "statuses": {
       "idle": "inactivo",

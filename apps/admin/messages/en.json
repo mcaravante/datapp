@@ -398,7 +398,7 @@
   },
   "insights": {
     "title": "Insights",
-    "subtitle": "When your customers buy and how long they keep coming back. All times in {tz}.",
+    "subtitlePrefix": "When your customers buy and how long they keep coming back. All times in",
     "heatmap": {
       "title": "Day × hour heatmap",
       "summary": "{orders} orders · {revenue} revenue.",
@@ -510,7 +510,7 @@
       "status": "Status",
       "lastProcessed": "Last processed",
       "cursor": "Cursor",
-      "empty": "No sync activity yet. Run {cmd}."
+      "emptyPrefix": "No sync activity yet. Run"
     },
     "statuses": {
       "idle": "idle",

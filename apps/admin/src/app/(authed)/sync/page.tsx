@@ -55,13 +55,11 @@ export default async function SyncStatusPage(): Promise<React.ReactElement> {
             {data.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                  {t.rich('table.empty', {
-                    cmd: () => (
-                      <code className="rounded bg-muted px-1 font-mono text-xs">
-                        cli sync:customers:initial
-                      </code>
-                    ),
-                  })}
+                  {t('table.emptyPrefix')}{' '}
+                  <code className="rounded bg-muted px-1 font-mono text-xs">
+                    cli sync:customers:initial
+                  </code>
+                  .
                 </td>
               </tr>
             )}

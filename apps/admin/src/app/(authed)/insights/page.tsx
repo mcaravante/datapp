@@ -61,9 +61,8 @@ export default async function InsightsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t.rich('subtitle', {
-              tz: () => <span className="font-mono text-xs">{timing.timezone}</span>,
-            })}
+            {t('subtitlePrefix')}{' '}
+            <span className="font-mono text-xs">{timing.timezone}</span>.
           </p>
         </div>
         <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
