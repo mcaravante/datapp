@@ -104,7 +104,12 @@ async function UserRow({
           </span>
         )}
       </td>
-      <td className="px-4 py-3 text-foreground/80">{user.email}</td>
+      <td className="px-4 py-3 text-foreground/80">
+        {user.email}
+        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+          <TwoFactorBadge enabled={user.has_2fa} />
+        </div>
+      </td>
       <td className="px-4 py-3">
         <RoleBadge role={user.role} label={tRoles(user.role)} />
       </td>
@@ -115,6 +120,24 @@ async function UserRow({
         {formatBuenosAires(user.created_at, locale)}
       </td>
     </tr>
+  );
+}
+
+function TwoFactorBadge({ enabled }: { enabled: boolean }): React.ReactElement {
+  // Use the `useTranslations` hook indirectly via a small client-side
+  // wrapper would need a 'use client' file; since this lives in a
+  // server component, we read translations inline through getTranslations.
+  // Render a span — caller passes already-translated label via text.
+  return (
+    <span
+      className={
+        enabled
+          ? 'inline-flex items-center rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-success'
+          : 'inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground'
+      }
+    >
+      {enabled ? '2FA' : 'no 2FA'}
+    </span>
   );
 }
 

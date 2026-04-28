@@ -1,9 +1,11 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { authenticator } from 'otplib';
 import type { Env } from '../../config/env';
 import { PrismaService } from '../../db/prisma.service';
+import { CryptoService } from '../crypto/crypto.service';
 import type { AuthenticatedUser, JwtPayload } from './types';
 import type { LoginResponse } from './dto/login.dto';
 
@@ -17,6 +19,10 @@ const ARGON_OPTIONS: argon2.Options = {
   parallelism: 1,
 };
 
+// Same window used by TwoFactorService — keeps login + enrollment
+// behavior identical.
+authenticator.options = { window: 1 };
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -25,6 +31,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
+    private readonly crypto: CryptoService,
   ) {}
 
   /** Hash a password with argon2id. Returns the encoded hash string. */
@@ -67,11 +74,14 @@ export class AuthService {
   }
 
   /**
-   * Resolve email + password to an authenticated user + JWT. Wrong email,
-   * wrong password, or inactive user all surface as the same `Unauthorized`
-   * (no enumeration leak).
+   * Resolve email + password (+ optional TOTP) to an authenticated
+   * user + JWT. Wrong email, wrong password, or inactive user all
+   * surface as the same `Unauthorized` (no enumeration leak). When the
+   * user has 2FA verified and the totp is missing/invalid we return
+   * 401 with body `{ error: '2fa_required' }` so the client can prompt
+   * for the code without restarting the password flow.
    */
-  async login(email: string, password: string): Promise<LoginResponse> {
+  async login(email: string, password: string, totp?: string): Promise<LoginResponse> {
     const lowered = email.toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: lowered },
@@ -82,6 +92,7 @@ export class AuthService {
         passwordHash: true,
         name: true,
         role: true,
+        totpSecret: { select: { secretEncrypted: true, verifiedAt: true } },
       },
     });
 
@@ -96,6 +107,24 @@ export class AuthService {
     if (!user || !ok) {
       this.logger.debug(`Login failed for email hash ${this.shortHash(lowered)}`);
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // 2FA gate: if the user has a verified TOTP, the code is mandatory.
+    if (user.totpSecret?.verifiedAt) {
+      if (!totp) {
+        throw new HttpException(
+          { error: '2fa_required', message: '2FA code required' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const secret = this.crypto.decrypt(Buffer.from(user.totpSecret.secretEncrypted));
+      const codeOk = authenticator.check(totp.replace(/\s+/g, '').trim(), secret);
+      if (!codeOk) {
+        throw new HttpException(
+          { error: '2fa_required', message: 'Invalid 2FA code' },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
     }
 
     await this.prisma.user.update({

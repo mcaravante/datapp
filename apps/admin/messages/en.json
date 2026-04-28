@@ -18,7 +18,8 @@
     "insights": "Insights",
     "sync": "Sync",
     "users": "Users",
-    "permissions": "Permissions"
+    "permissions": "Permissions",
+    "security": "Security"
   },
   "common": {
     "search": "Search",
@@ -55,7 +56,11 @@
     "emailPlaceholder": "you@example.com",
     "password": "Password",
     "submit": "Sign in",
-    "errorInvalid": "Invalid email or password."
+    "errorInvalid": "Invalid email or password.",
+    "totpLabel": "Authenticator code",
+    "totpPlaceholder": "123 456",
+    "totpHint": "Open Google Authenticator (or your TOTP app) and copy the 6-digit code.",
+    "totpRequired": "This account has 2FA — enter the code from your authenticator app."
   },
   "overview": {
     "title": "Overview",
@@ -582,7 +587,50 @@
       "deleting": "Deleting…",
       "errorPrefix": "Could not delete: {message}"
     },
-    "youBadge": "You"
+    "youBadge": "You",
+    "twoFactor": {
+      "enabled": "2FA on",
+      "disabled": "No 2FA",
+      "resetButton": "Reset 2FA",
+      "resetConfirmTitle": "Reset 2FA for {email}?",
+      "resetConfirmBody": "This removes the user's two-factor enrollment. They'll be able to sign in with just their password until they re-enable 2FA.",
+      "reset": "Reset",
+      "resetting": "Resetting…",
+      "resetSuccess": "2FA reset.",
+      "resetError": "Could not reset: {message}"
+    }
+  },
+  "security": {
+    "title": "Security",
+    "subtitle": "Set up two-factor authentication (2FA) with your authenticator app. Works with Google Authenticator, Authy, 1Password, Microsoft Authenticator, and similar apps.",
+    "statusEnabledTitle": "2FA enabled",
+    "statusEnabledBody": "Next sign-in will ask for a code from your authenticator. If you lose your device, an admin can reset it.",
+    "statusDisabledTitle": "2FA disabled",
+    "statusDisabledBody": "Your account is only protected by the password. We recommend enabling 2FA for an extra layer.",
+    "enableButton": "Enable 2FA",
+    "disableButton": "Disable 2FA",
+    "enroll": {
+      "heading": "Scan the QR code",
+      "step1": "1. Open your app (Google Authenticator, Authy, 1Password, etc.) and tap \"Add account\".",
+      "step2": "2. Scan this QR. If you can't scan, copy the secret below and enter it manually.",
+      "manualLabel": "Manual secret",
+      "step3": "3. Enter the 6-digit code shown in the app to confirm.",
+      "codeLabel": "App code",
+      "verify": "Verify and enable",
+      "verifying": "Verifying…",
+      "errorInvalid": "Invalid code — check your device clock and try again.",
+      "cancel": "Cancel"
+    },
+    "disable": {
+      "heading": "Disable 2FA",
+      "body": "To turn off two-factor authentication, confirm your password.",
+      "passwordLabel": "Current password",
+      "submit": "Disable",
+      "submitting": "Disabling…",
+      "errorWrongPassword": "Wrong password."
+    },
+    "successEnabled": "2FA enabled. Next time you sign in we'll ask for the code.",
+    "successDisabled": "2FA disabled."
   },
   "permissions": {
     "title": "Role permissions",

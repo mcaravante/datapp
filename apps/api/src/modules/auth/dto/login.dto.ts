@@ -3,6 +3,12 @@ import { z } from 'zod';
 export const LoginRequestSchema = z.object({
   email: z.string().email().max(254),
   password: z.string().min(1).max(1024),
+  /**
+   * Optional 6-digit TOTP code from an authenticator app. Required
+   * only when the user has 2FA enabled; the login endpoint surfaces
+   * a `2fa_required` 401 when it's missing or wrong.
+   */
+  totp: z.string().min(6).max(10).optional(),
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 

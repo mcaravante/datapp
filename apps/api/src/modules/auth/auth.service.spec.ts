@@ -42,7 +42,9 @@ function makeService(user: MockPrismaUser | null) {
   } as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const config = { get: vi.fn() } as any;
-  return new AuthService(prisma, makeJwtService(), config);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const crypto = { encrypt: vi.fn(), decrypt: vi.fn() } as any;
+  return new AuthService(prisma, makeJwtService(), config, crypto);
 }
 
 describe('AuthService.hashPassword + verifyPassword', () => {

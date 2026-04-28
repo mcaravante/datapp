@@ -9,6 +9,7 @@ import { Prisma } from '@cdp/db';
 import type { UserRole } from '@cdp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { AuthService } from '../auth/auth.service';
+import { TwoFactorService } from '../auth/two-factor.service';
 import type { CreateUserBody, ListUsersQuery, UpdateUserBody } from './dto/users.dto';
 
 export interface UserSummary {
@@ -16,6 +17,7 @@ export interface UserSummary {
   email: string;
   name: string;
   role: UserRole;
+  has_2fa: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -29,7 +31,10 @@ interface AuditActor {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly twoFactor: TwoFactorService,
+  ) {}
 
   async list(tenantId: string, query: ListUsersQuery): Promise<UserSummary[]> {
     const where: Prisma.UserWhereInput = { tenantId };
@@ -44,6 +49,7 @@ export class UsersService {
     const rows = await this.prisma.user.findMany({
       where,
       orderBy: [{ createdAt: 'asc' }],
+      include: { totpSecret: { select: { verifiedAt: true } } },
     });
     return rows.map(toSummary);
   }
@@ -51,6 +57,12 @@ export class UsersService {
   async get(tenantId: string, id: string): Promise<UserSummary> {
     const user = await this.findScoped(tenantId, id);
     return toSummary(user);
+  }
+
+  /** Admin override: clear another user's 2FA without their password. */
+  async resetTwoFactor(tenantId: string, id: string): Promise<void> {
+    await this.findScoped(tenantId, id); // ensure tenant scoping
+    await this.twoFactor.adminReset(id);
   }
 
   /**
@@ -77,6 +89,7 @@ export class UsersService {
           passwordHash,
           role: body.role,
         },
+        include: { totpSecret: { select: { verifiedAt: true } } },
       });
       await tx.auditLog.create({
         data: {
@@ -116,7 +129,11 @@ export class UsersService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const next = await tx.user.update({ where: { id }, data });
+      const next = await tx.user.update({
+        where: { id },
+        data,
+        include: { totpSecret: { select: { verifiedAt: true } } },
+      });
       await tx.auditLog.create({
         data: {
           tenantId,
@@ -168,8 +185,11 @@ export class UsersService {
   private async findScoped(
     tenantId: string,
     id: string,
-  ): Promise<Prisma.UserGetPayload<true>> {
-    const user = await this.prisma.user.findFirst({ where: { id, tenantId } });
+  ): Promise<UserWith2fa> {
+    const user = await this.prisma.user.findFirst({
+      where: { id, tenantId },
+      include: { totpSecret: { select: { verifiedAt: true } } },
+    });
     if (!user) throw new NotFoundException(`User ${id} not found`);
     return user;
   }
@@ -188,14 +208,17 @@ export class UsersService {
   }
 }
 
-function toSummary(
-  user: Prisma.UserGetPayload<true>,
-): UserSummary {
+type UserWith2fa = Prisma.UserGetPayload<{
+  include: { totpSecret: { select: { verifiedAt: true } } };
+}>;
+
+function toSummary(user: UserWith2fa): UserSummary {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    has_2fa: user.totpSecret?.verifiedAt != null,
     last_login_at: user.lastLoginAt?.toISOString() ?? null,
     created_at: user.createdAt.toISOString(),
     updated_at: user.updatedAt.toISOString(),

@@ -18,7 +18,8 @@
     "insights": "Insights",
     "sync": "Sincronización",
     "users": "Usuarios",
-    "permissions": "Permisos"
+    "permissions": "Permisos",
+    "security": "Seguridad"
   },
   "common": {
     "search": "Buscar",
@@ -55,7 +56,11 @@
     "emailPlaceholder": "vos@ejemplo.com",
     "password": "Contraseña",
     "submit": "Entrar",
-    "errorInvalid": "Email o contraseña inválidos."
+    "errorInvalid": "Email o contraseña inválidos.",
+    "totpLabel": "Código del autenticador",
+    "totpPlaceholder": "123 456",
+    "totpHint": "Abrí Google Authenticator (o tu app TOTP) y copiá el código de 6 dígitos.",
+    "totpRequired": "Esta cuenta tiene 2FA — ingresá el código de tu app."
   },
   "overview": {
     "title": "Resumen",
@@ -582,7 +587,50 @@
       "deleting": "Eliminando…",
       "errorPrefix": "No se pudo eliminar: {message}"
     },
-    "youBadge": "Vos"
+    "youBadge": "Vos",
+    "twoFactor": {
+      "enabled": "2FA activo",
+      "disabled": "Sin 2FA",
+      "resetButton": "Resetear 2FA",
+      "resetConfirmTitle": "¿Resetear 2FA de {email}?",
+      "resetConfirmBody": "Eliminás la verificación en dos pasos del usuario. Va a poder volver a entrar con solo su contraseña hasta que active 2FA otra vez.",
+      "reset": "Resetear",
+      "resetting": "Reseteando…",
+      "resetSuccess": "2FA reseteado.",
+      "resetError": "No se pudo resetear: {message}"
+    }
+  },
+  "security": {
+    "title": "Seguridad",
+    "subtitle": "Configurá la verificación en dos pasos (2FA) con tu app de autenticación. Es compatible con Google Authenticator, Authy, 1Password, Microsoft Authenticator y similares.",
+    "statusEnabledTitle": "2FA activado",
+    "statusEnabledBody": "El próximo login va a pedir un código de tu autenticador. Si perdés el dispositivo, un admin puede resetearlo.",
+    "statusDisabledTitle": "2FA desactivado",
+    "statusDisabledBody": "Tu cuenta solo está protegida con la contraseña. Recomendamos activar 2FA para sumar una capa extra.",
+    "enableButton": "Activar 2FA",
+    "disableButton": "Desactivar 2FA",
+    "enroll": {
+      "heading": "Escaneá el código QR",
+      "step1": "1. Abrí tu app (Google Authenticator, Authy, 1Password, etc.) y tocá «Agregar cuenta».",
+      "step2": "2. Escaneá este QR. Si no podés escanear, copiá el secret abajo y pegalo manualmente.",
+      "manualLabel": "Secret manual",
+      "step3": "3. Ingresá el código de 6 dígitos que muestra la app para confirmar.",
+      "codeLabel": "Código de la app",
+      "verify": "Verificar y activar",
+      "verifying": "Verificando…",
+      "errorInvalid": "Código inválido — fijate la hora del dispositivo y volvé a intentar.",
+      "cancel": "Cancelar"
+    },
+    "disable": {
+      "heading": "Desactivar 2FA",
+      "body": "Para desactivar la verificación en dos pasos, confirmá tu contraseña.",
+      "passwordLabel": "Contraseña actual",
+      "submit": "Desactivar",
+      "submitting": "Desactivando…",
+      "errorWrongPassword": "Contraseña incorrecta."
+    },
+    "successEnabled": "2FA activado. La próxima vez que inicies sesión te va a pedir el código.",
+    "successDisabled": "2FA desactivado."
   },
   "permissions": {
     "title": "Permisos por rol",

@@ -96,6 +96,20 @@ export class UsersController {
     );
   }
 
+  /**
+   * Admin override: clear another user's 2FA enrollment when they
+   * lose their authenticator app. The target user can re-enroll on
+   * next login.
+   */
+  @Post(':id/2fa/reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetTwoFactor(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<void> {
+    await this.users.resetTwoFactor(this.tenantOrThrow(user), id);
+  }
+
   private tenantOrThrow(user: AuthenticatedUser): string {
     if (!user.tenantId) {
       throw new ForbiddenException(

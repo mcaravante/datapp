@@ -17,7 +17,8 @@ type NavLabelKey =
   | 'insights'
   | 'sync'
   | 'users'
-  | 'permissions';
+  | 'permissions'
+  | 'security';
 
 interface NavItem {
   href: string;
@@ -121,6 +122,12 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/permissions'),
     roles: ADMIN_ROLES,
   },
+  {
+    href: '/security',
+    labelKey: 'security',
+    icon: LockIcon,
+    match: (p) => p.startsWith('/security'),
+  },
 ];
 
 interface SidebarProps {
@@ -201,6 +208,24 @@ function SparkIcon({ className }: { className?: string }): React.ReactElement {
       <path d="M3 12h18" />
       <path d="m5.5 5.5 13 13" />
       <path d="m18.5 5.5-13 13" />
+    </svg>
+  );
+}
+
+function LockIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4" y="11" width="16" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
   );
 }

@@ -340,9 +340,25 @@ export interface UserSummary {
   email: string;
   name: string;
   role: AdminRole;
+  has_2fa: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface MeResponse {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+  tenant_id: string | null;
+  has_2fa: boolean;
+}
+
+export interface EnrollResponse {
+  otpauth_url: string;
+  qr_data_url: string;
+  manual_entry_secret: string;
 }
 
 export interface UsersListResponse {

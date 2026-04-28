@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { ApiError, apiFetch } from '@/lib/api-client';
 import { formatBuenosAires } from '@/lib/format';
 import { DeleteUserButton } from '@/components/user-actions';
+import { ResetTwoFactorButton } from '@/components/reset-two-factor-button';
 import { updateUser } from '../actions';
 import type { Locale } from '@/i18n/config';
 import type { AdminRole, UserSummary } from '@/lib/types';
@@ -98,7 +99,16 @@ export default async function EditUserPage({
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{tForm('editSubtitle')}</p>
           </div>
-          {!isYou && <DeleteUserButton userId={user.id} userEmail={user.email} />}
+          <div className="flex flex-wrap items-center gap-2">
+            {user.has_2fa && (
+              <ResetTwoFactorButton
+                userId={user.id}
+                userEmail={user.email}
+                has2fa={user.has_2fa}
+              />
+            )}
+            {!isYou && <DeleteUserButton userId={user.id} userEmail={user.email} />}
+          </div>
         </div>
       </div>
 

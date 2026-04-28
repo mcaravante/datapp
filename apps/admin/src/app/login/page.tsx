@@ -11,7 +11,7 @@ export const metadata = { title: 'CDP Admin · Sign in' };
 export const dynamic = 'force-dynamic';
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; email?: string }>;
 }
 
 export default async function LoginPage({
@@ -20,19 +20,31 @@ export default async function LoginPage({
   const session = await auth();
   if (session) redirect('/');
 
-  const { error } = await searchParams;
+  const { error, email: prefillEmail } = await searchParams;
+  const needs2fa = error === '2fa';
   const t = await getTranslations('login');
 
   async function loginAction(formData: FormData): Promise<void> {
     'use server';
+    const email = String(formData.get('email') ?? '');
+    const password = String(formData.get('password') ?? '');
+    const totpRaw = String(formData.get('totp') ?? '').trim();
     try {
       await signIn('credentials', {
-        email: formData.get('email'),
-        password: formData.get('password'),
+        email,
+        password,
+        ...(totpRaw ? { totp: totpRaw } : {}),
         redirectTo: '/',
       });
     } catch (err) {
       if (err instanceof AuthError) {
+        // CredentialsSignin from a 2fa_required throw bubbles up with
+        // code='2fa_required' on the cause — preserve the email so the
+        // user doesn't have to retype it on the second pass.
+        const code = (err as { code?: string }).code;
+        if (code === '2fa_required') {
+          redirect(`/login?error=2fa&email=${encodeURIComponent(email)}`);
+        }
         redirect('/login?error=invalid');
       }
       throw err;
@@ -41,7 +53,6 @@ export default async function LoginPage({
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
-      {/* Decorative gradient — subtle, on-brand, dark/light aware */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,hsl(var(--primary)/0.10),transparent_45%),radial-gradient(circle_at_85%_85%,hsl(var(--accent)/0.10),transparent_45%)]"
@@ -80,12 +91,20 @@ export default async function LoginPage({
           <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
 
-        {error && (
+        {error && !needs2fa && (
           <div
             role="alert"
             className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
             {t('errorInvalid')}
+          </div>
+        )}
+        {needs2fa && (
+          <div
+            role="alert"
+            className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+          >
+            {t('totpRequired')}
           </div>
         )}
 
@@ -99,6 +118,7 @@ export default async function LoginPage({
             type="email"
             autoComplete="email"
             required
+            defaultValue={prefillEmail ?? ''}
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
             placeholder={t('emailPlaceholder')}
           />
@@ -117,6 +137,27 @@ export default async function LoginPage({
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
+
+        {needs2fa && (
+          <div className="space-y-1.5">
+            <label htmlFor="totp" className="block text-sm font-medium text-foreground">
+              {t('totpLabel')}
+            </label>
+            <input
+              id="totp"
+              name="totp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              maxLength={10}
+              autoFocus
+              placeholder={t('totpPlaceholder')}
+              className="block w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-base tracking-[0.4em] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+            <p className="text-xs text-muted-foreground">{t('totpHint')}</p>
+          </div>
+        )}
 
         <button
           type="submit"
