@@ -17,7 +17,8 @@
     "regions": "Regions",
     "insights": "Insights",
     "sync": "Sync",
-    "users": "Users"
+    "users": "Users",
+    "permissions": "Permissions"
   },
   "common": {
     "search": "Search",
@@ -582,5 +583,33 @@
       "errorPrefix": "Could not delete: {message}"
     },
     "youBadge": "You"
+  },
+  "permissions": {
+    "title": "Role permissions",
+    "subtitle": "Choose which admin sections are visible to {analystRole} and {viewerRole}. {adminRole} and {superAdminRole} always see everything.",
+    "matrixHeading": "Access matrix",
+    "matrixHint": "Tick the sections each role can see. Changes apply as soon as you save.",
+    "alwaysVisible": "Always visible to {adminRole} and {superAdminRole}",
+    "table": {
+      "section": "Section",
+      "analyst": "Analyst",
+      "viewer": "Viewer"
+    },
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Permissions updated.",
+    "error": "Could not save permissions: {message}",
+    "sectionNames": {
+      "overview": "Overview",
+      "customers": "Customers",
+      "segments": "Segments",
+      "orders": "Orders",
+      "carts": "Abandoned carts",
+      "products": "Top products",
+      "coupons": "Coupons",
+      "regions": "Regions",
+      "insights": "Insights",
+      "sync": "Sync"
+    }
   }
 }

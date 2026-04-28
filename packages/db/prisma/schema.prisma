@@ -156,6 +156,7 @@ model Tenant {
   formSubmissions FormSubmission[]
   marketingLists  MarketingList[]
   subscriptions   Subscription[]
+  roleAccess      RoleSectionAccess[]
 
   @@map("tenant")
 }
@@ -180,6 +181,20 @@ model User {
 
   @@index([tenantId, role])
   @@map("user")
+}
+
+model RoleSectionAccess {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  role      UserRole
+  section   String // e.g. 'overview', 'customers', 'sync', …
+  allowed   Boolean  @default(true)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, role, section])
+  @@index([tenantId, role])
+  @@map("role_section_access")
 }
 
 model UserTotpSecret {

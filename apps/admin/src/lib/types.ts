@@ -313,6 +313,28 @@ export interface ProductAffinityResponse {
 
 export type AdminRole = 'super_admin' | 'admin' | 'analyst' | 'viewer';
 
+export type AdminSection =
+  | 'overview'
+  | 'customers'
+  | 'segments'
+  | 'orders'
+  | 'carts'
+  | 'products'
+  | 'coupons'
+  | 'regions'
+  | 'insights'
+  | 'sync';
+
+export type ConfigurableRole = 'analyst' | 'viewer';
+
+export type AccessMatrix = Record<ConfigurableRole, Record<AdminSection, boolean>>;
+
+export interface PermissionsResponse {
+  sections: readonly AdminSection[];
+  configurable_roles: readonly ConfigurableRole[];
+  access: AccessMatrix;
+}
+
 export interface UserSummary {
   id: string;
   email: string;

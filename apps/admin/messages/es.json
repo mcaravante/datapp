@@ -17,7 +17,8 @@
     "regions": "Regiones",
     "insights": "Insights",
     "sync": "Sincronización",
-    "users": "Usuarios"
+    "users": "Usuarios",
+    "permissions": "Permisos"
   },
   "common": {
     "search": "Buscar",
@@ -582,5 +583,33 @@
       "errorPrefix": "No se pudo eliminar: {message}"
     },
     "youBadge": "Vos"
+  },
+  "permissions": {
+    "title": "Permisos por rol",
+    "subtitle": "Elegí qué secciones del admin ven los roles {analystRole} y {viewerRole}. {adminRole} y {superAdminRole} siempre ven todo.",
+    "matrixHeading": "Matriz de acceso",
+    "matrixHint": "Tildá las secciones que cada rol puede ver. Los cambios se aplican apenas guardás.",
+    "alwaysVisible": "Siempre visibles para {adminRole} y {superAdminRole}",
+    "table": {
+      "section": "Sección",
+      "analyst": "Analista",
+      "viewer": "Lector"
+    },
+    "save": "Guardar cambios",
+    "saving": "Guardando…",
+    "saved": "Permisos actualizados.",
+    "error": "No se pudieron guardar los permisos: {message}",
+    "sectionNames": {
+      "overview": "Resumen",
+      "customers": "Clientes",
+      "segments": "Segmentos",
+      "orders": "Pedidos",
+      "carts": "Carritos abandonados",
+      "products": "Top productos",
+      "coupons": "Cupones",
+      "regions": "Regiones",
+      "insights": "Insights",
+      "sync": "Sincronización"
+    }
   }
 }

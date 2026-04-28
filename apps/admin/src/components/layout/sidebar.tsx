@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { AdminRole } from '@/lib/types';
+import type { AdminRole, AdminSection } from '@/lib/types';
 
 type NavLabelKey =
   | 'overview'
@@ -16,7 +16,8 @@ type NavLabelKey =
   | 'regions'
   | 'insights'
   | 'sync'
-  | 'users';
+  | 'users'
+  | 'permissions';
 
 interface NavItem {
   href: string;
@@ -25,61 +26,87 @@ interface NavItem {
   match?: (pathname: string) => boolean;
   /** Roles allowed to see this entry. Omit = everyone authenticated. */
   roles?: readonly AdminRole[];
+  /**
+   * Section key in the role/section access matrix. When present, the
+   * entry is only shown if the active user's role has that section
+   * allowed (admin and super_admin always see everything).
+   */
+  section?: AdminSection;
 }
 
 const ADMIN_ROLES: readonly AdminRole[] = ['super_admin', 'admin'];
 
 const NAV: readonly NavItem[] = [
-  { href: '/', labelKey: 'overview', icon: HomeIcon, match: (p) => p === '/' },
+  {
+    href: '/',
+    labelKey: 'overview',
+    icon: HomeIcon,
+    match: (p) => p === '/',
+    section: 'overview',
+  },
   {
     href: '/customers',
     labelKey: 'customers',
     icon: UsersIcon,
     match: (p) => p.startsWith('/customers'),
+    section: 'customers',
   },
   {
     href: '/segments',
     labelKey: 'segments',
     icon: TagIcon,
     match: (p) => p.startsWith('/segments'),
+    section: 'segments',
   },
   {
     href: '/orders',
     labelKey: 'orders',
     icon: ReceiptIcon,
     match: (p) => p.startsWith('/orders'),
+    section: 'orders',
   },
   {
     href: '/carts',
     labelKey: 'carts',
     icon: CartIcon,
     match: (p) => p.startsWith('/carts'),
+    section: 'carts',
   },
   {
     href: '/products',
     labelKey: 'products',
     icon: BoxIcon,
     match: (p) => p.startsWith('/products'),
+    section: 'products',
   },
   {
     href: '/coupons',
     labelKey: 'coupons',
     icon: TicketIcon,
     match: (p) => p.startsWith('/coupons'),
+    section: 'coupons',
   },
   {
     href: '/regions',
     labelKey: 'regions',
     icon: MapIcon,
     match: (p) => p.startsWith('/regions'),
+    section: 'regions',
   },
   {
     href: '/insights',
     labelKey: 'insights',
     icon: ActivityIcon,
     match: (p) => p.startsWith('/insights'),
+    section: 'insights',
   },
-  { href: '/sync', labelKey: 'sync', icon: RefreshIcon, match: (p) => p.startsWith('/sync') },
+  {
+    href: '/sync',
+    labelKey: 'sync',
+    icon: RefreshIcon,
+    match: (p) => p.startsWith('/sync'),
+    section: 'sync',
+  },
   {
     href: '/users',
     labelKey: 'users',
@@ -87,13 +114,30 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/users'),
     roles: ADMIN_ROLES,
   },
+  {
+    href: '/permissions',
+    labelKey: 'permissions',
+    icon: KeyIcon,
+    match: (p) => p.startsWith('/permissions'),
+    roles: ADMIN_ROLES,
+  },
 ];
 
-export function Sidebar({ role }: { role: AdminRole }): React.ReactElement {
+interface SidebarProps {
+  role: AdminRole;
+  /** Section visibility for the active user. Admin/super_admin = all true. */
+  access: Record<AdminSection, boolean>;
+}
+
+export function Sidebar({ role, access }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const tNav = useTranslations('nav');
   const tApp = useTranslations('app');
-  const visibleNav = NAV.filter((item) => !item.roles || item.roles.includes(role));
+  const visibleNav = NAV.filter((item) => {
+    if (item.roles && !item.roles.includes(role)) return false;
+    if (item.section && access[item.section] !== true) return false;
+    return true;
+  });
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
@@ -157,6 +201,26 @@ function SparkIcon({ className }: { className?: string }): React.ReactElement {
       <path d="M3 12h18" />
       <path d="m5.5 5.5 13 13" />
       <path d="m18.5 5.5-13 13" />
+    </svg>
+  );
+}
+
+function KeyIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="7.5" cy="15.5" r="3.5" />
+      <path d="M10 13l10-10" />
+      <path d="M16 7l3 3" />
+      <path d="M14 9l3 3" />
     </svg>
   );
 }

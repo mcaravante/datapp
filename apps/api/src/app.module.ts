@@ -11,6 +11,7 @@ import { MagentoModule } from './modules/magento/magento.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -63,6 +64,7 @@ import { SyncModule } from './modules/sync/sync.module';
     QueueModule,
     AuthModule,
     UsersModule,
+    PermissionsModule,
     CustomersModule,
     OrdersModule,
     CartsModule,
