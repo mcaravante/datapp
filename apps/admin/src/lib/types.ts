@@ -311,6 +311,22 @@ export interface ProductAffinityResponse {
   data: ProductAffinityItem[];
 }
 
+export type AdminRole = 'super_admin' | 'admin' | 'analyst' | 'viewer';
+
+export interface UserSummary {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UsersListResponse {
+  data: UserSummary[];
+}
+
 export type RfmSegmentLabel =
   | 'champions'
   | 'loyal'

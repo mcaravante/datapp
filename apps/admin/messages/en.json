@@ -16,7 +16,8 @@
     "coupons": "Coupons",
     "regions": "Regions",
     "insights": "Insights",
-    "sync": "Sync"
+    "sync": "Sync",
+    "users": "Users"
   },
   "common": {
     "search": "Search",
@@ -525,5 +526,61 @@
     "notFoundTitle": "404",
     "notFoundBody": "That page does not exist.",
     "unexpected": "Unexpected error"
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Accounts with access to the CDP admin. Only the {adminRole} and {superAdminRole} roles can manage users.",
+    "newUser": "New user",
+    "roles": {
+      "super_admin": "Super admin",
+      "admin": "Admin",
+      "analyst": "Analyst",
+      "viewer": "Viewer"
+    },
+    "roleHints": {
+      "super_admin": "Full multi-tenant access.",
+      "admin": "Manages the tenant and its users.",
+      "analyst": "Read + export data.",
+      "viewer": "Read-only."
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "lastLogin": "Last login",
+      "created": "Created",
+      "empty": "No users yet.",
+      "you": "you",
+      "neverLoggedIn": "—"
+    },
+    "form": {
+      "createTitle": "New user",
+      "createSubtitle": "Create an account and share the password via a secure channel.",
+      "editTitle": "Edit user",
+      "editSubtitle": "Change the name, role, or reset the password.",
+      "name": "Full name",
+      "namePlaceholder": "Ana Gómez",
+      "email": "Email",
+      "emailPlaceholder": "ana@cdp.local",
+      "emailReadonly": "Email cannot be changed after the user is created.",
+      "role": "Role",
+      "password": "Password",
+      "passwordPlaceholder": "At least 12 characters",
+      "passwordOptional": "New password (optional)",
+      "passwordHint": "Leave blank to keep the current one.",
+      "submitCreate": "Create user",
+      "submitUpdate": "Save changes",
+      "deleteUser": "Delete user",
+      "back": "← Users",
+      "missingFields": "Please fill in the required fields.",
+      "errorPrefix": "Could not save: {message}"
+    },
+    "delete": {
+      "confirmTitle": "Delete {email}?",
+      "confirmBody": "Deletes the user, invalidates their sessions, and writes an audit log entry. Not reversible.",
+      "deleting": "Deleting…",
+      "errorPrefix": "Could not delete: {message}"
+    },
+    "youBadge": "You"
   }
 }

@@ -10,6 +10,7 @@ import { TenantModule } from './modules/tenant/tenant.module';
 import { MagentoModule } from './modules/magento/magento.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -61,6 +62,7 @@ import { SyncModule } from './modules/sync/sync.module';
     GeoModule,
     QueueModule,
     AuthModule,
+    UsersModule,
     CustomersModule,
     OrdersModule,
     CartsModule,

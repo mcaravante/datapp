@@ -1,0 +1,203 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@cdp/db';
+import type { UserRole } from '@cdp/db';
+import { PrismaService } from '../../db/prisma.service';
+import { AuthService } from '../auth/auth.service';
+import type { CreateUserBody, ListUsersQuery, UpdateUserBody } from './dto/users.dto';
+
+export interface UserSummary {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AuditActor {
+  id: string;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+@Injectable()
+export class UsersService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(tenantId: string, query: ListUsersQuery): Promise<UserSummary[]> {
+    const where: Prisma.UserWhereInput = { tenantId };
+    if (query.q) {
+      where.OR = [
+        { email: { contains: query.q, mode: 'insensitive' } },
+        { name: { contains: query.q, mode: 'insensitive' } },
+      ];
+    }
+    if (query.role) where.role = query.role;
+
+    const rows = await this.prisma.user.findMany({
+      where,
+      orderBy: [{ createdAt: 'asc' }],
+    });
+    return rows.map(toSummary);
+  }
+
+  async get(tenantId: string, id: string): Promise<UserSummary> {
+    const user = await this.findScoped(tenantId, id);
+    return toSummary(user);
+  }
+
+  /**
+   * Create a tenant-scoped user. Email is unique system-wide so we can
+   * surface a 409 without leaking which tenant already owns it.
+   */
+  async create(
+    tenantId: string,
+    actor: AuditActor,
+    body: CreateUserBody,
+  ): Promise<UserSummary> {
+    const email = body.email.toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) throw new ConflictException(`User with email ${email} already exists`);
+
+    const passwordHash = await AuthService.hashPassword(body.password);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          tenantId,
+          email,
+          name: body.name,
+          passwordHash,
+          role: body.role,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: actor.id,
+          action: 'create',
+          entity: 'user',
+          entityId: created.id,
+          ip: actor.ip ?? null,
+          userAgent: actor.userAgent ?? null,
+          after: { email: created.email, name: created.name, role: created.role },
+        },
+      });
+      return created;
+    });
+    return toSummary(user);
+  }
+
+  async update(
+    tenantId: string,
+    actor: AuditActor,
+    id: string,
+    body: UpdateUserBody,
+  ): Promise<UserSummary> {
+    const existing = await this.findScoped(tenantId, id);
+
+    // Last-admin guard — refuse to demote the last admin to a non-admin role.
+    if (body.role && body.role !== existing.role && existing.role === 'admin') {
+      await this.assertNotLastAdmin(tenantId, existing.id);
+    }
+
+    const data: Prisma.UserUncheckedUpdateInput = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.role !== undefined) data.role = body.role;
+    if (body.password !== undefined) {
+      data.passwordHash = await AuthService.hashPassword(body.password);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.user.update({ where: { id }, data });
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: actor.id,
+          action: 'update',
+          entity: 'user',
+          entityId: id,
+          ip: actor.ip ?? null,
+          userAgent: actor.userAgent ?? null,
+          before: { name: existing.name, role: existing.role },
+          after: {
+            name: next.name,
+            role: next.role,
+            password_changed: body.password !== undefined,
+          },
+        },
+      });
+      return next;
+    });
+    return toSummary(updated);
+  }
+
+  async delete(tenantId: string, actor: AuditActor, id: string): Promise<void> {
+    if (id === actor.id) {
+      throw new ForbiddenException('You cannot delete your own user');
+    }
+    const existing = await this.findScoped(tenantId, id);
+    if (existing.role === 'admin') {
+      await this.assertNotLastAdmin(tenantId, id);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: actor.id,
+          action: 'delete',
+          entity: 'user',
+          entityId: id,
+          ip: actor.ip ?? null,
+          userAgent: actor.userAgent ?? null,
+          before: { email: existing.email, name: existing.name, role: existing.role },
+        },
+      });
+    });
+  }
+
+  private async findScoped(
+    tenantId: string,
+    id: string,
+  ): Promise<Prisma.UserGetPayload<true>> {
+    const user = await this.prisma.user.findFirst({ where: { id, tenantId } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
+  }
+
+  /**
+   * Refuse if the user about to be removed/demoted is the last admin of
+   * the tenant. Keeps every tenant from locking itself out.
+   */
+  private async assertNotLastAdmin(tenantId: string, exceptUserId: string): Promise<void> {
+    const otherAdmins = await this.prisma.user.count({
+      where: { tenantId, role: 'admin', NOT: { id: exceptUserId } },
+    });
+    if (otherAdmins === 0) {
+      throw new BadRequestException('Cannot remove the last admin of the tenant');
+    }
+  }
+}
+
+function toSummary(
+  user: Prisma.UserGetPayload<true>,
+): UserSummary {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    last_login_at: user.lastLoginAt?.toISOString() ?? null,
+    created_at: user.createdAt.toISOString(),
+    updated_at: user.updatedAt.toISOString(),
+  };
+}

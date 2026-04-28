@@ -3,23 +3,31 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { AdminRole } from '@/lib/types';
+
+type NavLabelKey =
+  | 'overview'
+  | 'customers'
+  | 'segments'
+  | 'orders'
+  | 'carts'
+  | 'products'
+  | 'coupons'
+  | 'regions'
+  | 'insights'
+  | 'sync'
+  | 'users';
 
 interface NavItem {
   href: string;
-  labelKey:
-    | 'overview'
-    | 'customers'
-    | 'segments'
-    | 'orders'
-    | 'carts'
-    | 'products'
-    | 'coupons'
-    | 'regions'
-    | 'insights'
-    | 'sync';
+  labelKey: NavLabelKey;
   icon: (props: { className?: string }) => React.ReactElement;
   match?: (pathname: string) => boolean;
+  /** Roles allowed to see this entry. Omit = everyone authenticated. */
+  roles?: readonly AdminRole[];
 }
+
+const ADMIN_ROLES: readonly AdminRole[] = ['super_admin', 'admin'];
 
 const NAV: readonly NavItem[] = [
   { href: '/', labelKey: 'overview', icon: HomeIcon, match: (p) => p === '/' },
@@ -72,12 +80,20 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/insights'),
   },
   { href: '/sync', labelKey: 'sync', icon: RefreshIcon, match: (p) => p.startsWith('/sync') },
+  {
+    href: '/users',
+    labelKey: 'users',
+    icon: ShieldIcon,
+    match: (p) => p.startsWith('/users'),
+    roles: ADMIN_ROLES,
+  },
 ];
 
-export function Sidebar(): React.ReactElement {
+export function Sidebar({ role }: { role: AdminRole }): React.ReactElement {
   const pathname = usePathname();
   const tNav = useTranslations('nav');
   const tApp = useTranslations('app');
+  const visibleNav = NAV.filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
@@ -95,7 +111,7 @@ export function Sidebar(): React.ReactElement {
         </div>
       </div>
       <nav className="flex-1 space-y-0.5 px-2 py-3 text-sm">
-        {NAV.map((item) => {
+        {visibleNav.map((item) => {
           const active = item.match ? item.match(pathname) : pathname === item.href;
           return (
             <Link
@@ -141,6 +157,24 @@ function SparkIcon({ className }: { className?: string }): React.ReactElement {
       <path d="M3 12h18" />
       <path d="m5.5 5.5 13 13" />
       <path d="m18.5 5.5-13 13" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 12l2 2 4-4" />
     </svg>
   );
 }

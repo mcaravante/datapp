@@ -16,7 +16,8 @@
     "coupons": "Cupones",
     "regions": "Regiones",
     "insights": "Insights",
-    "sync": "Sincronización"
+    "sync": "Sincronización",
+    "users": "Usuarios"
   },
   "common": {
     "search": "Buscar",
@@ -525,5 +526,61 @@
     "notFoundTitle": "404",
     "notFoundBody": "Esa página no existe.",
     "unexpected": "Error inesperado"
+  },
+  "users": {
+    "title": "Usuarios",
+    "subtitle": "Cuentas con acceso al admin del CDP. Solo los roles {adminRole} y {superAdminRole} pueden gestionar usuarios.",
+    "newUser": "Nuevo usuario",
+    "roles": {
+      "super_admin": "Super admin",
+      "admin": "Admin",
+      "analyst": "Analista",
+      "viewer": "Lector"
+    },
+    "roleHints": {
+      "super_admin": "Acceso total y multi-tenant.",
+      "admin": "Gestiona el tenant y sus usuarios.",
+      "analyst": "Lectura + exportación de datos.",
+      "viewer": "Sólo lectura."
+    },
+    "table": {
+      "name": "Nombre",
+      "email": "Email",
+      "role": "Rol",
+      "lastLogin": "Último login",
+      "created": "Creado",
+      "empty": "Aún no hay usuarios.",
+      "you": "vos",
+      "neverLoggedIn": "—"
+    },
+    "form": {
+      "createTitle": "Nuevo usuario",
+      "createSubtitle": "Creá una cuenta y enviale la contraseña por un canal seguro.",
+      "editTitle": "Editar usuario",
+      "editSubtitle": "Cambiá el nombre, el rol o reseteá la contraseña.",
+      "name": "Nombre completo",
+      "namePlaceholder": "Ana Gómez",
+      "email": "Email",
+      "emailPlaceholder": "ana@cdp.local",
+      "emailReadonly": "El email no se puede cambiar después de crear el usuario.",
+      "role": "Rol",
+      "password": "Contraseña",
+      "passwordPlaceholder": "Mínimo 12 caracteres",
+      "passwordOptional": "Nueva contraseña (opcional)",
+      "passwordHint": "Dejala en blanco para mantener la actual.",
+      "submitCreate": "Crear usuario",
+      "submitUpdate": "Guardar cambios",
+      "deleteUser": "Eliminar usuario",
+      "back": "← Usuarios",
+      "missingFields": "Completá los campos obligatorios.",
+      "errorPrefix": "No se pudo guardar: {message}"
+    },
+    "delete": {
+      "confirmTitle": "¿Eliminar a {email}?",
+      "confirmBody": "Se elimina el usuario, sus sesiones se invalidan y queda registrado en el audit log. No es reversible.",
+      "deleting": "Eliminando…",
+      "errorPrefix": "No se pudo eliminar: {message}"
+    },
+    "youBadge": "Vos"
   }
 }
