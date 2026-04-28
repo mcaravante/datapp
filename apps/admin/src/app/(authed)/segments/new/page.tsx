@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { createSegment } from '../actions';
 import type { RfmSegmentLabel, SegmentDefinition } from '@/lib/types';
 
@@ -69,6 +70,11 @@ export default async function NewSegmentPage({
     }
   }
 
+  const t = await getTranslations('segments.form');
+  const tCommon = await getTranslations('common');
+  const tSegments = await getTranslations('segments');
+  const tRfm = await getTranslations('segments.rfmLabels');
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-8">
       <div>
@@ -76,76 +82,76 @@ export default async function NewSegmentPage({
           href="/segments"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
         >
-          ← Segments
+          ← {tSegments('title')}
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-          New segment
+          {t('title')}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Save a customer filter as a static segment. Membership snapshots now and refreshes on
-          demand.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {sp.error && (
         <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {sp.error === 'missing-name'
-            ? 'Please give the segment a name.'
-            : `Could not create segment: ${decodeURIComponent(sp.error)}`}
+            ? t('missingName')
+            : t('errorPrefix', { message: decodeURIComponent(sp.error) })}
         </p>
       )}
 
-      <form action={submit} className="space-y-5 rounded-lg border border-border bg-card p-6 shadow-card">
-        <Field id="name" label="Name" required>
+      <form
+        action={submit}
+        className="space-y-5 rounded-lg border border-border bg-card p-6 shadow-card"
+      >
+        <Field id="name" label={t('name')} required>
           <input
             id="name"
             name="name"
             required
             maxLength={100}
-            placeholder="VIP champions"
+            placeholder={t('namePlaceholder')}
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </Field>
 
-        <Field id="description" label="Description (optional)">
+        <Field id="description" label={t('description')}>
           <input
             id="description"
             name="description"
             maxLength={500}
-            placeholder="Top-spend repeat buyers"
+            placeholder={t('descriptionPlaceholder')}
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </Field>
 
         <fieldset className="space-y-3 border-t border-border pt-5">
           <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Filters
+            {t('filters')}
           </legend>
 
-          <Field id="q" label="Search (email, first name, last name)">
+          <Field id="q" label={t('search')}>
             <input
               id="q"
               name="q"
               defaultValue={sp.q ?? ''}
               maxLength={200}
-              placeholder="@gmail.com"
+              placeholder={t('searchPlaceholder')}
               className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
             />
           </Field>
 
-          <Field id="customer_group" label="Customer group">
+          <Field id="customer_group" label={t('group')}>
             <input
               id="customer_group"
               name="customer_group"
               defaultValue={sp.customer_group ?? ''}
               maxLength={100}
-              placeholder="General, Mayoristas, …"
+              placeholder={t('groupPlaceholder')}
               className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
             />
           </Field>
 
           <div className="space-y-1.5">
-            <span className="block text-sm font-medium text-foreground">RFM segments</span>
+            <span className="block text-sm font-medium text-foreground">{t('rfm')}</span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {RFM_LABELS.map((label) => (
                 <label
@@ -159,13 +165,11 @@ export default async function NewSegmentPage({
                     defaultChecked={initialRfm.includes(label)}
                     className="h-3.5 w-3.5 rounded border-input"
                   />
-                  <span>{prettySegment(label)}</span>
+                  <span>{tRfm(label)}</span>
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Match customers whose current RFM label is any of the selected.
-            </p>
+            <p className="text-xs text-muted-foreground">{t('rfmHint')}</p>
           </div>
         </fieldset>
 
@@ -174,13 +178,13 @@ export default async function NewSegmentPage({
             href="/segments"
             className="rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
           >
-            Cancel
+            {tCommon('cancel')}
           </Link>
           <button
             type="submit"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-soft transition hover:bg-primary/90"
           >
-            Create segment
+            {t('submit')}
           </button>
         </div>
       </form>
@@ -208,11 +212,4 @@ function Field({
       {children}
     </div>
   );
-}
-
-function prettySegment(segment: string): string {
-  return segment
-    .split('_')
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(' ');
 }

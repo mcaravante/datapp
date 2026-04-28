@@ -1,0 +1,529 @@
+{
+  "app": {
+    "title": "CDP Admin",
+    "tagline": "Customer Data Platform",
+    "tenant": "Tenant",
+    "signOut": "Cerrar sesión",
+    "version": "v0.1 · Fase 1"
+  },
+  "nav": {
+    "overview": "Resumen",
+    "customers": "Clientes",
+    "segments": "Segmentos",
+    "orders": "Pedidos",
+    "carts": "Carritos abandonados",
+    "products": "Top productos",
+    "coupons": "Cupones",
+    "regions": "Regiones",
+    "insights": "Insights",
+    "sync": "Sincronización"
+  },
+  "common": {
+    "search": "Buscar",
+    "clear": "Limpiar",
+    "next": "Siguiente",
+    "back": "Volver",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "create": "Crear",
+    "save": "Guardar",
+    "refresh": "Actualizar",
+    "exportCsv": "Exportar CSV",
+    "loading": "Cargando…",
+    "noData": "Sin datos",
+    "emDash": "—",
+    "yes": "Sí",
+    "no": "No",
+    "all": "Todos",
+    "switchToLight": "Cambiar a tema claro",
+    "switchToDark": "Cambiar a tema oscuro",
+    "language": "Idioma"
+  },
+  "presets": {
+    "7d": "7 días",
+    "30d": "30 días",
+    "90d": "90 días",
+    "365d": "1 año",
+    "all": "Histórico"
+  },
+  "login": {
+    "title": "CDP Admin",
+    "subtitle": "Iniciá sesión en tu tenant.",
+    "email": "Email",
+    "emailPlaceholder": "vos@ejemplo.com",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "errorInvalid": "Email o contraseña inválidos."
+  },
+  "overview": {
+    "title": "Resumen",
+    "subtitle": "KPIs comparados contra el período anterior equivalente.",
+    "tiles": {
+      "revenue": "Facturación",
+      "orders": "Pedidos",
+      "aov": "Ticket promedio",
+      "customers": "Clientes",
+      "customerMixCount": "{newCount} nuevos · {returningCount} recurrentes"
+    },
+    "mix": {
+      "heading": "Mix de clientes",
+      "newCustomers": "Clientes nuevos",
+      "returningCustomers": "Clientes recurrentes",
+      "repeatRate": "Tasa de recompra"
+    },
+    "links": {
+      "customersTitle": "Clientes",
+      "customersHeadline": "Buscar y explorar",
+      "customersDescription": "Identidad, direcciones y métricas de cada cliente sincronizado.",
+      "productsTitle": "Productos",
+      "productsHeadline": "Top productos",
+      "productsDescription": "Más vendidos por unidades o facturación, filtrados por rango de fechas.",
+      "open": "Abrir"
+    },
+    "delta": {
+      "vs": "vs"
+    }
+  },
+  "customers": {
+    "title": "Clientes",
+    "onThisPage": "{count} en esta página.",
+    "searchPlaceholder": "Buscar email, nombre o apellido…",
+    "saveAsSegment": "Guardar como segmento",
+    "table": {
+      "email": "Email",
+      "name": "Nombre",
+      "group": "Grupo",
+      "magentoId": "ID Magento",
+      "updated": "Actualizado",
+      "empty": "Ningún cliente coincide."
+    },
+    "footer": "Paginación por cursor — orden por updated_at de Magento desc."
+  },
+  "customerDetail": {
+    "back": "← Clientes",
+    "subhead": "{fullName} · Magento #{magentoId} · grupo {group}",
+    "identity": "Identidad",
+    "rfm": "Segmento RFM",
+    "rfmCalculated": "calculado {when}",
+    "rfmRecency": "Recencia (días desde último pedido)",
+    "rfmFrequency": "Frecuencia (pedidos / 365d)",
+    "rfmMonetary": "Monetario (facturación / 365d)",
+    "lifetimeMetrics": "Métricas históricas",
+    "fields": {
+      "email": "Email",
+      "name": "Nombre",
+      "phone": "Teléfono",
+      "dob": "Fecha de nacimiento",
+      "gender": "Género",
+      "subscribed": "Suscripto",
+      "createdInMagento": "Creado en Magento",
+      "updatedInMagento": "Actualizado en Magento",
+      "orders": "Pedidos",
+      "totalSpent": "Total gastado",
+      "aov": "Ticket promedio",
+      "firstOrder": "Primer pedido",
+      "lastOrder": "Último pedido"
+    },
+    "subscribedValue": "{flag} ({status})",
+    "noOrders": "Este cliente todavía no tiene pedidos sincronizados.",
+    "recentOrdersHeading": "Pedidos recientes ({count})",
+    "seeAll": "Ver todos →",
+    "productsHeading": "Productos comprados ({count})",
+    "productsSubtitle": "SKUs históricos agregados desde los items de pedidos.",
+    "productsTable": {
+      "sku": "SKU",
+      "name": "Producto",
+      "units": "Unidades",
+      "orders": "Pedidos",
+      "revenue": "Facturación",
+      "lastBought": "Última compra"
+    },
+    "addressesHeading": "Direcciones ({count})",
+    "noAddresses": "Magento no devolvió direcciones para este cliente.",
+    "defaultBilling": "· facturación por defecto",
+    "defaultShipping": "· envío por defecto",
+    "magentoAttributes": "Atributos personalizados de Magento",
+    "items": "items",
+    "privacy": {
+      "heading": "Privacidad de datos",
+      "description": "Controles GDPR / del titular del dato. Ambas acciones quedan auditadas.",
+      "downloadJson": "Descargar export JSON",
+      "erase": "Eliminar cliente",
+      "confirmTitle": "¿Eliminar este cliente?",
+      "confirmBody": "Pseudonimiza nombre, email, teléfono, direcciones y PII de pedidos. Los pedidos y agregados de analítica quedan intactos. No es reversible.",
+      "typeEmail": "Tipeá el email para confirmar:",
+      "erasing": "Eliminando…",
+      "erasedToast": "Eliminado. Email pseudonimizado: {pseudonym}",
+      "errorPrefix": "Falló ({status}): {body}"
+    }
+  },
+  "segments": {
+    "rfmLabels": {
+      "champions": "Campeones",
+      "loyal": "Fieles",
+      "potential_loyalists": "Potenciales fieles",
+      "new_customers": "Nuevos",
+      "promising": "Prometedores",
+      "needing_attention": "Requieren atención",
+      "about_to_sleep": "Por dormirse",
+      "at_risk": "En riesgo",
+      "cannot_lose_them": "No los podemos perder",
+      "hibernating": "Hibernando",
+      "lost": "Perdidos"
+    },
+    "title": "Segmentos",
+    "subtitle": "Segmentos estáticos de clientes. La membresía se snapshotea al crear y se refresca a demanda.",
+    "newSegment": "Nuevo segmento",
+    "table": {
+      "name": "Nombre",
+      "description": "Descripción",
+      "filters": "Filtros",
+      "members": "Miembros",
+      "updated": "Actualizado",
+      "emptyPrefix": "Aún no hay segmentos. ",
+      "emptyAction": "Creá uno"
+    },
+    "filters": {
+      "search": "búsqueda",
+      "group": "grupo",
+      "regions": "regiones",
+      "regionsCount": "{count} seleccionadas",
+      "rfm": "RFM",
+      "all": "todos los clientes"
+    },
+    "detail": {
+      "members": "Miembros",
+      "type": "Tipo",
+      "lastRefreshed": "Última actualización",
+      "createdAt": "creado {when}",
+      "filterDefinition": "Definición del filtro",
+      "membersHeading": "Miembros ({count})",
+      "membersSubtitle": "Mostrando los primeros {count}. La lista de miembros es un snapshot — usá Refresh para recalcular contra los datos actuales.",
+      "table": {
+        "email": "Email",
+        "name": "Nombre",
+        "group": "Grupo",
+        "added": "Agregado"
+      },
+      "empty": "No hay miembros en este segmento.",
+      "refresh": "Actualizar",
+      "refreshing": "Actualizando…",
+      "refreshSuccess": "Membresía actualizada.",
+      "delete": "Eliminar",
+      "deleting": "Eliminando…",
+      "deleteTitle": "¿Eliminar “{name}”?",
+      "deleteBody": "Se eliminan la definición y la lista de miembros. Los perfiles de cliente no se ven afectados."
+    },
+    "form": {
+      "title": "Nuevo segmento",
+      "subtitle": "Guardá un filtro de clientes como segmento estático. La membresía se calcula ahora y se refresca a demanda.",
+      "missingName": "Necesitás darle un nombre al segmento.",
+      "errorPrefix": "No se pudo crear el segmento: {message}",
+      "name": "Nombre",
+      "namePlaceholder": "VIP campeones",
+      "description": "Descripción (opcional)",
+      "descriptionPlaceholder": "Compradores top con recompra",
+      "filters": "Filtros",
+      "search": "Búsqueda (email, nombre, apellido)",
+      "searchPlaceholder": "@gmail.com",
+      "group": "Grupo de clientes",
+      "groupPlaceholder": "General, Mayoristas, …",
+      "rfm": "Segmentos RFM",
+      "rfmHint": "Hace match con clientes cuya etiqueta RFM actual esté entre las seleccionadas.",
+      "submit": "Crear segmento"
+    }
+  },
+  "orders": {
+    "title": "Pedidos",
+    "onThisPage": "{count} en esta página · ordenados por placed_at desc.",
+    "searchPlaceholder": "Buscar # de pedido o email del cliente…",
+    "statusLabel": "Estado:",
+    "statusFilters": {
+      "all": "Todos",
+      "pending": "Pendiente",
+      "processing": "En proceso",
+      "complete": "Completo",
+      "canceled": "Cancelado",
+      "closed": "Cerrado",
+      "holded": "En espera"
+    },
+    "table": {
+      "orderNumber": "Pedido #",
+      "placed": "Fecha",
+      "customer": "Cliente",
+      "status": "Estado",
+      "items": "Items",
+      "total": "Total",
+      "realRevenue": "Real revenue",
+      "empty": "Ningún pedido coincide."
+    },
+    "footer": "Paginación por cursor — orden por placed_at desc."
+  },
+  "orderDetail": {
+    "back": "← Pedidos",
+    "placedAt": "Realizado {when} · Magento order id {id}",
+    "stateLabel": "estado: {state}",
+    "tiles": {
+      "grandTotal": "Total",
+      "realRevenue": "Real revenue",
+      "realRevenueSub": "facturado − reembolsado",
+      "items": "Items",
+      "skus": "{count} SKUs",
+      "refunded": "Reembolsado"
+    },
+    "sections": {
+      "customer": "Cliente",
+      "totals": "Totales",
+      "items": "Items ({count})",
+      "addresses": "Direcciones",
+      "billing": "Facturación",
+      "shipping": "Envío",
+      "history": "Historial de estados ({count})"
+    },
+    "fields": {
+      "email": "Email",
+      "name": "Nombre",
+      "paymentMethod": "Medio de pago",
+      "shippingMethod": "Método de envío",
+      "coupon": "Cupón",
+      "cdpProfile": "Perfil CDP",
+      "subtotal": "Subtotal",
+      "tax": "Impuestos",
+      "shipping": "Envío",
+      "discount": "Descuento",
+      "invoiced": "Facturado",
+      "refunded": "Reembolsado",
+      "paid": "Pagado",
+      "currency": "Moneda"
+    },
+    "guestCheckout": "checkout como invitado",
+    "openCustomer": "Abrir Customer 360 →",
+    "items": {
+      "sku": "SKU",
+      "product": "Producto",
+      "qty": "Cant.",
+      "price": "Precio",
+      "discount": "Descuento",
+      "tax": "Impuesto",
+      "rowTotal": "Subtotal",
+      "empty": "El pedido no tiene items.",
+      "refundedBadge": "reembolsado {qty}"
+    },
+    "addressEmpty": "No registrada para este pedido.",
+    "couponAuto": "Regla automática (sin código) — reglas {ids}"
+  },
+  "products": {
+    "title": "Top productos",
+    "subtitle": "Agregado por SKU. Los productos configurables padre se filtran automáticamente.",
+    "sortBy": "Ordenar por:",
+    "sortRevenue": "Facturación",
+    "sortUnits": "Unidades",
+    "table": {
+      "rank": "#",
+      "product": "Producto",
+      "sku": "SKU",
+      "units": "Unidades",
+      "revenue": "Facturación",
+      "orders": "Pedidos",
+      "empty": "No hay pedidos en esta ventana."
+    }
+  },
+  "productAffinity": {
+    "back": "← Top productos",
+    "tiles": {
+      "ordersWithSku": "Pedidos con este SKU",
+      "tenantTotalOrders": "Total de pedidos del tenant",
+      "tenantTotalSub": "denominador del lift",
+      "penetration": "Penetración",
+      "penetrationSub": "pedidos con este SKU / total de pedidos"
+    },
+    "heading": "Comprados juntos frecuentemente",
+    "subtitle": "{confidenceLabel} = % de pedidos con este SKU que también incluyen el SKU de la fila. {liftLabel} > 1 indica asociación más fuerte que la casualidad. Excluye SKUs que sólo coinciden una vez.",
+    "confidenceLabel": "Confianza",
+    "liftLabel": "Lift",
+    "table": {
+      "sku": "SKU",
+      "product": "Producto",
+      "coOrders": "Co-pedidos",
+      "totalOrders": "Total pedidos",
+      "confidence": "Confianza",
+      "lift": "Lift"
+    },
+    "noOrders": "Todavía no hay pedidos con este SKU.",
+    "notEnough": "No hay co-ocurrencia suficiente para calcular afinidad. O este SKU se compra solo, o no hay pedidos multi-item suficientes."
+  },
+  "regions": {
+    "title": "Regiones · Argentina",
+    "subtitle": "Clientes + pedidos + facturación por provincia INDEC. Los conteos de clientes son snapshot (independiente del rango); compradores / pedidos / facturación dependen del rango.",
+    "tiles": {
+      "customers": "Clientes",
+      "buyers": "Compradores en ventana",
+      "orders": "Pedidos en ventana",
+      "revenue": "Facturación"
+    },
+    "mapBy": "Mapear por:",
+    "metrics": {
+      "revenue": "Facturación",
+      "customers": "Clientes",
+      "orders": "Pedidos"
+    },
+    "choropleth": {
+      "headingByRevenue": "Facturación por provincia",
+      "headingByCustomers": "Clientes por provincia",
+      "headingByOrders": "Pedidos por provincia",
+      "summary": "24 provincias · máximo {max}",
+      "scale": "Escala",
+      "noData": "sin datos"
+    },
+    "table": {
+      "rank": "#",
+      "code": "Código",
+      "province": "Provincia",
+      "customers": "Clientes",
+      "customerShare": "Participación clientes",
+      "buyers": "Compradores",
+      "orders": "Pedidos",
+      "revenue": "Facturación",
+      "revenueShare": "Participación facturación",
+      "empty": "Sin regiones configuradas."
+    },
+    "unmatched": "Regiones no matcheadas ({count})",
+    "unmatchedSubtitle": "Magento envió estos valores de región que no matchean con ninguna fila de la tabla INDEC. Son auditoría — corregí el matcher en el region resolver si alguno corresponde a una provincia real.",
+    "unmatchedTable": {
+      "regionRaw": "Región (raw)",
+      "city": "Ciudad",
+      "postal": "CP",
+      "occurrences": "Ocurrencias"
+    }
+  },
+  "insights": {
+    "title": "Insights",
+    "subtitle": "Cuándo compran tus clientes y cuánto siguen comprando. Todos los horarios en {tz}.",
+    "heatmap": {
+      "title": "Heatmap día × hora",
+      "summary": "{orders} pedidos · {revenue} de facturación.",
+      "colorBy": "Colorear por:",
+      "byOrders": "Pedidos",
+      "byRevenue": "Facturación",
+      "noOrders": "Sin pedidos en esta ventana.",
+      "less": "Menos",
+      "more": "Más",
+      "tooltipNoOrders": "{day} {hour} — sin pedidos",
+      "tooltipRevenue": "{day} {hour} — {value}",
+      "tooltipOrders": "{day} {hour} — {value} pedidos",
+      "topChipOrders": "{value} pedidos"
+    },
+    "cadence": {
+      "title": "Tiempo entre pedidos",
+      "summary": "{count} clientes con 2+ pedidos · {medianText}",
+      "medianValue": "mediana de gap {days} días",
+      "medianNone": "sin datos de gap",
+      "empty": "Sin gaps de recompra en esta ventana."
+    },
+    "cohort": {
+      "title": "Retención por cohorte ({count} meses)",
+      "summary": "{customers} clientes en los últimos {months} meses. Cada fila son los clientes adquiridos en ese mes; cada columna muestra qué % volvió a comprar N meses después. Las celdas vacías = aún no transcurrieron.",
+      "table": {
+        "cohort": "Cohorte",
+        "size": "Tamaño"
+      }
+    },
+    "days": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    }
+  },
+  "coupons": {
+    "title": "Cupones",
+    "subtitle": "Uso de códigos de cupón en el período. Las reglas automáticas (sin código) se reportan aparte abajo.",
+    "tiles": {
+      "couponOrders": "Pedidos con cupón",
+      "couponRevenue": "Facturación con cupón",
+      "couponRevenueSub": "totales post-descuento",
+      "discount": "Descuento otorgado",
+      "discountSub": "entre cupones"
+    },
+    "byCode": "Por código de cupón",
+    "table": {
+      "code": "Código",
+      "rule": "Regla",
+      "orders": "Pedidos",
+      "customers": "Clientes",
+      "revenue": "Facturación",
+      "discount": "Descuento",
+      "net": "Neto (real)",
+      "lastUsed": "Último uso",
+      "empty": "Ningún cupón usado en esta ventana. En cuanto un cliente aplique uno en Magento, va a aparecer acá."
+    },
+    "auto": {
+      "title": "Reglas automáticas (sin código de cupón)",
+      "subtitle": "Pedidos que recibieron descuento sin cupón tipeado. Útil para comparar la facturación de promo vs cupón.",
+      "ordersLabel": "Pedidos con promo automática",
+      "discountLabel": "Descuento otorgado (auto)"
+    }
+  },
+  "carts": {
+    "title": "Carritos abandonados",
+    "subtitle": "Snapshot en vivo desde Magento — carritos activos con al menos un item, ociosos por al menos {threshold}. Generado {when}.",
+    "presets": {
+      "15m": "15 min",
+      "1h": "1 hora",
+      "3h": "3 horas",
+      "1d": "1 día",
+      "7d": "7 días"
+    },
+    "tiles": {
+      "carts": "Carritos",
+      "items": "Items en carritos",
+      "itemsSub": "suma entre todos los carritos",
+      "atRisk": "Facturación en riesgo",
+      "atRiskSub": "grand_total de carritos pendientes",
+      "recoverable": "Recuperables",
+      "recoverableSub": "clientes conocidos (no invitados)"
+    },
+    "tableHeading": "Carritos ({count})",
+    "tableSubtitle": "Ordenados por última actividad. La columna Cliente linkea al perfil CDP cuando el comprador está registrado.",
+    "table": {
+      "cart": "Carrito",
+      "customer": "Cliente",
+      "items": "Items",
+      "total": "Total",
+      "lastActivity": "Última actividad",
+      "idle": "Inactivo",
+      "noEmail": "(sin email)",
+      "guest": "invitado",
+      "registered": "registrado",
+      "empty": "No hay carritos abandonados en esta ventana."
+    }
+  },
+  "sync": {
+    "title": "Sincronización",
+    "subtitle": "Una fila por tienda Magento × entidad. Triggers manuales y profundidad de cola llegan en la Iteración 4.",
+    "table": {
+      "store": "Tienda",
+      "entity": "Entidad",
+      "status": "Estado",
+      "lastProcessed": "Último procesado",
+      "cursor": "Cursor",
+      "empty": "Sin actividad de sincronización todavía. Ejecutá {cmd}."
+    },
+    "statuses": {
+      "idle": "inactivo",
+      "running": "corriendo",
+      "error": "error",
+      "paused": "pausado"
+    }
+  },
+  "errors": {
+    "somethingWentWrong": "Algo salió mal",
+    "tryAgain": "Reintentar",
+    "notFoundTitle": "404",
+    "notFoundBody": "Esa página no existe.",
+    "unexpected": "Error inesperado"
+  }
+}

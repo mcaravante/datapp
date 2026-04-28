@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
 import {
   formatCurrencyArs,
@@ -7,6 +8,7 @@ import {
   formatPercent01,
   deltaTone,
 } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { KpisResponse } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Overview' };
@@ -16,11 +18,13 @@ interface PageProps {
 }
 
 const PRESETS = [
-  { id: '7d', label: '7 days', days: 7 },
-  { id: '30d', label: '30 days', days: 30 },
-  { id: '90d', label: '90 days', days: 90 },
-  { id: 'all', label: 'All time', days: null },
+  { id: '7d', days: 7 },
+  { id: '30d', days: 30 },
+  { id: '90d', days: 90 },
+  { id: 'all', days: null },
 ] as const;
+
+type PresetId = (typeof PRESETS)[number]['id'];
 
 function rangeFromPreset(presetId: string): { from?: string; to: string } {
   const to = new Date();
@@ -44,67 +48,85 @@ export default async function OverviewPage({
   params.set('to', range.to);
 
   const kpis = await apiFetch<KpisResponse>(`/v1/admin/analytics/kpis?${params.toString()}`);
+  const locale = (await getLocale()) as Locale;
+  const t = await getTranslations('overview');
+  const tPresets = await getTranslations('presets');
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Overview</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            KPIs vs the equivalent previous period.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        <WindowSwitcher
-          activeId={!fromParam && !toParam ? windowParam : null}
-          buildHref={(id) => `/?window=${id}`}
-        />
+        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
+          {PRESETS.map((p) => {
+            const active = !fromParam && !toParam && windowParam === p.id;
+            return (
+              <Link
+                key={p.id}
+                href={`/?window=${p.id}`}
+                className={
+                  active
+                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
+                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                }
+              >
+                {tPresets(p.id as PresetId)}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Tile
-          label="Revenue"
-          value={formatCurrencyArs(kpis.current.revenue)}
+          label={t('tiles.revenue')}
+          value={formatCurrencyArs(kpis.current.revenue, locale)}
           delta={kpis.delta.revenue_pct}
-          sub={`vs ${formatCurrencyArs(kpis.previous.revenue)}`}
+          sub={`${t('delta.vs')} ${formatCurrencyArs(kpis.previous.revenue, locale)}`}
         />
         <Tile
-          label="Orders"
-          value={formatNumber(kpis.current.orders)}
+          label={t('tiles.orders')}
+          value={formatNumber(kpis.current.orders, locale)}
           delta={kpis.delta.orders_pct}
-          sub={`vs ${formatNumber(kpis.previous.orders)}`}
+          sub={`${t('delta.vs')} ${formatNumber(kpis.previous.orders, locale)}`}
         />
         <Tile
-          label="Average order value"
-          value={formatCurrencyArs(kpis.current.aov)}
+          label={t('tiles.aov')}
+          value={formatCurrencyArs(kpis.current.aov, locale)}
           delta={kpis.delta.aov_pct}
-          sub={`vs ${formatCurrencyArs(kpis.previous.aov)}`}
+          sub={`${t('delta.vs')} ${formatCurrencyArs(kpis.previous.aov, locale)}`}
         />
         <Tile
-          label="Customers"
-          value={formatNumber(kpis.current.customers)}
+          label={t('tiles.customers')}
+          value={formatNumber(kpis.current.customers, locale)}
           delta={kpis.delta.customers_pct}
-          sub={`${formatNumber(kpis.current.new_customers)} new · ${formatNumber(kpis.current.returning_customers)} returning`}
+          sub={t('tiles.customerMixCount', {
+            newCount: formatNumber(kpis.current.new_customers, locale),
+            returningCount: formatNumber(kpis.current.returning_customers, locale),
+          })}
         />
       </div>
 
       <section className="rounded-lg border border-border bg-card p-5 shadow-card">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Customer mix
+          {t('mix.heading')}
         </h2>
         <dl className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <MixCell
-            label="New customers"
-            value={formatNumber(kpis.current.new_customers)}
+            label={t('mix.newCustomers')}
+            value={formatNumber(kpis.current.new_customers, locale)}
             tone="primary"
           />
           <MixCell
-            label="Returning customers"
-            value={formatNumber(kpis.current.returning_customers)}
+            label={t('mix.returningCustomers')}
+            value={formatNumber(kpis.current.returning_customers, locale)}
             tone="success"
           />
           <MixCell
-            label="Repeat purchase rate"
-            value={formatPercent01(kpis.current.repeat_purchase_rate)}
+            label={t('mix.repeatRate')}
+            value={formatPercent01(kpis.current.repeat_purchase_rate, locale)}
             tone="accent"
           />
         </dl>
@@ -116,14 +138,14 @@ export default async function OverviewPage({
           className="group rounded-lg border border-border bg-card p-5 shadow-card transition hover:border-ring/50 hover:shadow-elevated"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Customers
+            {t('links.customersTitle')}
           </div>
-          <div className="mt-2 text-base font-semibold text-foreground">Browse and search</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Identity, addresses, lifetime metrics for every synced customer.
-          </p>
+          <div className="mt-2 text-base font-semibold text-foreground">
+            {t('links.customersHeadline')}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">{t('links.customersDescription')}</p>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-            Open <ArrowRightIcon className="h-3.5 w-3.5" />
+            {t('links.open')} <ArrowRightIcon className="h-3.5 w-3.5" />
           </span>
         </Link>
         <Link
@@ -131,14 +153,14 @@ export default async function OverviewPage({
           className="group rounded-lg border border-border bg-card p-5 shadow-card transition hover:border-ring/50 hover:shadow-elevated"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Products
+            {t('links.productsTitle')}
           </div>
-          <div className="mt-2 text-base font-semibold text-foreground">Top products</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Best sellers by units or revenue, filtered by date range.
-          </p>
+          <div className="mt-2 text-base font-semibold text-foreground">
+            {t('links.productsHeadline')}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">{t('links.productsDescription')}</p>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-            Open <ArrowRightIcon className="h-3.5 w-3.5" />
+            {t('links.open')} <ArrowRightIcon className="h-3.5 w-3.5" />
           </span>
         </Link>
       </div>
@@ -203,35 +225,6 @@ function MixCell({
       </dt>
       <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">{value}</dd>
     </div>
-  );
-}
-
-function WindowSwitcher({
-  activeId,
-  buildHref,
-}: {
-  activeId: string | null;
-  buildHref: (id: string) => string;
-}): React.ReactElement {
-  return (
-    <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-      {PRESETS.map((p) => {
-        const active = activeId === p.id;
-        return (
-          <Link
-            key={p.id}
-            href={buildHref(p.id)}
-            className={
-              active
-                ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-            }
-          >
-            {p.label}
-          </Link>
-        );
-      })}
-    </nav>
   );
 }
 

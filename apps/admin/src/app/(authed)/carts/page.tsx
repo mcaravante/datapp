@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { AbandonedCartsResponse } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Abandoned carts' };
@@ -10,12 +12,14 @@ interface PageProps {
 }
 
 const PRESETS = [
-  { id: '15', label: '15 min', minutes: 15 },
-  { id: '60', label: '1 hour', minutes: 60 },
-  { id: '180', label: '3 hours', minutes: 180 },
-  { id: '1440', label: '1 day', minutes: 1440 },
-  { id: '10080', label: '7 days', minutes: 10_080 },
+  { id: '15', presetKey: '15m' as const, minutes: 15 },
+  { id: '60', presetKey: '1h' as const, minutes: 60 },
+  { id: '180', presetKey: '3h' as const, minutes: 180 },
+  { id: '1440', presetKey: '1d' as const, minutes: 1440 },
+  { id: '10080', presetKey: '7d' as const, minutes: 10_080 },
 ] as const;
+
+type PresetKey = (typeof PRESETS)[number]['presetKey'];
 
 const DEFAULT_PRESET = PRESETS[1];
 
@@ -45,25 +49,26 @@ export default async function AbandonedCartsPage({
     `/v1/admin/carts/abandoned?${params.toString()}`,
   );
 
-  // Pick a single currency for the page total — fall back to ARS when
-  // the live results don't agree (multi-currency stores will see "—").
   const currencies = new Set(
     result.data.map((c) => c.currency_code).filter((c): c is string => Boolean(c)),
   );
   const [onlyCurrency] = currencies;
   const totalsCurrency = currencies.size === 1 && onlyCurrency ? onlyCurrency : 'ARS';
 
+  const t = await getTranslations('carts');
+  const tPresets = await getTranslations('carts.presets');
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Abandoned carts
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Live snapshot from Magento — active carts with at least one item, idle for{' '}
-            <span className="font-medium text-foreground">≥ {formatIdle(preset.minutes)}</span>.
-            Generated {formatBuenosAires(result.generated_at)}.
+            {t('subtitle', {
+              threshold: formatIdle(preset.minutes),
+              when: formatBuenosAires(result.generated_at, locale),
+            })}
           </p>
         </div>
         <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
@@ -79,7 +84,7 @@ export default async function AbandonedCartsPage({
                     : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
                 }
               >
-                {p.label}
+                {tPresets(p.presetKey as PresetKey)}
               </Link>
             );
           })}
@@ -88,25 +93,25 @@ export default async function AbandonedCartsPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <Tile
-          label="Carts"
-          value={formatNumber(result.totals.carts)}
+          label={t('tiles.carts')}
+          value={formatNumber(result.totals.carts, locale)}
           accent="primary"
         />
         <Tile
-          label="Items in carts"
-          value={formatNumber(result.totals.items_qty)}
-          sub="sum across all carts"
+          label={t('tiles.items')}
+          value={formatNumber(result.totals.items_qty, locale)}
+          sub={t('tiles.itemsSub')}
         />
         <Tile
-          label="At-risk revenue"
-          value={formatCurrency(result.totals.grand_total, totalsCurrency)}
+          label={t('tiles.atRisk')}
+          value={formatCurrency(result.totals.grand_total, totalsCurrency, locale)}
           accent="destructive"
-          sub="grand_total of pending carts"
+          sub={t('tiles.atRiskSub')}
         />
         <Tile
-          label="Recoverable"
-          value={formatNumber(result.totals.recoverable_customers)}
-          sub="known customers (not guest)"
+          label={t('tiles.recoverable')}
+          value={formatNumber(result.totals.recoverable_customers, locale)}
+          sub={t('tiles.recoverableSub')}
           accent="success"
         />
       </div>
@@ -114,29 +119,26 @@ export default async function AbandonedCartsPage({
       <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="border-b border-border bg-muted/30 px-5 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Carts ({formatNumber(result.data.length)})
+            {t('tableHeading', { count: formatNumber(result.data.length, locale) })}
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Sorted by most recently touched. Customer column links to the CDP profile when the
-            shopper is registered.
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('tableSubtitle')}</p>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-semibold">Cart</th>
-              <th className="px-4 py-3 font-semibold">Customer</th>
-              <th className="px-4 py-3 text-right font-semibold">Items</th>
-              <th className="px-4 py-3 text-right font-semibold">Total</th>
-              <th className="px-4 py-3 font-semibold">Last activity</th>
-              <th className="px-4 py-3 font-semibold">Idle</th>
+              <th className="px-4 py-3 font-semibold">{t('table.cart')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.customer')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.items')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.total')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.lastActivity')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.idle')}</th>
             </tr>
           </thead>
           <tbody>
             {result.data.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  No abandoned carts in this window.
+                  {t('table.empty')}
                 </td>
               </tr>
             )}
@@ -155,43 +157,43 @@ export default async function AbandonedCartsPage({
                         href={`/customers/${c.customer_id}`}
                         className="font-medium text-foreground hover:text-primary hover:underline"
                       >
-                        {c.email ?? '(no email)'}
+                        {c.email ?? t('table.noEmail')}
                       </Link>
                     ) : (
                       <span className="font-medium text-foreground/80">
-                        {c.email ?? '(no email)'}
+                        {c.email ?? t('table.noEmail')}
                       </span>
                     )}
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       {c.customer_name && <span>{c.customer_name}</span>}
                       {c.is_guest ? (
                         <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          guest
+                          {t('table.guest')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-success">
-                          registered
+                          {t('table.registered')}
                         </span>
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
-                    {formatNumber(c.items_qty)}
+                    {formatNumber(c.items_qty, locale)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">
                     {showTotal ? (
-                      formatCurrency(c.grand_total, c.currency_code ?? 'ARS')
+                      formatCurrency(c.grand_total, c.currency_code ?? 'ARS', locale)
                     ) : (
-                      <span className="text-muted-foreground" title="Cart not priced yet">
-                        —
-                      </span>
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {formatBuenosAires(c.updated_at)}
+                    {formatBuenosAires(c.updated_at, locale)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${idleTone(c.minutes_idle)}`}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${idleTone(c.minutes_idle)}`}
+                    >
                       {formatIdle(c.minutes_idle)}
                     </span>
                   </td>

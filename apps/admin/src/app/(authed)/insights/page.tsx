@@ -1,6 +1,9 @@
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 import { formatCurrencyArs, formatNumber, formatPercent01 } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { CohortsResponse, TimingResponse } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Insights' };
@@ -10,11 +13,13 @@ interface PageProps {
 }
 
 const PRESETS = [
-  { id: '30d', label: '30 days', days: 30 },
-  { id: '90d', label: '90 days', days: 90 },
-  { id: '365d', label: '1 year', days: 365 },
-  { id: 'all', label: 'All time', days: null },
+  { id: '30d', days: 30 },
+  { id: '90d', days: 90 },
+  { id: '365d', days: 365 },
+  { id: 'all', days: null },
 ] as const;
+
+type PresetId = (typeof PRESETS)[number]['id'];
 
 function rangeFromPreset(presetId: string): { from?: string; to?: string } {
   const to = new Date();
@@ -26,7 +31,8 @@ function rangeFromPreset(presetId: string): { from?: string; to?: string } {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
-const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const DOW_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+type DowKey = (typeof DOW_KEYS)[number];
 
 export default async function InsightsPage({
   searchParams,
@@ -45,14 +51,19 @@ export default async function InsightsPage({
     apiFetch<CohortsResponse>(`/v1/admin/analytics/cohorts?cohorts=12&horizon=12`),
   ]);
 
+  const t = await getTranslations('insights');
+  const tPresets = await getTranslations('presets');
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            When your customers buy and how long they keep coming back. All times in{' '}
-            <span className="font-mono text-xs">{timing.timezone}</span>.
+            {t.rich('subtitle', {
+              tz: () => <span className="font-mono text-xs">{timing.timezone}</span>,
+            })}
           </p>
         </div>
         <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
@@ -68,16 +79,16 @@ export default async function InsightsPage({
                     : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
                 }
               >
-                {p.label}
+                {tPresets(p.id as PresetId)}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      <HeatmapSection timing={timing} window={windowParam} metric={metric} />
-      <CadenceSection timing={timing} />
-      <CohortSection cohorts={cohorts} />
+      <HeatmapSection timing={timing} window={windowParam} metric={metric} locale={locale} />
+      <CadenceSection timing={timing} locale={locale} />
+      <CohortSection cohorts={cohorts} locale={locale} />
     </div>
   );
 }
@@ -88,11 +99,16 @@ function HeatmapSection({
   timing,
   window,
   metric,
+  locale,
 }: {
   timing: TimingResponse;
   window: string;
   metric: 'orders' | 'revenue';
+  locale: Locale;
 }): React.ReactElement {
+  const t = useTranslations('insights.heatmap');
+  const tDays = useTranslations('insights.days');
+
   const matrix: number[][] = Array.from({ length: 7 }, () => Array<number>(24).fill(0));
   for (const cell of timing.heatmap) {
     const row = matrix[cell.dow];
@@ -100,7 +116,6 @@ function HeatmapSection({
   }
   const max = matrix.reduce((m, row) => Math.max(m, ...row), 0);
 
-  // Top hours of the week — quick narrative of when sales peak.
   const topCells = [...timing.heatmap]
     .map((c) => ({ ...c, value: metric === 'revenue' ? Number(c.revenue) : c.orders }))
     .filter((c) => c.value > 0)
@@ -115,14 +130,17 @@ function HeatmapSection({
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Day × hour heatmap
+            {t('title')}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {formatNumber(totalOrders)} orders · {formatCurrencyArs(totalRevenue)} revenue.
+            {t('summary', {
+              orders: formatNumber(totalOrders, locale),
+              revenue: formatCurrencyArs(totalRevenue, locale),
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Color by:</span>
+          <span className="text-muted-foreground">{t('colorBy')}</span>
           <Link
             href={`/insights?window=${window}&metric=orders`}
             className={
@@ -131,7 +149,7 @@ function HeatmapSection({
                 : 'rounded-md border border-border bg-card px-3 py-1 text-foreground transition hover:bg-muted'
             }
           >
-            Orders
+            {t('byOrders')}
           </Link>
           <Link
             href={`/insights?window=${window}&metric=revenue`}
@@ -141,15 +159,13 @@ function HeatmapSection({
                 : 'rounded-md border border-border bg-card px-3 py-1 text-foreground transition hover:bg-muted'
             }
           >
-            Revenue
+            {t('byRevenue')}
           </Link>
         </div>
       </div>
 
       {max === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No orders in this window.
-        </p>
+        <p className="py-8 text-center text-sm text-muted-foreground">{t('noOrders')}</p>
       ) : (
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full">
@@ -167,18 +183,19 @@ function HeatmapSection({
                   {h % 3 === 0 ? String(h).padStart(2, '0') : ''}
                 </div>
               ))}
-              {DOW_LABELS.map((label, dow) => (
+              {DOW_KEYS.map((dayKey, dow) => (
                 <DowRow
                   key={dow}
-                  label={label}
+                  dayLabel={tDays(dayKey)}
                   values={matrix[dow] ?? []}
                   max={max}
                   metric={metric}
+                  locale={locale}
                 />
               ))}
             </div>
             <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-              <span>Less</span>
+              <span>{t('less')}</span>
               <div className="flex gap-0.5">
                 {[0.1, 0.25, 0.5, 0.75, 1].map((opacity) => (
                   <span
@@ -188,7 +205,7 @@ function HeatmapSection({
                   />
                 ))}
               </div>
-              <span>More</span>
+              <span>{t('more')}</span>
             </div>
           </div>
         </div>
@@ -206,10 +223,12 @@ function HeatmapSection({
               }
             >
               <span className="font-medium">
-                {DOW_LABELS[c.dow]} · {String(c.hour).padStart(2, '0')}:00
+                {tDays(DOW_KEYS[c.dow] as DowKey)} · {String(c.hour).padStart(2, '0')}:00
               </span>
               <span className="text-muted-foreground">
-                {metric === 'revenue' ? formatCurrencyArs(c.value) : `${formatNumber(c.value)} orders`}
+                {metric === 'revenue'
+                  ? formatCurrencyArs(c.value, locale)
+                  : t('topChipOrders', { value: formatNumber(c.value, locale) })}
               </span>
             </span>
           ))}
@@ -220,28 +239,42 @@ function HeatmapSection({
 }
 
 function DowRow({
-  label,
+  dayLabel,
   values,
   max,
   metric,
+  locale,
 }: {
-  label: string;
+  dayLabel: string;
   values: number[];
   max: number;
   metric: 'orders' | 'revenue';
+  locale: Locale;
 }): React.ReactElement {
+  const t = useTranslations('insights.heatmap');
   return (
     <>
-      <div className="pr-2 py-1 text-right font-mono text-xs text-muted-foreground">{label}</div>
+      <div className="pr-2 py-1 text-right font-mono text-xs text-muted-foreground">
+        {dayLabel}
+      </div>
       {values.map((value, hour) => {
         const intensity = max > 0 ? value / max : 0;
         const opacity = value === 0 ? 0 : Math.max(0.08, intensity);
+        const hourStr = `${String(hour).padStart(2, '0')}:00`;
         const tip =
           value === 0
-            ? `${label} ${String(hour).padStart(2, '0')}:00 — no orders`
+            ? t('tooltipNoOrders', { day: dayLabel, hour: hourStr })
             : metric === 'revenue'
-              ? `${label} ${String(hour).padStart(2, '0')}:00 — ${formatCurrencyArs(value)}`
-              : `${label} ${String(hour).padStart(2, '0')}:00 — ${formatNumber(value)} orders`;
+              ? t('tooltipRevenue', {
+                  day: dayLabel,
+                  hour: hourStr,
+                  value: formatCurrencyArs(value, locale),
+                })
+              : t('tooltipOrders', {
+                  day: dayLabel,
+                  hour: hourStr,
+                  value: formatNumber(value, locale),
+                });
         return (
           <div
             key={hour}
@@ -261,30 +294,39 @@ function DowRow({
 
 // ─── Cadence ────────────────────────────────────────────────────────────────
 
-function CadenceSection({ timing }: { timing: TimingResponse }): React.ReactElement {
+function CadenceSection({
+  timing,
+  locale,
+}: {
+  timing: TimingResponse;
+  locale: Locale;
+}): React.ReactElement {
+  const t = useTranslations('insights.cadence');
   const max = timing.cadence.buckets.reduce((m, b) => Math.max(m, b.count), 0);
+  const medianText =
+    timing.cadence.median_days !== null
+      ? t('medianValue', { days: timing.cadence.median_days })
+      : t('medianNone');
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-card">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Time between orders
+            {t('title')}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {formatNumber(timing.cadence.repeat_customers)} customers with 2+ orders ·{' '}
-            {timing.cadence.median_days !== null
-              ? `median gap ${timing.cadence.median_days} days`
-              : 'no gap data'}
+            {t('summary', {
+              count: formatNumber(timing.cadence.repeat_customers, locale),
+              medianText,
+            })}
             .
           </p>
         </div>
       </div>
 
       {max === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No repeat-purchase gaps in this window.
-        </p>
+        <p className="py-8 text-center text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
         <div className="space-y-1.5">
           {timing.cadence.buckets.map((b) => {
@@ -299,7 +341,7 @@ function CadenceSection({ timing }: { timing: TimingResponse }): React.ReactElem
                     aria-hidden="true"
                   />
                   <span className="absolute inset-0 flex items-center px-2 text-xs font-medium text-foreground">
-                    {formatNumber(b.count)}
+                    {formatNumber(b.count, locale)}
                   </span>
                 </div>
                 <span className="text-right tabular-nums text-xs text-muted-foreground">
@@ -316,7 +358,14 @@ function CadenceSection({ timing }: { timing: TimingResponse }): React.ReactElem
 
 // ─── Cohort retention ───────────────────────────────────────────────────────
 
-function CohortSection({ cohorts }: { cohorts: CohortsResponse }): React.ReactElement {
+function CohortSection({
+  cohorts,
+  locale,
+}: {
+  cohorts: CohortsResponse;
+  locale: Locale;
+}): React.ReactElement {
+  const t = useTranslations('insights.cohort');
   const horizon = cohorts.horizon;
   const totalCustomers = cohorts.cohorts.reduce((s, c) => s + c.size, 0);
 
@@ -324,12 +373,13 @@ function CohortSection({ cohorts }: { cohorts: CohortsResponse }): React.ReactEl
     <section className="rounded-lg border border-border bg-card p-5 shadow-card">
       <div className="mb-4">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Cohort retention ({cohorts.cohorts.length} months)
+          {t('title', { count: cohorts.cohorts.length })}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {formatNumber(totalCustomers)} customers across the last {cohorts.cohorts.length}{' '}
-          months. Each row is the customers acquired in that month; each column shows what % of
-          them placed an order N months later. Empty cells = haven&apos;t happened yet.
+          {t('summary', {
+            customers: formatNumber(totalCustomers, locale),
+            months: cohorts.cohorts.length,
+          })}
         </p>
       </div>
 
@@ -337,8 +387,8 @@ function CohortSection({ cohorts }: { cohorts: CohortsResponse }): React.ReactEl
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
-              <th className="px-2 py-2 font-semibold">Cohort</th>
-              <th className="px-2 py-2 text-right font-semibold">Size</th>
+              <th className="px-2 py-2 font-semibold">{t('table.cohort')}</th>
+              <th className="px-2 py-2 text-right font-semibold">{t('table.size')}</th>
               {Array.from({ length: horizon + 1 }, (_, i) => (
                 <th key={i} className="px-2 py-2 text-center font-mono font-semibold">
                   M{i}
@@ -353,10 +403,10 @@ function CohortSection({ cohorts }: { cohorts: CohortsResponse }): React.ReactEl
                   {c.cohort_month.slice(0, 7)}
                 </td>
                 <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
-                  {c.size > 0 ? formatNumber(c.size) : '—'}
+                  {c.size > 0 ? formatNumber(c.size, locale) : '—'}
                 </td>
                 {c.retained.map((value, offset) => (
-                  <CohortCell key={offset} value={value} size={c.size} />
+                  <CohortCell key={offset} value={value} size={c.size} locale={locale} />
                 ))}
               </tr>
             ))}
@@ -370,19 +420,14 @@ function CohortSection({ cohorts }: { cohorts: CohortsResponse }): React.ReactEl
 function CohortCell({
   value,
   size,
+  locale,
 }: {
   value: number | null;
   size: number;
+  locale: Locale;
 }): React.ReactElement {
   if (value === null) {
-    return (
-      <td
-        className="px-2 py-2 text-center text-muted-foreground/40"
-        aria-label="not yet elapsed"
-      >
-        —
-      </td>
-    );
+    return <td className="px-2 py-2 text-center text-muted-foreground/40">—</td>;
   }
   if (size === 0) {
     return <td className="px-2 py-2 text-center text-muted-foreground/40">·</td>;
@@ -396,9 +441,9 @@ function CohortCell({
         backgroundColor: rate === 0 ? 'transparent' : `hsl(var(--success) / ${opacity})`,
         color: rate >= 0.5 ? 'hsl(var(--success-foreground))' : undefined,
       }}
-      title={`${value} / ${size} = ${formatPercent01(rate)}`}
+      title={`${value} / ${size} = ${formatPercent01(rate, locale)}`}
     >
-      {formatPercent01(rate)}
+      {formatPercent01(rate, locale)}
     </td>
   );
 }

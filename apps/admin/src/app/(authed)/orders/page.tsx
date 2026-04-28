@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
 import { ExportButton } from '@/components/export-button';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { OrderListPage } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Orders' };
@@ -17,21 +19,25 @@ interface PageProps {
 }
 
 const PRESETS = [
-  { id: '7d', label: '7 days', days: 7 },
-  { id: '30d', label: '30 days', days: 30 },
-  { id: '90d', label: '90 days', days: 90 },
-  { id: 'all', label: 'All time', days: null },
+  { id: '7d', days: 7 },
+  { id: '30d', days: 30 },
+  { id: '90d', days: 90 },
+  { id: 'all', days: null },
 ] as const;
 
+type PresetId = (typeof PRESETS)[number]['id'];
+
 const STATUS_FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'processing', label: 'Processing' },
-  { id: 'complete', label: 'Complete' },
-  { id: 'canceled', label: 'Canceled' },
-  { id: 'closed', label: 'Closed' },
-  { id: 'holded', label: 'On hold' },
+  'all',
+  'pending',
+  'processing',
+  'complete',
+  'canceled',
+  'closed',
+  'holded',
 ] as const;
+
+type StatusFilterId = (typeof STATUS_FILTERS)[number];
 
 function rangeFromPreset(presetId: string): { from?: string; to?: string } {
   const to = new Date();
@@ -103,35 +109,41 @@ export default async function OrdersListPage({
   if (range.to) exportQs.set('to', range.to);
   const exportHref = `/api/export/orders${exportQs.toString() ? `?${exportQs.toString()}` : ''}`;
 
+  const t = await getTranslations('orders');
+  const tCommon = await getTranslations('common');
+  const tPresets = await getTranslations('presets');
+  const tStatus = await getTranslations('orders.statusFilters');
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Orders</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {page.data.length} on this page · sorted by placed_at desc.
+            {t('onThisPage', { count: page.data.length })}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportButton href={exportHref} />
-        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-          {PRESETS.map((p) => {
-            const active = windowParam === p.id;
-            return (
-              <Link
-                key={p.id}
-                href={buildHref({ window: p.id, cursor: undefined })}
-                className={
-                  active
-                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                }
-              >
-                {p.label}
-              </Link>
-            );
-          })}
-        </nav>
+          <ExportButton href={exportHref} label={tCommon('exportCsv')} />
+          <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
+            {PRESETS.map((p) => {
+              const active = windowParam === p.id;
+              return (
+                <Link
+                  key={p.id}
+                  href={buildHref({ window: p.id, cursor: undefined })}
+                  className={
+                    active
+                      ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
+                      : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                  }
+                >
+                  {tPresets(p.id as PresetId)}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
@@ -146,7 +158,7 @@ export default async function OrdersListPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search order # or customer email…"
+            placeholder={t('searchPlaceholder')}
             className="block w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
@@ -154,33 +166,33 @@ export default async function OrdersListPage({
           type="submit"
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-soft transition hover:bg-primary/90"
         >
-          Search
+          {tCommon('search')}
         </button>
         {q && (
           <Link
             href={buildHref({ q: undefined, cursor: undefined })}
             className="rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
           >
-            Clear
+            {tCommon('clear')}
           </Link>
         )}
       </form>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Status:</span>
-        {STATUS_FILTERS.map((s) => {
-          const active = activeStatus === s.id;
+        <span className="text-muted-foreground">{t('statusLabel')}</span>
+        {STATUS_FILTERS.map((id) => {
+          const active = activeStatus === id;
           return (
             <Link
-              key={s.id}
-              href={buildHref({ status: s.id === 'all' ? undefined : s.id, cursor: undefined })}
+              key={id}
+              href={buildHref({ status: id === 'all' ? undefined : id, cursor: undefined })}
               className={
                 active
                   ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
                   : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
               }
             >
-              {s.label}
+              {tStatus(id as StatusFilterId)}
             </Link>
           );
         })}
@@ -190,20 +202,20 @@ export default async function OrdersListPage({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-semibold">Order #</th>
-              <th className="px-4 py-3 font-semibold">Placed</th>
-              <th className="px-4 py-3 font-semibold">Customer</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 text-right font-semibold">Items</th>
-              <th className="px-4 py-3 text-right font-semibold">Total</th>
-              <th className="px-4 py-3 text-right font-semibold">Real revenue</th>
+              <th className="px-4 py-3 font-semibold">{t('table.orderNumber')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.placed')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.customer')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.status')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.items')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.total')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.realRevenue')}</th>
             </tr>
           </thead>
           <tbody>
             {page.data.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                  No orders match.
+                  {t('table.empty')}
                 </td>
               </tr>
             )}
@@ -221,7 +233,7 @@ export default async function OrdersListPage({
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {formatBuenosAires(o.placed_at)}
+                  {formatBuenosAires(o.placed_at, locale)}
                 </td>
                 <td className="px-4 py-3">
                   {o.customer_id ? (
@@ -246,13 +258,13 @@ export default async function OrdersListPage({
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
-                  {formatNumber(o.item_count)}
+                  {formatNumber(o.item_count, locale)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">
-                  {formatCurrency(o.grand_total, o.currency_code)}
+                  {formatCurrency(o.grand_total, o.currency_code, locale)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                  {o.real_revenue ? formatCurrency(o.real_revenue, o.currency_code) : '—'}
+                  {o.real_revenue ? formatCurrency(o.real_revenue, o.currency_code, locale) : '—'}
                 </td>
               </tr>
             ))}
@@ -261,13 +273,13 @@ export default async function OrdersListPage({
       </div>
 
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Cursor pagination — sorted by placed_at desc.</span>
+        <span className="text-muted-foreground">{t('footer')}</span>
         {page.next_cursor && (
           <Link
             href={buildHref({ cursor: page.next_cursor })}
             className="rounded-md border border-border bg-card px-4 py-2 text-foreground transition hover:bg-muted"
           >
-            Next →
+            {tCommon('next')} →
           </Link>
         )}
       </div>

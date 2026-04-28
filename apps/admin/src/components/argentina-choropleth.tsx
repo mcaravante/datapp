@@ -1,5 +1,7 @@
+import { getLocale, getTranslations } from 'next-intl/server';
 import { CABA, PROVINCE_PATHS, VIEWBOX } from '@/lib/ar-map';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { GeoRegionRow } from '@/lib/types';
 
 interface Props {
@@ -7,21 +9,15 @@ interface Props {
   metric: 'revenue' | 'customers' | 'orders';
 }
 
-const METRIC_LABEL: Record<Props['metric'], string> = {
-  revenue: 'Revenue',
-  customers: 'Customers',
-  orders: 'Orders',
-};
-
 function metricValue(row: GeoRegionRow, metric: Props['metric']): number {
   if (metric === 'revenue') return Number(row.revenue);
   if (metric === 'customers') return row.customers;
   return row.orders;
 }
 
-function formatMetric(value: number, metric: Props['metric']): string {
-  if (metric === 'revenue') return formatCurrencyArs(value);
-  return formatNumber(value);
+function formatMetric(value: number, metric: Props['metric'], locale: Locale): string {
+  if (metric === 'revenue') return formatCurrencyArs(value, locale);
+  return formatNumber(value, locale);
 }
 
 /**
@@ -33,7 +29,17 @@ function formatMetric(value: number, metric: Props['metric']): string {
  * CABA doesn't have a polygon in the source GeoJSON; we render it as
  * a small ring at its real lat/lng so it stays visible and clickable.
  */
-export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement {
+export async function ArgentinaChoropleth({ data, metric }: Props): Promise<React.ReactElement> {
+  const t = await getTranslations('regions.choropleth');
+  const locale = (await getLocale()) as Locale;
+
+  const headingKey =
+    metric === 'revenue'
+      ? 'headingByRevenue'
+      : metric === 'customers'
+        ? 'headingByCustomers'
+        : 'headingByOrders';
+
   const byRegion = new Map<number, GeoRegionRow>();
   for (const row of data) byRegion.set(row.region_id, row);
 
@@ -41,8 +47,6 @@ export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement
 
   const scaleOpacity = (value: number): number => {
     if (max <= 0 || value <= 0) return 0;
-    // Soft floor so any region with > 0 stays visible; cap at 0.95 so
-    // the highest cell still shows a stroke clearly.
     return Math.max(0.12, Math.min(0.95, value / max));
   };
 
@@ -50,14 +54,16 @@ export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement
   const cabaValue = cabaRow ? metricValue(cabaRow, metric) : 0;
   const cabaOpacity = scaleOpacity(cabaValue);
 
+  const noDataLabel = t('noData');
+
   return (
     <figure className="rounded-lg border border-border bg-card p-5 shadow-card">
       <figcaption className="mb-3 flex items-baseline justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {METRIC_LABEL[metric]} by province
+          {t(headingKey)}
         </span>
         <span className="text-xs text-muted-foreground">
-          24 provinces · max {formatMetric(max, metric)}
+          {t('summary', { max: formatMetric(max, metric, locale) })}
         </span>
       </figcaption>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
@@ -66,15 +72,15 @@ export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement
           xmlns="http://www.w3.org/2000/svg"
           className="h-auto w-full max-w-md justify-self-center"
           role="img"
-          aria-label={`Choropleth of Argentina by ${metric}`}
+          aria-label={t(headingKey)}
         >
           {PROVINCE_PATHS.map((p) => {
             const row = byRegion.get(p.region_id);
             const value = row ? metricValue(row, metric) : 0;
             const opacity = scaleOpacity(value);
             const tip = row
-              ? `${row.region_name} — ${formatMetric(value, metric)}`
-              : `${p.name} — no data`;
+              ? `${row.region_name} — ${formatMetric(value, metric, locale)}`
+              : `${p.name} — ${noDataLabel}`;
             return (
               <path
                 key={p.region_id}
@@ -107,15 +113,15 @@ export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement
           >
             <title>
               {cabaRow
-                ? `${cabaRow.region_name} — ${formatMetric(cabaValue, metric)}`
-                : 'Ciudad Autónoma de Buenos Aires — no data'}
+                ? `${cabaRow.region_name} — ${formatMetric(cabaValue, metric, locale)}`
+                : `${CABA.name} — ${noDataLabel}`}
             </title>
           </circle>
         </svg>
 
         <div className="self-end">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Scale
+            {t('scale')}
           </div>
           <div className="mt-2 flex flex-col gap-1.5">
             {[1, 0.75, 0.5, 0.25, 0.1].map((stop) => (
@@ -126,7 +132,7 @@ export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement
                   aria-hidden="true"
                 />
                 <span className="text-muted-foreground">
-                  {formatMetric(max * stop, metric)}
+                  {formatMetric(max * stop, metric, locale)}
                 </span>
               </div>
             ))}
@@ -135,7 +141,7 @@ export function ArgentinaChoropleth({ data, metric }: Props): React.ReactElement
                 className="h-3 w-6 rounded-sm border border-border bg-muted"
                 aria-hidden="true"
               />
-              <span className="text-muted-foreground">no data</span>
+              <span className="text-muted-foreground">{noDataLabel}</span>
             </div>
           </div>
         </div>

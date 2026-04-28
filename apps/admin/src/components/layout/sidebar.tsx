@@ -2,69 +2,82 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey:
+    | 'overview'
+    | 'customers'
+    | 'segments'
+    | 'orders'
+    | 'carts'
+    | 'products'
+    | 'coupons'
+    | 'regions'
+    | 'insights'
+    | 'sync';
   icon: (props: { className?: string }) => React.ReactElement;
   match?: (pathname: string) => boolean;
 }
 
 const NAV: readonly NavItem[] = [
-  { href: '/', label: 'Overview', icon: HomeIcon, match: (p) => p === '/' },
+  { href: '/', labelKey: 'overview', icon: HomeIcon, match: (p) => p === '/' },
   {
     href: '/customers',
-    label: 'Customers',
+    labelKey: 'customers',
     icon: UsersIcon,
     match: (p) => p.startsWith('/customers'),
   },
   {
     href: '/segments',
-    label: 'Segments',
+    labelKey: 'segments',
     icon: TagIcon,
     match: (p) => p.startsWith('/segments'),
   },
   {
     href: '/orders',
-    label: 'Orders',
+    labelKey: 'orders',
     icon: ReceiptIcon,
     match: (p) => p.startsWith('/orders'),
   },
   {
     href: '/carts',
-    label: 'Abandoned carts',
+    labelKey: 'carts',
     icon: CartIcon,
     match: (p) => p.startsWith('/carts'),
   },
   {
     href: '/products',
-    label: 'Top products',
+    labelKey: 'products',
     icon: BoxIcon,
     match: (p) => p.startsWith('/products'),
   },
   {
     href: '/coupons',
-    label: 'Coupons',
+    labelKey: 'coupons',
     icon: TicketIcon,
     match: (p) => p.startsWith('/coupons'),
   },
   {
     href: '/regions',
-    label: 'Regions',
+    labelKey: 'regions',
     icon: MapIcon,
     match: (p) => p.startsWith('/regions'),
   },
   {
     href: '/insights',
-    label: 'Insights',
+    labelKey: 'insights',
     icon: ActivityIcon,
     match: (p) => p.startsWith('/insights'),
   },
-  { href: '/sync', label: 'Sync', icon: RefreshIcon, match: (p) => p.startsWith('/sync') },
+  { href: '/sync', labelKey: 'sync', icon: RefreshIcon, match: (p) => p.startsWith('/sync') },
 ];
 
 export function Sidebar(): React.ReactElement {
   const pathname = usePathname();
+  const tNav = useTranslations('nav');
+  const tApp = useTranslations('app');
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
@@ -73,9 +86,11 @@ export function Sidebar(): React.ReactElement {
           <SparkIcon className="h-4 w-4" />
         </span>
         <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tracking-tight text-foreground">CDP Admin</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">
+            {tApp('title')}
+          </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Customer Data Platform
+            {tApp('tagline')}
           </span>
         </div>
       </div>
@@ -98,13 +113,13 @@ export function Sidebar(): React.ReactElement {
                   active ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'
                 }
               />
-              <span>{item.label}</span>
+              <span>{tNav(item.labelKey)}</span>
             </Link>
           );
         })}
       </nav>
       <div className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
-        <span className="font-mono">v0.1 · Phase 1</span>
+        <span className="font-mono">{tApp('version')}</span>
       </div>
     </aside>
   );

@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
 import { ExportButton } from '@/components/export-button';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { TopProductsResponse } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Top products' };
@@ -15,11 +17,13 @@ interface PageProps {
 }
 
 const PRESETS = [
-  { id: '7d', label: '7 days', days: 7 },
-  { id: '30d', label: '30 days', days: 30 },
-  { id: '90d', label: '90 days', days: 90 },
-  { id: 'all', label: 'All time', days: null },
+  { id: '7d', days: 7 },
+  { id: '30d', days: 30 },
+  { id: '90d', days: 90 },
+  { id: 'all', days: null },
 ] as const;
+
+type PresetId = (typeof PRESETS)[number]['id'];
 
 function rangeFromPreset(presetId: string): { from: string; to: string } {
   const to = new Date();
@@ -61,42 +65,46 @@ export default async function TopProductsPage({
   const maxRevenue = result.data.reduce((max, row) => Math.max(max, Number(row.revenue)), 0);
   const maxUnits = result.data.reduce((max, row) => Math.max(max, row.units), 0);
 
+  const t = await getTranslations('products');
+  const tCommon = await getTranslations('common');
+  const tPresets = await getTranslations('presets');
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Top products</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Aggregated by SKU. Configurable parents are filtered out automatically.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
             href={`/api/export/products?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&order_by=${orderBy}&limit=50000`}
+            label={tCommon('exportCsv')}
           />
-        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-          {PRESETS.map((p) => {
-            const active = windowParam === p.id;
-            return (
-              <Link
-                key={p.id}
-                href={buildHref({ window: p.id })}
-                className={
-                  active
-                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                }
-              >
-                {p.label}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
+            {PRESETS.map((p) => {
+              const active = windowParam === p.id;
+              return (
+                <Link
+                  key={p.id}
+                  href={buildHref({ window: p.id })}
+                  className={
+                    active
+                      ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
+                      : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                  }
+                >
+                  {tPresets(p.id as PresetId)}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Sort by:</span>
+        <span className="text-muted-foreground">{t('sortBy')}</span>
         <Link
           href={buildHref({ order_by: 'revenue' })}
           className={
@@ -105,7 +113,7 @@ export default async function TopProductsPage({
               : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
           }
         >
-          Revenue
+          {t('sortRevenue')}
         </Link>
         <Link
           href={buildHref({ order_by: 'units' })}
@@ -115,7 +123,7 @@ export default async function TopProductsPage({
               : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
           }
         >
-          Units
+          {t('sortUnits')}
         </Link>
       </div>
 
@@ -123,19 +131,19 @@ export default async function TopProductsPage({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="w-12 px-4 py-3 text-right font-semibold">#</th>
-              <th className="px-4 py-3 font-semibold">Product</th>
-              <th className="px-4 py-3 font-semibold">SKU</th>
-              <th className="px-4 py-3 text-right font-semibold">Units</th>
-              <th className="px-4 py-3 text-right font-semibold">Revenue</th>
-              <th className="px-4 py-3 text-right font-semibold">Orders</th>
+              <th className="w-12 px-4 py-3 text-right font-semibold">{t('table.rank')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.product')}</th>
+              <th className="px-4 py-3 font-semibold">{t('table.sku')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.units')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.revenue')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('table.orders')}</th>
             </tr>
           </thead>
           <tbody>
             {result.data.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  No orders in this window.
+                  {t('table.empty')}
                 </td>
               </tr>
             )}
@@ -168,12 +176,12 @@ export default async function TopProductsPage({
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
-                    {formatNumber(row.units)}
+                    {formatNumber(row.units, locale)}
                   </td>
                   <td className="relative px-4 py-3 text-right">
                     <div className="relative inline-flex items-center justify-end gap-2">
                       <span className="tabular-nums font-medium text-foreground">
-                        {formatCurrencyArs(row.revenue)}
+                        {formatCurrencyArs(row.revenue, locale)}
                       </span>
                     </div>
                     <span

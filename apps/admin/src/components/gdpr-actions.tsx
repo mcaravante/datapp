@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
@@ -15,6 +16,8 @@ interface GdprActionsProps {
  *   types out the email exactly to avoid accidental clicks.
  */
 export function GdprActions({ customerId, customerEmail }: GdprActionsProps): React.ReactElement {
+  const t = useTranslations('customerDetail.privacy');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -36,11 +39,11 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
     const res = await fetch(`/api/gdpr/${customerId}/erase`, { method: 'POST' });
     if (!res.ok) {
       const body = await res.text();
-      setError(`Failed (${res.status}): ${body.slice(0, 200)}`);
+      setError(t('errorPrefix', { status: res.status, body: body.slice(0, 200) }));
       return;
     }
     const data = (await res.json()) as { pseudonym_email: string };
-    setSuccess(`Erased. Pseudonym email: ${data.pseudonym_email}`);
+    setSuccess(t('erasedToast', { pseudonym: data.pseudonym_email }));
     reset();
     startTransition(() => {
       router.refresh();
@@ -50,11 +53,9 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-card">
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Data privacy
+        {t('heading')}
       </h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        GDPR / data subject controls. Both actions are audit-logged.
-      </p>
+      <p className="mb-4 text-sm text-muted-foreground">{t('description')}</p>
 
       <div className="flex flex-wrap items-center gap-2">
         <a
@@ -62,7 +63,7 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
           className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-soft transition hover:bg-muted"
         >
           <DownloadIcon className="h-3.5 w-3.5" />
-          Download JSON export
+          {t('downloadJson')}
         </a>
         <button
           type="button"
@@ -70,7 +71,7 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
           className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/15"
         >
           <TrashIcon className="h-3.5 w-3.5" />
-          Erase customer
+          {t('erase')}
         </button>
       </div>
 
@@ -94,17 +95,14 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
               </span>
               <div>
                 <h3 id="erase-title" className="text-base font-semibold text-foreground">
-                  Erase this customer?
+                  {t('confirmTitle')}
                 </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Pseudonymizes name, email, phone, addresses, and order PII. Orders and analytics
-                  aggregates stay intact. <span className="font-medium text-foreground">Not reversible.</span>
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{t('confirmBody')}</p>
               </div>
             </div>
 
             <label className="block text-xs font-medium text-foreground">
-              Type the email to confirm:
+              {t('typeEmail')}
               <input
                 type="text"
                 value={typed}
@@ -126,7 +124,7 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
                 onClick={reset}
                 className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground transition hover:bg-muted"
               >
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 type="button"
@@ -134,7 +132,7 @@ export function GdprActions({ customerId, customerEmail }: GdprActionsProps): Re
                 disabled={!canConfirm || isPending}
                 className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground shadow-soft transition hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isPending ? 'Erasing…' : 'Erase'}
+                {isPending ? t('erasing') : t('erase')}
               </button>
             </div>
           </div>

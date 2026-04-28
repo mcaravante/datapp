@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ApiError, apiFetch } from '@/lib/api-client';
 import { formatBuenosAires, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { SegmentMembersPage, SegmentSummary } from '@/lib/types';
 import { FilterChips } from '../page';
 import { SegmentActions } from '@/components/segment-actions';
@@ -29,6 +31,10 @@ export default async function SegmentDetailPage({
     `/v1/admin/segments/${id}/members?limit=50`,
   );
 
+  const t = await getTranslations('segments.detail');
+  const tSegments = await getTranslations('segments');
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
       <div>
@@ -36,7 +42,7 @@ export default async function SegmentDetailPage({
           href="/segments"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
         >
-          ← Segments
+          ← {tSegments('title')}
         </Link>
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">
           <div>
@@ -53,17 +59,21 @@ export default async function SegmentDetailPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile
-          label="Members"
-          value={formatNumber(segment.member_count)}
+          label={t('members')}
+          value={formatNumber(segment.member_count, locale)}
           accent="primary"
         />
-        <Tile label="Type" value={segment.type} />
-        <Tile label="Last refreshed" value={formatBuenosAires(segment.updated_at)} sub={`created ${formatBuenosAires(segment.created_at)}`} />
+        <Tile label={t('type')} value={segment.type} />
+        <Tile
+          label={t('lastRefreshed')}
+          value={formatBuenosAires(segment.updated_at, locale)}
+          sub={t('createdAt', { when: formatBuenosAires(segment.created_at, locale) })}
+        />
       </div>
 
       <section className="rounded-lg border border-border bg-card p-5 shadow-card">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Filter definition
+          {t('filterDefinition')}
         </h2>
         <FilterChips definition={segment.definition} />
       </section>
@@ -71,28 +81,26 @@ export default async function SegmentDetailPage({
       <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="border-b border-border bg-muted/30 px-5 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Members ({formatNumber(segment.member_count)})
+            {t('membersHeading', { count: formatNumber(segment.member_count, locale) })}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Showing the first {members.data.length}. Member list is a snapshot — use{' '}
-            <span className="font-medium text-foreground">Refresh</span> to recompute against
-            current data.
+            {t('membersSubtitle', { count: members.data.length })}
           </p>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 font-semibold">Email</th>
-              <th className="px-4 py-2 font-semibold">Name</th>
-              <th className="px-4 py-2 font-semibold">Group</th>
-              <th className="px-4 py-2 font-semibold">Added</th>
+              <th className="px-4 py-2 font-semibold">{t('table.email')}</th>
+              <th className="px-4 py-2 font-semibold">{t('table.name')}</th>
+              <th className="px-4 py-2 font-semibold">{t('table.group')}</th>
+              <th className="px-4 py-2 font-semibold">{t('table.added')}</th>
             </tr>
           </thead>
           <tbody>
             {members.data.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
-                  No members in this segment.
+                  {t('empty')}
                 </td>
               </tr>
             )}
@@ -114,7 +122,7 @@ export default async function SegmentDetailPage({
                 </td>
                 <td className="px-4 py-2 text-muted-foreground">{m.customer_group ?? '—'}</td>
                 <td className="px-4 py-2 text-xs text-muted-foreground">
-                  {formatBuenosAires(m.added_at)}
+                  {formatBuenosAires(m.added_at, locale)}
                 </td>
               </tr>
             ))}

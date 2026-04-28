@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ApiError, apiFetch } from '@/lib/api-client';
 import { formatNumber, formatPercent01 } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { ProductAffinityResponse } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Product affinity' };
@@ -30,6 +32,9 @@ export default async function ProductAffinityPage({
   const noOrders = result.focus_orders === 0;
   const maxConfidence = result.data.reduce((m, r) => Math.max(m, r.confidence), 0);
 
+  const t = await getTranslations('productAffinity');
+  const locale = (await getLocale()) as Locale;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
       <div>
@@ -37,7 +42,7 @@ export default async function ProductAffinityPage({
           href="/products"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
         >
-          ← Top products
+          {t('back')}
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
           {result.name ?? sku}
@@ -47,23 +52,23 @@ export default async function ProductAffinityPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile
-          label="Orders containing this SKU"
-          value={formatNumber(result.focus_orders)}
+          label={t('tiles.ordersWithSku')}
+          value={formatNumber(result.focus_orders, locale)}
           accent="primary"
         />
         <Tile
-          label="Tenant total orders"
-          value={formatNumber(result.total_orders)}
-          sub="baseline for lift"
+          label={t('tiles.tenantTotalOrders')}
+          value={formatNumber(result.total_orders, locale)}
+          sub={t('tiles.tenantTotalSub')}
         />
         <Tile
-          label="Penetration"
+          label={t('tiles.penetration')}
           value={
             result.total_orders > 0
-              ? formatPercent01(result.focus_orders / result.total_orders)
+              ? formatPercent01(result.focus_orders / result.total_orders, locale)
               : '—'
           }
-          sub="orders with this SKU / all orders"
+          sub={t('tiles.penetrationSub')}
           accent="success"
         />
       </div>
@@ -71,34 +76,29 @@ export default async function ProductAffinityPage({
       <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="border-b border-border bg-muted/30 px-5 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Frequently bought together
+            {t('heading')}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Confidence</span> = % of orders with
-            this SKU that also include the row SKU.{' '}
-            <span className="font-medium text-foreground">Lift</span> &gt; 1 means stronger
-            association than chance. Excludes SKUs that only co-occur once.
+            {t('subtitle', {
+              confidenceLabel: t('confidenceLabel'),
+              liftLabel: t('liftLabel'),
+            })}
           </p>
         </div>
         {noOrders ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            No orders contain this SKU yet.
-          </p>
+          <p className="p-8 text-center text-sm text-muted-foreground">{t('noOrders')}</p>
         ) : result.data.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Not enough co-occurrence to compute affinity. Either this SKU is usually bought alone
-            or there aren&apos;t enough multi-item orders yet.
-          </p>
+          <p className="p-8 text-center text-sm text-muted-foreground">{t('notEnough')}</p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-semibold">SKU</th>
-                <th className="px-4 py-3 font-semibold">Product</th>
-                <th className="px-4 py-3 text-right font-semibold">Co-orders</th>
-                <th className="px-4 py-3 text-right font-semibold">Total orders</th>
-                <th className="px-4 py-3 font-semibold">Confidence</th>
-                <th className="px-4 py-3 text-right font-semibold">Lift</th>
+                <th className="px-4 py-3 font-semibold">{t('table.sku')}</th>
+                <th className="px-4 py-3 font-semibold">{t('table.product')}</th>
+                <th className="px-4 py-3 text-right font-semibold">{t('table.coOrders')}</th>
+                <th className="px-4 py-3 text-right font-semibold">{t('table.totalOrders')}</th>
+                <th className="px-4 py-3 font-semibold">{t('table.confidence')}</th>
+                <th className="px-4 py-3 text-right font-semibold">{t('table.lift')}</th>
               </tr>
             </thead>
             <tbody>
@@ -125,10 +125,10 @@ export default async function ProductAffinityPage({
                     </td>
                     <td className="px-4 py-3 text-foreground">{r.name}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
-                      {formatNumber(r.co_orders)}
+                      {formatNumber(r.co_orders, locale)}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                      {formatNumber(r.total_orders)}
+                      {formatNumber(r.total_orders, locale)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export default async function ProductAffinityPage({
                           />
                         </div>
                         <span className="tabular-nums text-xs font-medium text-foreground">
-                          {formatPercent01(r.confidence)}
+                          {formatPercent01(r.confidence, locale)}
                         </span>
                       </div>
                     </td>

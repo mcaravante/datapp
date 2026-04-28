@@ -1,11 +1,15 @@
+import { getTranslations } from 'next-intl/server';
 import { signOut } from '@/auth';
+import { LocaleToggle } from '@/components/locale-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 interface TopbarProps {
   user: { name?: string | null | undefined; email?: string | null | undefined };
 }
 
-export function Topbar({ user }: TopbarProps): React.ReactElement {
+export async function Topbar({ user }: TopbarProps): Promise<React.ReactElement> {
+  const t = await getTranslations('app');
+
   async function logoutAction(): Promise<void> {
     'use server';
     await signOut({ redirectTo: '/login' });
@@ -19,10 +23,11 @@ export function Topbar({ user }: TopbarProps): React.ReactElement {
       <div className="flex items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-          Tenant: <span className="text-foreground">acme</span>
+          {t('tenant')}: <span className="text-foreground">acme</span>
         </span>
       </div>
       <div className="flex items-center gap-3">
+        <LocaleToggle />
         <ThemeToggle />
         <div className="hidden items-center gap-2 sm:flex">
           <span
@@ -38,7 +43,7 @@ export function Topbar({ user }: TopbarProps): React.ReactElement {
             type="submit"
             className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
           >
-            Sign out
+            {t('signOut')}
           </button>
         </form>
       </div>

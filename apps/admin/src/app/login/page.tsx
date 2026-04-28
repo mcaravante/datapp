@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { AuthError } from 'next-auth';
+import { getTranslations } from 'next-intl/server';
 import { signIn, auth } from '@/auth';
+import { LocaleToggle } from '@/components/locale-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export const metadata = { title: 'CDP Admin · Sign in' };
@@ -19,6 +21,7 @@ export default async function LoginPage({
   if (session) redirect('/');
 
   const { error } = await searchParams;
+  const t = await getTranslations('login');
 
   async function loginAction(formData: FormData): Promise<void> {
     'use server';
@@ -44,7 +47,8 @@ export default async function LoginPage({
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,hsl(var(--primary)/0.10),transparent_45%),radial-gradient(circle_at_85%_85%,hsl(var(--accent)/0.10),transparent_45%)]"
       />
 
-      <div className="absolute right-6 top-6">
+      <div className="absolute right-6 top-6 flex items-center gap-2">
+        <LocaleToggle />
         <ThemeToggle />
       </div>
 
@@ -71,9 +75,9 @@ export default async function LoginPage({
                 <path d="m18.5 5.5-13 13" />
               </svg>
             </span>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">CDP Admin</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           </div>
-          <p className="text-sm text-muted-foreground">Sign in to your tenant.</p>
+          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
 
         {error && (
@@ -81,13 +85,13 @@ export default async function LoginPage({
             role="alert"
             className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
-            Invalid email or password.
+            {t('errorInvalid')}
           </div>
         )}
 
         <div className="space-y-1.5">
           <label htmlFor="email" className="block text-sm font-medium text-foreground">
-            Email
+            {t('email')}
           </label>
           <input
             id="email"
@@ -96,13 +100,13 @@ export default async function LoginPage({
             autoComplete="email"
             required
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-            placeholder="you@example.com"
+            placeholder={t('emailPlaceholder')}
           />
         </div>
 
         <div className="space-y-1.5">
           <label htmlFor="password" className="block text-sm font-medium text-foreground">
-            Password
+            {t('password')}
           </label>
           <input
             id="password"
@@ -118,7 +122,7 @@ export default async function LoginPage({
           type="submit"
           className="block w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-soft transition hover:bg-primary/90"
         >
-          Sign in
+          {t('submit')}
         </button>
       </form>
     </main>

@@ -1,0 +1,529 @@
+{
+  "app": {
+    "title": "CDP Admin",
+    "tagline": "Customer Data Platform",
+    "tenant": "Tenant",
+    "signOut": "Sign out",
+    "version": "v0.1 · Phase 1"
+  },
+  "nav": {
+    "overview": "Overview",
+    "customers": "Customers",
+    "segments": "Segments",
+    "orders": "Orders",
+    "carts": "Abandoned carts",
+    "products": "Top products",
+    "coupons": "Coupons",
+    "regions": "Regions",
+    "insights": "Insights",
+    "sync": "Sync"
+  },
+  "common": {
+    "search": "Search",
+    "clear": "Clear",
+    "next": "Next",
+    "back": "Back",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "create": "Create",
+    "save": "Save",
+    "refresh": "Refresh",
+    "exportCsv": "Export CSV",
+    "loading": "Loading…",
+    "noData": "No data",
+    "emDash": "—",
+    "yes": "yes",
+    "no": "no",
+    "all": "All",
+    "switchToLight": "Switch to light theme",
+    "switchToDark": "Switch to dark theme",
+    "language": "Language"
+  },
+  "presets": {
+    "7d": "7 days",
+    "30d": "30 days",
+    "90d": "90 days",
+    "365d": "1 year",
+    "all": "All time"
+  },
+  "login": {
+    "title": "CDP Admin",
+    "subtitle": "Sign in to your tenant.",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "submit": "Sign in",
+    "errorInvalid": "Invalid email or password."
+  },
+  "overview": {
+    "title": "Overview",
+    "subtitle": "KPIs vs the equivalent previous period.",
+    "tiles": {
+      "revenue": "Revenue",
+      "orders": "Orders",
+      "aov": "Average order value",
+      "customers": "Customers",
+      "customerMixCount": "{newCount} new · {returningCount} returning"
+    },
+    "mix": {
+      "heading": "Customer mix",
+      "newCustomers": "New customers",
+      "returningCustomers": "Returning customers",
+      "repeatRate": "Repeat purchase rate"
+    },
+    "links": {
+      "customersTitle": "Customers",
+      "customersHeadline": "Browse and search",
+      "customersDescription": "Identity, addresses, lifetime metrics for every synced customer.",
+      "productsTitle": "Products",
+      "productsHeadline": "Top products",
+      "productsDescription": "Best sellers by units or revenue, filtered by date range.",
+      "open": "Open"
+    },
+    "delta": {
+      "vs": "vs"
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "onThisPage": "{count} on this page.",
+    "searchPlaceholder": "Search email, first name, last name…",
+    "saveAsSegment": "Save as segment",
+    "table": {
+      "email": "Email",
+      "name": "Name",
+      "group": "Group",
+      "magentoId": "Magento ID",
+      "updated": "Updated",
+      "empty": "No customers match."
+    },
+    "footer": "Cursor pagination — sorted by Magento updated_at desc."
+  },
+  "customerDetail": {
+    "back": "← Customers",
+    "subhead": "{fullName} · Magento #{magentoId} · group {group}",
+    "identity": "Identity",
+    "rfm": "RFM segment",
+    "rfmCalculated": "calculated {when}",
+    "rfmRecency": "Recency (days since last order)",
+    "rfmFrequency": "Frequency (orders / 365d)",
+    "rfmMonetary": "Monetary (revenue / 365d)",
+    "lifetimeMetrics": "Lifetime metrics",
+    "fields": {
+      "email": "Email",
+      "name": "Name",
+      "phone": "Phone",
+      "dob": "Date of birth",
+      "gender": "Gender",
+      "subscribed": "Subscribed",
+      "createdInMagento": "Created in Magento",
+      "updatedInMagento": "Updated in Magento",
+      "orders": "Orders",
+      "totalSpent": "Total spent",
+      "aov": "Average order value",
+      "firstOrder": "First order",
+      "lastOrder": "Last order"
+    },
+    "subscribedValue": "{flag} ({status})",
+    "noOrders": "No orders synced for this customer yet.",
+    "recentOrdersHeading": "Recent orders ({count})",
+    "seeAll": "See all →",
+    "productsHeading": "Products purchased ({count})",
+    "productsSubtitle": "Lifetime SKUs aggregated from order items.",
+    "productsTable": {
+      "sku": "SKU",
+      "name": "Product",
+      "units": "Units",
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "lastBought": "Last bought"
+    },
+    "addressesHeading": "Addresses ({count})",
+    "noAddresses": "No addresses returned by Magento for this customer.",
+    "defaultBilling": "· default billing",
+    "defaultShipping": "· default shipping",
+    "magentoAttributes": "Magento custom attributes",
+    "items": "items",
+    "privacy": {
+      "heading": "Data privacy",
+      "description": "GDPR / data subject controls. Both actions are audit-logged.",
+      "downloadJson": "Download JSON export",
+      "erase": "Erase customer",
+      "confirmTitle": "Erase this customer?",
+      "confirmBody": "Pseudonymizes name, email, phone, addresses, and order PII. Orders and analytics aggregates stay intact. Not reversible.",
+      "typeEmail": "Type the email to confirm:",
+      "erasing": "Erasing…",
+      "erasedToast": "Erased. Pseudonym email: {pseudonym}",
+      "errorPrefix": "Failed ({status}): {body}"
+    }
+  },
+  "segments": {
+    "rfmLabels": {
+      "champions": "Champions",
+      "loyal": "Loyal",
+      "potential_loyalists": "Potential loyalists",
+      "new_customers": "New customers",
+      "promising": "Promising",
+      "needing_attention": "Needing attention",
+      "about_to_sleep": "About to sleep",
+      "at_risk": "At risk",
+      "cannot_lose_them": "Cannot lose them",
+      "hibernating": "Hibernating",
+      "lost": "Lost"
+    },
+    "title": "Segments",
+    "subtitle": "Static customer segments. Membership snapshots at create time and refreshes on demand.",
+    "newSegment": "New segment",
+    "table": {
+      "name": "Name",
+      "description": "Description",
+      "filters": "Filters",
+      "members": "Members",
+      "updated": "Updated",
+      "emptyPrefix": "No segments yet. ",
+      "emptyAction": "Create one"
+    },
+    "filters": {
+      "search": "search",
+      "group": "group",
+      "regions": "regions",
+      "regionsCount": "{count} selected",
+      "rfm": "RFM",
+      "all": "all customers"
+    },
+    "detail": {
+      "members": "Members",
+      "type": "Type",
+      "lastRefreshed": "Last refreshed",
+      "createdAt": "created {when}",
+      "filterDefinition": "Filter definition",
+      "membersHeading": "Members ({count})",
+      "membersSubtitle": "Showing the first {count}. Member list is a snapshot — use Refresh to recompute against current data.",
+      "table": {
+        "email": "Email",
+        "name": "Name",
+        "group": "Group",
+        "added": "Added"
+      },
+      "empty": "No members in this segment.",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "refreshSuccess": "Membership refreshed.",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteBody": "The segment definition and member list will be removed. The customer profiles themselves are not affected."
+    },
+    "form": {
+      "title": "New segment",
+      "subtitle": "Save a customer filter as a static segment. Membership snapshots now and refreshes on demand.",
+      "missingName": "Please give the segment a name.",
+      "errorPrefix": "Could not create segment: {message}",
+      "name": "Name",
+      "namePlaceholder": "VIP champions",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "Top-spend repeat buyers",
+      "filters": "Filters",
+      "search": "Search (email, first name, last name)",
+      "searchPlaceholder": "@gmail.com",
+      "group": "Customer group",
+      "groupPlaceholder": "General, Wholesalers, …",
+      "rfm": "RFM segments",
+      "rfmHint": "Match customers whose current RFM label is any of the selected.",
+      "submit": "Create segment"
+    }
+  },
+  "orders": {
+    "title": "Orders",
+    "onThisPage": "{count} on this page · sorted by placed_at desc.",
+    "searchPlaceholder": "Search order # or customer email…",
+    "statusLabel": "Status:",
+    "statusFilters": {
+      "all": "All",
+      "pending": "Pending",
+      "processing": "Processing",
+      "complete": "Complete",
+      "canceled": "Canceled",
+      "closed": "Closed",
+      "holded": "On hold"
+    },
+    "table": {
+      "orderNumber": "Order #",
+      "placed": "Placed",
+      "customer": "Customer",
+      "status": "Status",
+      "items": "Items",
+      "total": "Total",
+      "realRevenue": "Real revenue",
+      "empty": "No orders match."
+    },
+    "footer": "Cursor pagination — sorted by placed_at desc."
+  },
+  "orderDetail": {
+    "back": "← Orders",
+    "placedAt": "Placed {when} · Magento order id {id}",
+    "stateLabel": "state: {state}",
+    "tiles": {
+      "grandTotal": "Grand total",
+      "realRevenue": "Real revenue",
+      "realRevenueSub": "invoiced − refunded",
+      "items": "Items",
+      "skus": "{count} SKUs",
+      "refunded": "Refunded"
+    },
+    "sections": {
+      "customer": "Customer",
+      "totals": "Totals",
+      "items": "Items ({count})",
+      "addresses": "Addresses",
+      "billing": "Billing",
+      "shipping": "Shipping",
+      "history": "Status history ({count})"
+    },
+    "fields": {
+      "email": "Email",
+      "name": "Name",
+      "paymentMethod": "Payment method",
+      "shippingMethod": "Shipping method",
+      "coupon": "Coupon",
+      "cdpProfile": "CDP profile",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "shipping": "Shipping",
+      "discount": "Discount",
+      "invoiced": "Invoiced",
+      "refunded": "Refunded",
+      "paid": "Paid",
+      "currency": "Currency"
+    },
+    "guestCheckout": "guest checkout",
+    "openCustomer": "Open customer 360 →",
+    "items": {
+      "sku": "SKU",
+      "product": "Product",
+      "qty": "Qty",
+      "price": "Price",
+      "discount": "Discount",
+      "tax": "Tax",
+      "rowTotal": "Row total",
+      "empty": "No items on this order.",
+      "refundedBadge": "refunded {qty}"
+    },
+    "addressEmpty": "Not captured for this order.",
+    "couponAuto": "Auto cart-rule (no code) — rules {ids}"
+  },
+  "products": {
+    "title": "Top products",
+    "subtitle": "Aggregated by SKU. Configurable parents are filtered out automatically.",
+    "sortBy": "Sort by:",
+    "sortRevenue": "Revenue",
+    "sortUnits": "Units",
+    "table": {
+      "rank": "#",
+      "product": "Product",
+      "sku": "SKU",
+      "units": "Units",
+      "revenue": "Revenue",
+      "orders": "Orders",
+      "empty": "No orders in this window."
+    }
+  },
+  "productAffinity": {
+    "back": "← Top products",
+    "tiles": {
+      "ordersWithSku": "Orders containing this SKU",
+      "tenantTotalOrders": "Tenant total orders",
+      "tenantTotalSub": "baseline for lift",
+      "penetration": "Penetration",
+      "penetrationSub": "orders with this SKU / all orders"
+    },
+    "heading": "Frequently bought together",
+    "subtitle": "{confidenceLabel} = % of orders with this SKU that also include the row SKU. {liftLabel} > 1 means stronger association than chance. Excludes SKUs that only co-occur once.",
+    "confidenceLabel": "Confidence",
+    "liftLabel": "Lift",
+    "table": {
+      "sku": "SKU",
+      "product": "Product",
+      "coOrders": "Co-orders",
+      "totalOrders": "Total orders",
+      "confidence": "Confidence",
+      "lift": "Lift"
+    },
+    "noOrders": "No orders contain this SKU yet.",
+    "notEnough": "Not enough co-occurrence to compute affinity. Either this SKU is usually bought alone or there aren't enough multi-item orders yet."
+  },
+  "regions": {
+    "title": "Regions · Argentina",
+    "subtitle": "Customers + orders + revenue per INDEC province. Customer counts are snapshot (independent of date range); buyers / orders / revenue are window-bound.",
+    "tiles": {
+      "customers": "Customers",
+      "buyers": "Buyers in window",
+      "orders": "Orders in window",
+      "revenue": "Revenue"
+    },
+    "mapBy": "Map by:",
+    "metrics": {
+      "revenue": "Revenue",
+      "customers": "Customers",
+      "orders": "Orders"
+    },
+    "choropleth": {
+      "headingByRevenue": "Revenue by province",
+      "headingByCustomers": "Customers by province",
+      "headingByOrders": "Orders by province",
+      "summary": "24 provinces · max {max}",
+      "scale": "Scale",
+      "noData": "no data"
+    },
+    "table": {
+      "rank": "#",
+      "code": "Code",
+      "province": "Province",
+      "customers": "Customers",
+      "customerShare": "Customer share",
+      "buyers": "Buyers",
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "revenueShare": "Revenue share",
+      "empty": "No regions configured."
+    },
+    "unmatched": "Unmatched regions ({count})",
+    "unmatchedSubtitle": "Magento sent us these region values that didn't match any row in the INDEC table. They're audit-only — fix the matcher in the region resolver if any of these represent a real province.",
+    "unmatchedTable": {
+      "regionRaw": "Region (raw)",
+      "city": "City",
+      "postal": "Postal",
+      "occurrences": "Occurrences"
+    }
+  },
+  "insights": {
+    "title": "Insights",
+    "subtitle": "When your customers buy and how long they keep coming back. All times in {tz}.",
+    "heatmap": {
+      "title": "Day × hour heatmap",
+      "summary": "{orders} orders · {revenue} revenue.",
+      "colorBy": "Color by:",
+      "byOrders": "Orders",
+      "byRevenue": "Revenue",
+      "noOrders": "No orders in this window.",
+      "less": "Less",
+      "more": "More",
+      "tooltipNoOrders": "{day} {hour} — no orders",
+      "tooltipRevenue": "{day} {hour} — {value}",
+      "tooltipOrders": "{day} {hour} — {value} orders",
+      "topChipOrders": "{value} orders"
+    },
+    "cadence": {
+      "title": "Time between orders",
+      "summary": "{count} customers with 2+ orders · {medianText}",
+      "medianValue": "median gap {days} days",
+      "medianNone": "no gap data",
+      "empty": "No repeat-purchase gaps in this window."
+    },
+    "cohort": {
+      "title": "Cohort retention ({count} months)",
+      "summary": "{customers} customers across the last {months} months. Each row is the customers acquired in that month; each column shows what % of them placed an order N months later. Empty cells = haven't happened yet.",
+      "table": {
+        "cohort": "Cohort",
+        "size": "Size"
+      }
+    },
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
+  },
+  "coupons": {
+    "title": "Coupons",
+    "subtitle": "Coupon code usage in the period. Auto cart-rule promotions (no code) reported separately at the bottom.",
+    "tiles": {
+      "couponOrders": "Coupon orders",
+      "couponRevenue": "Coupon revenue",
+      "couponRevenueSub": "post-discount totals",
+      "discount": "Discount given",
+      "discountSub": "across coupons"
+    },
+    "byCode": "By coupon code",
+    "table": {
+      "code": "Code",
+      "rule": "Rule",
+      "orders": "Orders",
+      "customers": "Customers",
+      "revenue": "Revenue",
+      "discount": "Discount",
+      "net": "Net (real)",
+      "lastUsed": "Last used",
+      "empty": "No coupon codes used in this window. As soon as a customer applies one in Magento, it'll show up here."
+    },
+    "auto": {
+      "title": "Automatic cart rules (no coupon code)",
+      "subtitle": "Orders that received a discount in the period without a coupon being typed in. Useful to compare promo-driven vs coupon-driven revenue.",
+      "ordersLabel": "Orders with auto promo",
+      "discountLabel": "Discount given (auto)"
+    }
+  },
+  "carts": {
+    "title": "Abandoned carts",
+    "subtitle": "Live snapshot from Magento — active carts with at least one item, idle for ≥ {threshold}. Generated {when}.",
+    "presets": {
+      "15m": "15 min",
+      "1h": "1 hour",
+      "3h": "3 hours",
+      "1d": "1 day",
+      "7d": "7 days"
+    },
+    "tiles": {
+      "carts": "Carts",
+      "items": "Items in carts",
+      "itemsSub": "sum across all carts",
+      "atRisk": "At-risk revenue",
+      "atRiskSub": "grand_total of pending carts",
+      "recoverable": "Recoverable",
+      "recoverableSub": "known customers (not guest)"
+    },
+    "tableHeading": "Carts ({count})",
+    "tableSubtitle": "Sorted by most recently touched. Customer column links to the CDP profile when the shopper is registered.",
+    "table": {
+      "cart": "Cart",
+      "customer": "Customer",
+      "items": "Items",
+      "total": "Total",
+      "lastActivity": "Last activity",
+      "idle": "Idle",
+      "noEmail": "(no email)",
+      "guest": "guest",
+      "registered": "registered",
+      "empty": "No abandoned carts in this window."
+    }
+  },
+  "sync": {
+    "title": "Sync status",
+    "subtitle": "One row per Magento store × entity. Manual triggers and queue depth land in Iteration 4.",
+    "table": {
+      "store": "Store",
+      "entity": "Entity",
+      "status": "Status",
+      "lastProcessed": "Last processed",
+      "cursor": "Cursor",
+      "empty": "No sync activity yet. Run {cmd}."
+    },
+    "statuses": {
+      "idle": "idle",
+      "running": "running",
+      "error": "error",
+      "paused": "paused"
+    }
+  },
+  "errors": {
+    "somethingWentWrong": "Something went wrong",
+    "tryAgain": "Try again",
+    "notFoundTitle": "404",
+    "notFoundBody": "That page does not exist.",
+    "unexpected": "Unexpected error"
+  }
+}

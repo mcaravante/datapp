@@ -1,14 +1,41 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ApiError, apiFetch } from '@/lib/api-client';
-import { formatCurrency, formatCurrencyArs, formatNumber } from '@/lib/format';
+import {
+  formatBuenosAires,
+  formatCurrency,
+  formatCurrencyArs,
+  formatNumber,
+} from '@/lib/format';
 import { GdprActions } from '@/components/gdpr-actions';
+import type { Locale } from '@/i18n/config';
 import type { CustomerDetail, CustomerProductsResponse, OrderListPage } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Customer' };
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+const RFM_LABEL_KEYS = [
+  'champions',
+  'loyal',
+  'potential_loyalists',
+  'new_customers',
+  'promising',
+  'needing_attention',
+  'about_to_sleep',
+  'at_risk',
+  'cannot_lose_them',
+  'hibernating',
+  'lost',
+] as const;
+
+type RfmLabelKey = (typeof RFM_LABEL_KEYS)[number];
+
+function isRfmLabelKey(value: string): value is RfmLabelKey {
+  return (RFM_LABEL_KEYS as readonly string[]).includes(value);
 }
 
 export default async function CustomerDetailPage({
@@ -26,13 +53,20 @@ export default async function CustomerDetailPage({
 
   const fullName = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—';
 
-  // Recent orders + lifetime SKU breakdown. Both independent of the
-  // headline customer fetch so we don't gate the page on either.
   const ordersParams = new URLSearchParams({ customer_id: id, limit: '10' });
   const [orders, products] = await Promise.all([
     apiFetch<OrderListPage>(`/v1/admin/orders?${ordersParams.toString()}`).catch(() => null),
     apiFetch<CustomerProductsResponse>(`/v1/admin/customers/${id}/products`).catch(() => null),
   ]);
+
+  const t = await getTranslations('customerDetail');
+  const tRfm = await getTranslations('segments.rfmLabels');
+  const tCommon = await getTranslations('common');
+  const locale = (await getLocale()) as Locale;
+
+  function rfmLabel(segment: string): string {
+    return isRfmLabelKey(segment) ? tRfm(segment) : segment;
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
@@ -41,89 +75,100 @@ export default async function CustomerDetailPage({
           href="/customers"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
         >
-          ← Customers
+          {t('back')}
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
           {customer.email}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {fullName} · Magento #{customer.magento_customer_id} · group{' '}
-          {customer.customer_group ?? '—'}
+          {t('subhead', {
+            fullName,
+            magentoId: customer.magento_customer_id,
+            group: customer.customer_group ?? '—',
+          })}
         </p>
       </div>
 
-      <Section title="Identity">
-        <Field label="Email" value={customer.email} />
-        <Field label="Name" value={fullName} />
-        <Field label="Phone" value={customer.phone ?? '—'} />
-        <Field label="Date of birth" value={customer.dob ?? '—'} />
-        <Field label="Gender" value={customer.gender ?? '—'} />
+      <Section title={t('identity')}>
+        <Field label={t('fields.email')} value={customer.email} />
+        <Field label={t('fields.name')} value={fullName} />
+        <Field label={t('fields.phone')} value={customer.phone ?? '—'} />
+        <Field label={t('fields.dob')} value={customer.dob ?? '—'} />
+        <Field label={t('fields.gender')} value={customer.gender ?? '—'} />
         <Field
-          label="Subscribed"
-          value={`${customer.is_subscribed ? 'yes' : 'no'} (${customer.subscription_status})`}
+          label={t('fields.subscribed')}
+          value={t('subscribedValue', {
+            flag: customer.is_subscribed ? tCommon('yes') : tCommon('no'),
+            status: customer.subscription_status,
+          })}
         />
         <Field
-          label="Created in Magento"
-          value={customer.magento_created_at ? formatBuenosAires(customer.magento_created_at) : '—'}
+          label={t('fields.createdInMagento')}
+          value={
+            customer.magento_created_at
+              ? formatBuenosAires(customer.magento_created_at, locale)
+              : '—'
+          }
         />
         <Field
-          label="Updated in Magento"
-          value={customer.magento_updated_at ? formatBuenosAires(customer.magento_updated_at) : '—'}
+          label={t('fields.updatedInMagento')}
+          value={
+            customer.magento_updated_at
+              ? formatBuenosAires(customer.magento_updated_at, locale)
+              : '—'
+          }
         />
       </Section>
 
       {customer.rfm && (
         <section className="rounded-lg border border-border bg-card p-5 shadow-card">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            RFM segment
+            {t('rfm')}
           </h2>
           <div className="flex flex-wrap items-center gap-3">
             <span
               className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${segmentToneClass(customer.rfm.segment)}`}
             >
-              {prettySegment(customer.rfm.segment)}
+              {rfmLabel(customer.rfm.segment)}
             </span>
             <span className="rounded-md border border-border bg-muted/50 px-2 py-1 font-mono text-xs text-muted-foreground">
               R{customer.rfm.recency_score} · F{customer.rfm.frequency_score} · M
               {customer.rfm.monetary_score}
             </span>
             <span className="text-xs text-muted-foreground">
-              calculated {formatBuenosAires(customer.rfm.calculated_at)}
+              {t('rfmCalculated', { when: formatBuenosAires(customer.rfm.calculated_at, locale) })}
             </span>
           </div>
           <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-3">
-            <Field
-              label="Recency (days since last order)"
-              value={String(customer.rfm.recency_days)}
-            />
-            <Field label="Frequency (orders / 365d)" value={String(customer.rfm.frequency)} />
-            <Field label="Monetary (revenue / 365d)" value={`${customer.rfm.monetary} ARS`} />
+            <Field label={t('rfmRecency')} value={String(customer.rfm.recency_days)} />
+            <Field label={t('rfmFrequency')} value={String(customer.rfm.frequency)} />
+            <Field label={t('rfmMonetary')} value={`${customer.rfm.monetary} ARS`} />
           </dl>
         </section>
       )}
 
-      <Section title="Lifetime metrics">
-        <Field label="Orders" value={String(customer.metrics.total_orders)} />
-        <Field label="Total spent" value={`${customer.metrics.total_spent} ARS`} />
-        <Field label="Average order value" value={`${customer.metrics.aov} ARS`} />
+      <Section title={t('lifetimeMetrics')}>
+        <Field label={t('fields.orders')} value={String(customer.metrics.total_orders)} />
+        <Field label={t('fields.totalSpent')} value={`${customer.metrics.total_spent} ARS`} />
+        <Field label={t('fields.aov')} value={`${customer.metrics.aov} ARS`} />
         <Field
-          label="First order"
+          label={t('fields.firstOrder')}
           value={
             customer.metrics.first_order_at
-              ? formatBuenosAires(customer.metrics.first_order_at)
+              ? formatBuenosAires(customer.metrics.first_order_at, locale)
               : '—'
           }
         />
         <Field
-          label="Last order"
+          label={t('fields.lastOrder')}
           value={
-            customer.metrics.last_order_at ? formatBuenosAires(customer.metrics.last_order_at) : '—'
+            customer.metrics.last_order_at
+              ? formatBuenosAires(customer.metrics.last_order_at, locale)
+              : '—'
           }
         />
         {customer.metrics.total_orders === 0 && (
-          <p className="col-span-full text-xs text-muted-foreground">
-            No orders synced for this customer yet.
-          </p>
+          <p className="col-span-full text-xs text-muted-foreground">{t('noOrders')}</p>
         )}
       </Section>
 
@@ -131,14 +176,15 @@ export default async function CustomerDetailPage({
         <section className="rounded-lg border border-border bg-card p-5 shadow-card">
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent orders ({orders.data.length}
-              {orders.next_cursor ? '+' : ''})
+              {t('recentOrdersHeading', {
+                count: `${orders.data.length}${orders.next_cursor ? '+' : ''}`,
+              })}
             </h2>
             <Link
               href={`/orders?customer_id=${customer.id}`}
               className="text-xs font-medium text-primary hover:underline"
             >
-              See all →
+              {t('seeAll')}
             </Link>
           </div>
           <ol className="space-y-3">
@@ -167,13 +213,13 @@ export default async function CustomerDetailPage({
                     {o.status}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {formatBuenosAires(o.placed_at)}
+                    {formatBuenosAires(o.placed_at, locale)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {formatNumber(o.item_count)} items
+                    {formatNumber(o.item_count, locale)} {t('items')}
                   </span>
                   <span className="ml-auto tabular-nums text-sm font-medium text-foreground">
-                    {formatCurrency(o.grand_total, o.currency_code)}
+                    {formatCurrency(o.grand_total, o.currency_code, locale)}
                   </span>
                 </Link>
               </li>
@@ -186,21 +232,19 @@ export default async function CustomerDetailPage({
         <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
           <div className="border-b border-border bg-muted/30 px-5 py-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Products purchased ({products.data.length})
+              {t('productsHeading', { count: products.data.length })}
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Lifetime SKUs aggregated from order items.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('productsSubtitle')}</p>
           </div>
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-4 py-2 font-semibold">SKU</th>
-                <th className="px-4 py-2 font-semibold">Product</th>
-                <th className="px-4 py-2 text-right font-semibold">Units</th>
-                <th className="px-4 py-2 text-right font-semibold">Orders</th>
-                <th className="px-4 py-2 text-right font-semibold">Revenue</th>
-                <th className="px-4 py-2 font-semibold">Last bought</th>
+                <th className="px-4 py-2 font-semibold">{t('productsTable.sku')}</th>
+                <th className="px-4 py-2 font-semibold">{t('productsTable.name')}</th>
+                <th className="px-4 py-2 text-right font-semibold">{t('productsTable.units')}</th>
+                <th className="px-4 py-2 text-right font-semibold">{t('productsTable.orders')}</th>
+                <th className="px-4 py-2 text-right font-semibold">{t('productsTable.revenue')}</th>
+                <th className="px-4 py-2 font-semibold">{t('productsTable.lastBought')}</th>
               </tr>
             </thead>
             <tbody>
@@ -219,16 +263,16 @@ export default async function CustomerDetailPage({
                   </td>
                   <td className="px-4 py-2 text-foreground">{p.name}</td>
                   <td className="px-4 py-2 text-right tabular-nums text-foreground/80">
-                    {formatNumber(Number(p.units))}
+                    {formatNumber(Number(p.units), locale)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
-                    {formatNumber(p.orders)}
+                    {formatNumber(p.orders, locale)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums font-medium text-foreground">
-                    {formatCurrencyArs(p.revenue)}
+                    {formatCurrencyArs(p.revenue, locale)}
                   </td>
                   <td className="px-4 py-2 text-xs text-muted-foreground">
-                    {formatBuenosAires(p.last_purchased_at)}
+                    {formatBuenosAires(p.last_purchased_at, locale)}
                   </td>
                 </tr>
               ))}
@@ -237,11 +281,9 @@ export default async function CustomerDetailPage({
         </section>
       )}
 
-      <Section title={`Addresses (${customer.addresses.length})`}>
+      <Section title={t('addressesHeading', { count: customer.addresses.length })}>
         {customer.addresses.length === 0 ? (
-          <p className="col-span-full text-sm text-muted-foreground">
-            No addresses returned by Magento for this customer.
-          </p>
+          <p className="col-span-full text-sm text-muted-foreground">{t('noAddresses')}</p>
         ) : (
           customer.addresses.map((a) => (
             <div
@@ -251,10 +293,10 @@ export default async function CustomerDetailPage({
               <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
                 <span>{a.type}</span>
                 {a.is_default_billing && (
-                  <span className="text-foreground">· default billing</span>
+                  <span className="text-foreground">{t('defaultBilling')}</span>
                 )}
                 {a.is_default_shipping && (
-                  <span className="text-foreground">· default shipping</span>
+                  <span className="text-foreground">{t('defaultShipping')}</span>
                 )}
               </div>
               <div className="text-foreground">
@@ -276,7 +318,7 @@ export default async function CustomerDetailPage({
       </Section>
 
       {Object.keys(customer.attributes).length > 0 && (
-        <Section title="Magento custom attributes">
+        <Section title={t('magentoAttributes')}>
           {Object.entries(customer.attributes).map(([k, v]) => (
             <Field key={k} label={k} value={String(v)} />
           ))}
@@ -341,26 +383,4 @@ const SEGMENT_TONE: Record<string, string> = {
 
 function segmentToneClass(segment: string): string {
   return SEGMENT_TONE[segment] ?? 'bg-muted text-muted-foreground';
-}
-
-function prettySegment(segment: string): string {
-  return segment
-    .split('_')
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(' ');
-}
-
-const FORMATTER = new Intl.DateTimeFormat('es-AR', {
-  timeZone: 'America/Argentina/Buenos_Aires',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatBuenosAires(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return FORMATTER.format(d);
 }

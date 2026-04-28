@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { deleteSegment, refreshSegment } from '@/app/(authed)/segments/actions';
 
@@ -12,6 +13,8 @@ export function SegmentActions({
   segmentId,
   segmentName,
 }: SegmentActionsProps): React.ReactElement {
+  const t = useTranslations('segments.detail');
+  const tCommon = useTranslations('common');
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +38,6 @@ export function SegmentActions({
     startTransition(async () => {
       try {
         await deleteSegment(segmentId);
-        // deleteSegment redirects on success, so we won't reach here.
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to delete');
         setConfirmOpen(false);
@@ -53,7 +55,7 @@ export function SegmentActions({
           className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-soft transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshIcon className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
-          {isPending ? 'Refreshing…' : 'Refresh'}
+          {isPending ? t('refreshing') : t('refresh')}
         </button>
         <button
           type="button"
@@ -62,12 +64,10 @@ export function SegmentActions({
           className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <TrashIcon className="h-3.5 w-3.5" />
-          Delete
+          {t('delete')}
         </button>
       </div>
-      {refreshOk && (
-        <span className="text-xs text-success">Membership refreshed.</span>
-      )}
+      {refreshOk && <span className="text-xs text-success">{t('refreshSuccess')}</span>}
       {error && <span className="text-xs text-destructive">{error}</span>}
 
       {confirmOpen && (
@@ -79,19 +79,16 @@ export function SegmentActions({
         >
           <div className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-elevated">
             <h3 id="delete-title" className="text-base font-semibold text-foreground">
-              Delete &ldquo;{segmentName}&rdquo;?
+              {t('deleteTitle', { name: segmentName })}
             </h3>
-            <p className="text-sm text-muted-foreground">
-              The segment definition and member list will be removed. The customer profiles
-              themselves are not affected.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('deleteBody')}</p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
                 className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground transition hover:bg-muted"
               >
-                Cancel
+                {tCommon('cancel')}
               </button>
               <button
                 type="button"
@@ -99,7 +96,7 @@ export function SegmentActions({
                 disabled={isPending}
                 className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground shadow-soft transition hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isPending ? 'Deleting…' : 'Delete'}
+                {isPending ? t('deleting') : t('delete')}
               </button>
             </div>
           </div>

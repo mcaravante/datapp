@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ApiError, apiFetch } from '@/lib/api-client';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { OrderDetail } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Order' };
@@ -38,7 +40,11 @@ export default async function OrderDetailPage({
     throw err;
   }
 
-  const fmt = (v: string | null): string => (v ? formatCurrency(v, order.currency_code) : '—');
+  const t = await getTranslations('orderDetail');
+  const locale = (await getLocale()) as Locale;
+
+  const fmt = (v: string | null): string =>
+    v ? formatCurrency(v, order.currency_code, locale) : '—';
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
@@ -47,7 +53,7 @@ export default async function OrderDetailPage({
           href="/orders"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
         >
-          ← Orders
+          {t('back')}
         </Link>
         <div className="mt-1 flex flex-wrap items-baseline gap-3">
           <h1 className="font-mono text-2xl font-semibold tracking-tight text-foreground">
@@ -58,31 +64,45 @@ export default async function OrderDetailPage({
           >
             {order.status}
           </span>
-          <span className="text-xs text-muted-foreground">state: {order.state}</span>
+          <span className="text-xs text-muted-foreground">
+            {t('stateLabel', { state: order.state })}
+          </span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Placed {formatBuenosAires(order.placed_at)} · Magento order id {order.magento_order_id}
+          {t('placedAt', {
+            when: formatBuenosAires(order.placed_at, locale),
+            id: order.magento_order_id,
+          })}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Tile label="Grand total" value={fmt(order.grand_total)} accent="primary" />
-        <Tile label="Real revenue" value={fmt(order.real_revenue)} accent="success" sub="invoiced − refunded" />
-        <Tile label="Items" value={formatNumber(order.item_count)} sub={`${order.sku_count} SKUs`} />
+        <Tile label={t('tiles.grandTotal')} value={fmt(order.grand_total)} accent="primary" />
         <Tile
-          label="Refunded"
+          label={t('tiles.realRevenue')}
+          value={fmt(order.real_revenue)}
+          accent="success"
+          sub={t('tiles.realRevenueSub')}
+        />
+        <Tile
+          label={t('tiles.items')}
+          value={formatNumber(order.item_count, locale)}
+          sub={t('tiles.skus', { count: order.sku_count })}
+        />
+        <Tile
+          label={t('tiles.refunded')}
           value={fmt(order.total_refunded)}
           accent={Number(order.total_refunded) > 0 ? 'destructive' : 'muted'}
         />
       </div>
 
-      <Section title="Customer">
-        <Field label="Email" value={order.customer_email} />
-        <Field label="Name" value={order.customer_name ?? '—'} />
-        <Field label="Payment method" value={order.payment_method ?? '—'} />
-        <Field label="Shipping method" value={order.shipping_method ?? '—'} />
+      <Section title={t('sections.customer')}>
+        <Field label={t('fields.email')} value={order.customer_email} />
+        <Field label={t('fields.name')} value={order.customer_name ?? '—'} />
+        <Field label={t('fields.paymentMethod')} value={order.payment_method ?? '—'} />
+        <Field label={t('fields.shippingMethod')} value={order.shipping_method ?? '—'} />
         <Field
-          label="Coupon"
+          label={t('fields.coupon')}
           value={order.coupon_code ?? ''}
           slot={
             order.coupon_code ? (
@@ -99,7 +119,7 @@ export default async function OrderDetailPage({
               </Link>
             ) : order.applied_rule_ids ? (
               <span className="text-xs text-muted-foreground">
-                Auto cart-rule (no code) — rules {order.applied_rule_ids}
+                {t('couponAuto', { ids: order.applied_rule_ids })}
               </span>
             ) : (
               <span className="text-sm text-muted-foreground">—</span>
@@ -107,55 +127,55 @@ export default async function OrderDetailPage({
           }
         />
         <Field
-          label="CDP profile"
-          value={order.customer_id ? '' : 'guest checkout'}
+          label={t('fields.cdpProfile')}
+          value={order.customer_id ? '' : t('guestCheckout')}
           slot={
             order.customer_id ? (
               <Link
                 href={`/customers/${order.customer_id}`}
                 className="text-sm font-medium text-primary hover:underline"
               >
-                Open customer 360 →
+                {t('openCustomer')}
               </Link>
             ) : null
           }
         />
       </Section>
 
-      <Section title="Totals">
-        <Field label="Subtotal" value={fmt(order.subtotal)} />
-        <Field label="Tax" value={fmt(order.total_tax)} />
-        <Field label="Shipping" value={fmt(order.shipping_amount)} />
-        <Field label="Discount" value={fmt(order.discount_amount)} />
-        <Field label="Invoiced" value={fmt(order.total_invoiced)} />
-        <Field label="Refunded" value={fmt(order.total_refunded)} />
-        <Field label="Paid" value={fmt(order.total_paid)} />
-        <Field label="Currency" value={order.currency_code} />
+      <Section title={t('sections.totals')}>
+        <Field label={t('fields.subtotal')} value={fmt(order.subtotal)} />
+        <Field label={t('fields.tax')} value={fmt(order.total_tax)} />
+        <Field label={t('fields.shipping')} value={fmt(order.shipping_amount)} />
+        <Field label={t('fields.discount')} value={fmt(order.discount_amount)} />
+        <Field label={t('fields.invoiced')} value={fmt(order.total_invoiced)} />
+        <Field label={t('fields.refunded')} value={fmt(order.total_refunded)} />
+        <Field label={t('fields.paid')} value={fmt(order.total_paid)} />
+        <Field label={t('fields.currency')} value={order.currency_code} />
       </Section>
 
       <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="border-b border-border bg-muted/30 px-5 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Items ({order.items.length})
+            {t('sections.items', { count: order.items.length })}
           </h2>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-semibold">SKU</th>
-              <th className="px-4 py-3 font-semibold">Product</th>
-              <th className="px-4 py-3 text-right font-semibold">Qty</th>
-              <th className="px-4 py-3 text-right font-semibold">Price</th>
-              <th className="px-4 py-3 text-right font-semibold">Discount</th>
-              <th className="px-4 py-3 text-right font-semibold">Tax</th>
-              <th className="px-4 py-3 text-right font-semibold">Row total</th>
+              <th className="px-4 py-3 font-semibold">{t('items.sku')}</th>
+              <th className="px-4 py-3 font-semibold">{t('items.product')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('items.qty')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('items.price')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('items.discount')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('items.tax')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('items.rowTotal')}</th>
             </tr>
           </thead>
           <tbody>
             {order.items.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                  No items on this order.
+                  {t('items.empty')}
                 </td>
               </tr>
             )}
@@ -178,26 +198,28 @@ export default async function OrderDetailPage({
                     {it.name}
                     {refunded && (
                       <span className="ml-2 inline-flex items-center rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive">
-                        refunded {formatNumber(Number(it.qty_refunded))}
+                        {t('items.refundedBadge', {
+                          qty: formatNumber(Number(it.qty_refunded), locale),
+                        })}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
-                    {formatNumber(Number(it.qty_ordered))}
+                    {formatNumber(Number(it.qty_ordered), locale)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-foreground/80">
-                    {formatCurrency(it.price, order.currency_code)}
+                    {formatCurrency(it.price, order.currency_code, locale)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                     {Number(it.discount_amount) > 0
-                      ? formatCurrency(it.discount_amount, order.currency_code)
+                      ? formatCurrency(it.discount_amount, order.currency_code, locale)
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                    {formatCurrency(it.tax_amount, order.currency_code)}
+                    {formatCurrency(it.tax_amount, order.currency_code, locale)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">
-                    {formatCurrency(it.row_total, order.currency_code)}
+                    {formatCurrency(it.row_total, order.currency_code, locale)}
                   </td>
                 </tr>
               );
@@ -207,14 +229,22 @@ export default async function OrderDetailPage({
       </section>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <AddressCard title="Billing" address={order.billing_address} />
-        <AddressCard title="Shipping" address={order.shipping_address} />
+        <AddressCard
+          title={t('sections.billing')}
+          emptyText={t('addressEmpty')}
+          address={order.billing_address}
+        />
+        <AddressCard
+          title={t('sections.shipping')}
+          emptyText={t('addressEmpty')}
+          address={order.shipping_address}
+        />
       </div>
 
       {order.history.length > 0 && (
         <section className="rounded-lg border border-border bg-card p-5 shadow-card">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Status history ({order.history.length})
+            {t('sections.history', { count: order.history.length })}
           </h2>
           <ol className="space-y-4">
             {order.history.map((h, i) => (
@@ -237,15 +267,15 @@ export default async function OrderDetailPage({
                       {h.status}
                     </span>
                     {h.state && (
-                      <span className="text-xs text-muted-foreground">state: {h.state}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t('stateLabel', { state: h.state })}
+                      </span>
                     )}
                     <span className="text-xs text-muted-foreground">
-                      {formatBuenosAires(h.created_at)}
+                      {formatBuenosAires(h.created_at, locale)}
                     </span>
                   </div>
-                  {h.comment && (
-                    <p className="mt-1 text-sm text-foreground/80">{h.comment}</p>
-                  )}
+                  {h.comment && <p className="mt-1 text-sm text-foreground/80">{h.comment}</p>}
                 </div>
               </li>
             ))}
@@ -329,9 +359,11 @@ function Tile({
 
 function AddressCard({
   title,
+  emptyText,
   address,
 }: {
   title: string;
+  emptyText: string;
   address: Record<string, unknown>;
 }): React.ReactElement {
   const a = address as {
@@ -356,7 +388,7 @@ function AddressCard({
         {title}
       </h3>
       {empty ? (
-        <p className="text-sm text-muted-foreground">Not captured for this order.</p>
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
         <div className="space-y-0.5 text-sm">
           {name && <div className="text-foreground">{name}</div>}
