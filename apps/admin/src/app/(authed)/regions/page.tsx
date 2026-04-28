@@ -1,13 +1,20 @@
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { ArgentinaChoropleth } from '@/components/argentina-choropleth';
 import { ExportButton } from '@/components/export-button';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { GeoResponse } from '@/lib/types';
 
 export const metadata = { title: 'CDP Admin · Regions' };
 
+type MapMetric = 'revenue' | 'customers' | 'orders';
+
 interface PageProps {
-  searchParams: Promise<{ window?: string }>;
+  searchParams: Promise<{ window?: string; metric?: string }>;
+}
+
+function pickMetric(raw: string | undefined): MapMetric {
+  return raw === 'customers' || raw === 'orders' ? raw : 'revenue';
 }
 
 const PRESETS = [
@@ -30,13 +37,21 @@ function rangeFromPreset(presetId: string): { from: string; to: string } {
 export default async function RegionsPage({
   searchParams,
 }: PageProps): Promise<React.ReactElement> {
-  const { window: windowParam = 'all' } = await searchParams;
+  const { window: windowParam = 'all', metric: metricParam } = await searchParams;
+  const metric = pickMetric(metricParam);
   const range = rangeFromPreset(windowParam);
   const params = new URLSearchParams({ from: range.from, to: range.to, country: 'AR' });
   const result = await apiFetch<GeoResponse>(`/v1/admin/analytics/geo?${params.toString()}`);
 
   const maxRevenue = result.data.reduce((max, row) => Math.max(max, Number(row.revenue)), 0);
   const maxCustomers = result.data.reduce((max, row) => Math.max(max, row.customers), 0);
+
+  const metricHref = (m: MapMetric): string => {
+    const next = new URLSearchParams();
+    next.set('window', windowParam);
+    next.set('metric', m);
+    return `/regions?${next.toString()}`;
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-8">
@@ -81,6 +96,25 @@ export default async function RegionsPage({
         <Tile label="Orders in window" value={formatNumber(result.totals.orders)} />
         <Tile label="Revenue" value={formatCurrencyArs(result.totals.revenue)} />
       </div>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Map by:</span>
+        {(['revenue', 'customers', 'orders'] as MapMetric[]).map((m) => (
+          <Link
+            key={m}
+            href={metricHref(m)}
+            className={
+              metric === m
+                ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
+                : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
+            }
+          >
+            {m === 'revenue' ? 'Revenue' : m === 'customers' ? 'Customers' : 'Orders'}
+          </Link>
+        ))}
+      </div>
+
+      <ArgentinaChoropleth data={result.data} metric={metric} />
 
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <table className="w-full text-left text-sm">
