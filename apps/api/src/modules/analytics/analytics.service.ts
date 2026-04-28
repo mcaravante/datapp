@@ -16,6 +16,7 @@ import type {
   ProductAffinityQuery,
   ProductAffinityResponse,
 } from './dto/product-affinity.dto';
+import type { CouponRow, CouponsQuery, CouponsResponse } from './dto/coupons.dto';
 
 const BA_TZ = 'America/Argentina/Buenos_Aires';
 
@@ -510,6 +511,114 @@ export class AnalyticsService {
       timezone: BA_TZ,
       horizon,
       cohorts,
+    };
+  }
+
+  /**
+   * Coupon usage report. Aggregates orders in the range whose
+   * `coupon_code` is set, alongside totals for cart-rule-only
+   * promotions (no coupon code, but `discount_amount > 0`) so the user
+   * can compare coupon-driven vs auto-promotion revenue.
+   *
+   * `discount_amount` lives on the order as a negative number (Magento
+   * convention); we report it as positive (`abs`) so "discount given"
+   * reads naturally.
+   */
+  async coupons(tenantId: string, query: CouponsQuery): Promise<CouponsResponse> {
+    const r = resolveRange(query);
+
+    const rows = await this.prisma.$queryRaw<
+      {
+        code: string;
+        name: string | null;
+        orders: bigint;
+        customers: bigint;
+        gross_revenue: Prisma.Decimal | null;
+        discount_total: Prisma.Decimal | null;
+        net_revenue: Prisma.Decimal | null;
+        first_used_at: Date;
+        last_used_at: Date;
+      }[]
+    >(Prisma.sql`
+      WITH best_name AS (
+        SELECT DISTINCT ON (coupon_code)
+          coupon_code,
+          discount_description AS name
+        FROM "order"
+        WHERE tenant_id = ${tenantId}::uuid
+          AND coupon_code IS NOT NULL
+          AND discount_description IS NOT NULL
+        ORDER BY coupon_code, placed_at DESC
+      )
+      SELECT
+        o.coupon_code                                              AS code,
+        bn.name                                                    AS name,
+        COUNT(*)::bigint                                           AS orders,
+        COUNT(DISTINCT customer_profile_id)::bigint                AS customers,
+        COALESCE(SUM(grand_total), 0)::numeric(20,4)               AS gross_revenue,
+        COALESCE(SUM(ABS(discount_amount)), 0)::numeric(20,4)      AS discount_total,
+        COALESCE(SUM(real_revenue), 0)::numeric(20,4)              AS net_revenue,
+        MIN(placed_at)                                             AS first_used_at,
+        MAX(placed_at)                                             AS last_used_at
+      FROM "order" o
+      LEFT JOIN best_name bn ON bn.coupon_code = o.coupon_code
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.coupon_code IS NOT NULL
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+      GROUP BY o.coupon_code, bn.name
+      ORDER BY gross_revenue DESC, orders DESC, o.coupon_code ASC
+    `);
+
+    const data: CouponRow[] = rows.map((row) => ({
+      code: row.code,
+      name: row.name,
+      orders: Number(row.orders),
+      customers: Number(row.customers),
+      gross_revenue: (row.gross_revenue ?? new Prisma.Decimal(0)).toString(),
+      discount_total: (row.discount_total ?? new Prisma.Decimal(0)).toString(),
+      net_revenue: (row.net_revenue ?? new Prisma.Decimal(0)).toString(),
+      first_used_at: row.first_used_at.toISOString(),
+      last_used_at: row.last_used_at.toISOString(),
+    }));
+
+    const couponTotals = data.reduce(
+      (acc, c) => ({
+        orders: acc.orders + c.orders,
+        revenue: acc.revenue.plus(c.gross_revenue),
+        discount: acc.discount.plus(c.discount_total),
+      }),
+      {
+        orders: 0,
+        revenue: new Prisma.Decimal(0),
+        discount: new Prisma.Decimal(0),
+      },
+    );
+
+    const [autoPromoRow] = await this.prisma.$queryRaw<
+      { orders: bigint; discount: Prisma.Decimal | null }[]
+    >(Prisma.sql`
+      SELECT
+        COUNT(*)::bigint                                       AS orders,
+        COALESCE(SUM(ABS(discount_amount)), 0)::numeric(20,4)  AS discount
+      FROM "order"
+      WHERE tenant_id = ${tenantId}::uuid
+        AND coupon_code IS NULL
+        AND discount_amount <> 0
+        AND placed_at >= ${r.from}
+        AND placed_at <  ${r.to}
+    `);
+
+    return {
+      range: { from: r.from.toISOString(), to: r.to.toISOString() },
+      totals: {
+        coupon_orders: couponTotals.orders,
+        coupon_revenue: couponTotals.revenue.toString(),
+        discount_total: couponTotals.discount.toString(),
+        auto_promo_orders: Number(autoPromoRow?.orders ?? 0n),
+        auto_promo_discount: (autoPromoRow?.discount ?? new Prisma.Decimal(0)).toString(),
+      },
+      data,
     };
   }
 

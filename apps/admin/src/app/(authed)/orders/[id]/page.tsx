@@ -82,6 +82,31 @@ export default async function OrderDetailPage({
         <Field label="Payment method" value={order.payment_method ?? '—'} />
         <Field label="Shipping method" value={order.shipping_method ?? '—'} />
         <Field
+          label="Coupon"
+          value={order.coupon_code ?? ''}
+          slot={
+            order.coupon_code ? (
+              <Link
+                href={`/coupons`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs font-mono text-foreground hover:bg-muted"
+              >
+                {order.coupon_code}
+                {order.discount_description && (
+                  <span className="font-sans text-[11px] text-muted-foreground">
+                    · {order.discount_description}
+                  </span>
+                )}
+              </Link>
+            ) : order.applied_rule_ids ? (
+              <span className="text-xs text-muted-foreground">
+                Auto cart-rule (no code) — rules {order.applied_rule_ids}
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">—</span>
+            )
+          }
+        />
+        <Field
           label="CDP profile"
           value={order.customer_id ? '' : 'guest checkout'}
           slot={

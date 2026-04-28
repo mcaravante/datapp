@@ -37,6 +37,12 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/products'),
   },
   {
+    href: '/coupons',
+    label: 'Coupons',
+    icon: TicketIcon,
+    match: (p) => p.startsWith('/coupons'),
+  },
+  {
     href: '/regions',
     label: 'Regions',
     icon: MapIcon,
@@ -209,6 +215,26 @@ function BoxIcon({ className }: { className?: string }): React.ReactElement {
       <path d="M21 16V8a2 2 0 0 0-1-1.73L13 2.27a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4.04a2 2 0 0 0 2 0l7-4.04A2 2 0 0 0 21 16z" />
       <path d="m3.3 7 8.7 5 8.7-5" />
       <path d="M12 22V12" />
+    </svg>
+  );
+}
+
+function TicketIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 9V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z" />
+      <path d="M13 5v2" />
+      <path d="M13 11v2" />
+      <path d="M13 17v2" />
     </svg>
   );
 }

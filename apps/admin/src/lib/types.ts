@@ -156,8 +156,33 @@ export interface OrderListItem {
   currency_code: string;
   grand_total: string;
   real_revenue: string | null;
+  coupon_code: string | null;
   item_count: number;
   placed_at: string;
+}
+
+export interface CouponRow {
+  code: string;
+  name: string | null;
+  orders: number;
+  customers: number;
+  gross_revenue: string;
+  discount_total: string;
+  net_revenue: string;
+  first_used_at: string;
+  last_used_at: string;
+}
+
+export interface CouponsResponse {
+  range: { from: string; to: string };
+  totals: {
+    coupon_orders: number;
+    coupon_revenue: string;
+    discount_total: string;
+    auto_promo_orders: number;
+    auto_promo_discount: string;
+  };
+  data: CouponRow[];
 }
 
 export interface OrderListPage {
@@ -319,6 +344,8 @@ export interface OrderDetail extends OrderListItem {
   total_shipped: string;
   payment_method: string | null;
   shipping_method: string | null;
+  discount_description: string | null;
+  applied_rule_ids: string | null;
   sku_count: number;
   billing_address: Record<string, unknown>;
   shipping_address: Record<string, unknown>;

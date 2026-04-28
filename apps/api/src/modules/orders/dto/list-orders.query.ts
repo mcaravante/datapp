@@ -12,6 +12,8 @@ export const ListOrdersQuerySchema = z.object({
   q: z.string().min(1).max(200).optional(),
   /** Filter by customer profile UUID. */
   customer_id: z.string().uuid().optional(),
+  /** Filter by exact coupon code (case-insensitive match). */
+  coupon_code: z.string().min(1).max(120).optional(),
   /** Filter by Magento status. Repeatable: `?status=processing&status=complete`. */
   status: z
     .union([z.string().min(1).max(50), z.array(z.string().min(1).max(50))])

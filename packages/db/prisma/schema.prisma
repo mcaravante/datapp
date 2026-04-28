@@ -486,6 +486,14 @@ model Order {
   shippingAddress    Json     @default("{}") @map("shipping_address")
   paymentMethod      String?  @map("payment_method")
   shippingMethod     String?  @map("shipping_method")
+  // Coupon / promotion provenance. `couponCode` is the literal code the
+  // customer entered (null when only auto cart-rules fired).
+  // `discountDescription` is the rule label Magento includes alongside
+  // the discount; `appliedRuleIds` is the comma-separated list of every
+  // cart-rule that applied (auto + coupon).
+  couponCode         String?  @map("coupon_code")
+  discountDescription String? @map("discount_description")
+  appliedRuleIds     String?  @map("applied_rule_ids")
   itemCount          Int      @default(0) @map("item_count")
   skuCount           Int      @default(0) @map("sku_count")
   ipAddress          String?  @map("ip_address")
@@ -509,6 +517,7 @@ model Order {
   @@index([tenantId, placedAt(sort: Desc)])
   @@index([tenantId, status])
   @@index([tenantId, magentoUpdatedAt(sort: Desc)])
+  @@index([tenantId, couponCode])
   @@map("order")
 }
 

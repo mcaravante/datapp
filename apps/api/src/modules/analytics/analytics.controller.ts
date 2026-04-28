@@ -28,6 +28,7 @@ import {
   type ProductAffinityQuery,
   type ProductAffinityResponse,
 } from './dto/product-affinity.dto';
+import { CouponsQuerySchema, type CouponsQuery, type CouponsResponse } from './dto/coupons.dto';
 import { AnalyticsService, type KpisResponse } from './analytics.service';
 
 @Controller({ path: 'admin/analytics', version: '1' })
@@ -104,6 +105,14 @@ export class AnalyticsController {
     const { headers, rows } = await this.analytics.geoExport(tenantId, query);
     res.setHeader('Content-Disposition', `attachment; filename="${csvFilename('regions')}"`);
     return toCsv(headers, rows);
+  }
+
+  @Get('coupons')
+  async coupons(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(CouponsQuerySchema)) query: CouponsQuery,
+  ): Promise<CouponsResponse> {
+    return this.analytics.coupons(this.tenantOrThrow(user), query);
   }
 
   @Get('product-affinity')

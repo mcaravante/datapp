@@ -14,6 +14,7 @@ export interface OrderListItem {
   currency_code: string;
   grand_total: string;
   real_revenue: string | null;
+  coupon_code: string | null;
   item_count: number;
   placed_at: string;
 }
@@ -35,6 +36,8 @@ export interface OrderDetail extends OrderListItem {
   total_shipped: string;
   payment_method: string | null;
   shipping_method: string | null;
+  discount_description: string | null;
+  applied_rule_ids: string | null;
   sku_count: number;
   billing_address: Record<string, unknown>;
   shipping_address: Record<string, unknown>;
@@ -83,6 +86,9 @@ export class OrdersService {
       ];
     }
     if (query.customer_id) where.customerProfileId = query.customer_id;
+    if (query.coupon_code) {
+      where.couponCode = { equals: query.coupon_code, mode: 'insensitive' };
+    }
     if (query.status && query.status.length > 0) where.status = { in: query.status };
     if (query.from || query.to) {
       where.placedAt = {};
@@ -115,6 +121,8 @@ export class OrdersService {
         skuCount: true,
         paymentMethod: true,
         shippingMethod: true,
+        couponCode: true,
+        discountDescription: true,
         placedAt: true,
         magentoUpdatedAt: true,
       },
@@ -142,6 +150,8 @@ export class OrdersService {
         'sku_count',
         'payment_method',
         'shipping_method',
+        'coupon_code',
+        'discount_description',
         'placed_at',
         'magento_updated_at',
       ],
@@ -166,6 +176,8 @@ export class OrdersService {
         r.skuCount,
         r.paymentMethod ?? '',
         r.shippingMethod ?? '',
+        r.couponCode ?? '',
+        r.discountDescription ?? '',
         r.placedAt.toISOString(),
         r.magentoUpdatedAt.toISOString(),
       ]),
@@ -182,6 +194,9 @@ export class OrdersService {
       ];
     }
     if (query.customer_id) where.customerProfileId = query.customer_id;
+    if (query.coupon_code) {
+      where.couponCode = { equals: query.coupon_code, mode: 'insensitive' };
+    }
     if (query.status && query.status.length > 0) where.status = { in: query.status };
     if (query.from || query.to) {
       where.placedAt = {};
@@ -216,6 +231,7 @@ export class OrdersService {
         currencyCode: true,
         grandTotal: true,
         realRevenue: true,
+        couponCode: true,
         itemCount: true,
         placedAt: true,
         customer: { select: { firstName: true, lastName: true } },
@@ -239,6 +255,7 @@ export class OrdersService {
         currency_code: r.currencyCode,
         grand_total: r.grandTotal.toString(),
         real_revenue: r.realRevenue ? r.realRevenue.toString() : null,
+        coupon_code: r.couponCode,
         item_count: r.itemCount,
         placed_at: r.placedAt.toISOString(),
       })),
@@ -279,6 +296,9 @@ export class OrdersService {
       real_revenue: order.realRevenue ? order.realRevenue.toString() : null,
       payment_method: order.paymentMethod,
       shipping_method: order.shippingMethod,
+      coupon_code: order.couponCode,
+      discount_description: order.discountDescription,
+      applied_rule_ids: order.appliedRuleIds,
       item_count: order.itemCount,
       sku_count: order.skuCount,
       billing_address: jsonObject(order.billingAddress),

@@ -45,6 +45,9 @@ export interface MappedOrder {
   shippingAddress: Record<string, unknown>;
   paymentMethod: string | null;
   shippingMethod: string | null;
+  couponCode: string | null;
+  discountDescription: string | null;
+  appliedRuleIds: string | null;
   itemCount: number;
   skuCount: number;
   ipAddress: string | null;
@@ -110,6 +113,9 @@ export function mapOrder(raw: MagentoOrder): MappedOrder {
     'updated_at',
     'remote_ip',
     'x_forwarded_for',
+    'coupon_code',
+    'discount_description',
+    'applied_rule_ids',
   ]);
   const attributes: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {
@@ -138,6 +144,9 @@ export function mapOrder(raw: MagentoOrder): MappedOrder {
     shippingAddress: shipping ? addressToJson(shipping) : {},
     paymentMethod: raw.payment?.method ?? null,
     shippingMethod: raw.shipping_method ?? null,
+    couponCode: emptyToNull(getStringField(raw, 'coupon_code')),
+    discountDescription: emptyToNull(getStringField(raw, 'discount_description')),
+    appliedRuleIds: emptyToNull(getStringField(raw, 'applied_rule_ids')),
     itemCount,
     skuCount,
     ipAddress: raw.remote_ip ?? raw.x_forwarded_for ?? null,
@@ -219,4 +228,21 @@ function toDecimalString(v: number): string {
   // through the driver without depending on Decimal.js here.
   if (Number.isNaN(v) || !Number.isFinite(v)) return '0';
   return v.toString();
+}
+
+/**
+ * MagentoOrder uses `.passthrough()` so unmodelled fields (coupon_code,
+ * discount_description, applied_rule_ids) live on the raw payload as
+ * `unknown`. Read them with explicit string narrowing.
+ */
+function getStringField(raw: unknown, key: string): string | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const v = (raw as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : null;
+}
+
+function emptyToNull(v: string | null): string | null {
+  if (v === null) return null;
+  const trimmed = v.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }
