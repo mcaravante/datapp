@@ -8,6 +8,7 @@ export interface JwtPayload {
   name: string;
   role: UserRole;
   tenant_id: string | null;
+  jti: string; // server-side session id (Session.id)
   iat?: number;
   exp?: number;
   iss?: string;
@@ -19,6 +20,8 @@ export interface AuthenticatedUser {
   name: string;
   role: UserRole;
   tenantId: string | null;
+  /** Set by JwtGuard once the JWT's session row is verified. */
+  sessionId?: string;
 }
 
 export interface AuthenticatedRequest extends Request {

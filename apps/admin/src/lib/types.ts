@@ -341,6 +341,7 @@ export interface UserSummary {
   name: string;
   role: AdminRole;
   has_2fa: boolean;
+  has_password: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -353,12 +354,62 @@ export interface MeResponse {
   role: AdminRole;
   tenant_id: string | null;
   has_2fa: boolean;
+  must_enable_2fa: boolean;
 }
 
 export interface EnrollResponse {
   otpauth_url: string;
   qr_data_url: string;
   manual_entry_secret: string;
+}
+
+export interface VerifyTwoFactorResponse {
+  recovery_codes: string[];
+}
+
+export interface RecoveryCodesResponse {
+  recovery_codes: string[];
+}
+
+export interface RecoveryCodeCount {
+  remaining: number;
+}
+
+export type AuditActionId =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'login'
+  | 'logout'
+  | 'export'
+  | 'erase'
+  | 'login_failed'
+  | 'account_locked'
+  | 'password_reset_requested'
+  | 'password_reset_completed'
+  | 'session_revoked'
+  | 'two_factor_enrolled'
+  | 'two_factor_disabled'
+  | 'two_factor_admin_reset'
+  | 'recovery_codes_generated'
+  | 'recovery_code_used';
+
+export interface AuditLogRow {
+  id: string;
+  at: string;
+  action: AuditActionId;
+  entity: string;
+  entity_id: string | null;
+  user: { id: string; email: string; name: string } | null;
+  ip: string | null;
+  user_agent: string | null;
+  after: unknown;
+  before: unknown;
+}
+
+export interface AuditLogPage {
+  data: AuditLogRow[];
+  next_cursor: string | null;
 }
 
 export interface UsersListResponse {

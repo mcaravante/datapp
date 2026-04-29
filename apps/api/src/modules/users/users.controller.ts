@@ -106,8 +106,13 @@ export class UsersController {
   async resetTwoFactor(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: Request,
   ): Promise<void> {
-    await this.users.resetTwoFactor(this.tenantOrThrow(user), id);
+    await this.users.resetTwoFactor(
+      this.tenantOrThrow(user),
+      { id: user.id, ip: extractIp(req), userAgent: req.headers['user-agent'] ?? null },
+      id,
+    );
   }
 
   private tenantOrThrow(user: AuthenticatedUser): string {

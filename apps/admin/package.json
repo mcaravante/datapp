@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cdp/shared": "workspace:*",
+    "@sentry/nextjs": "^8.40.0",
     "@tanstack/react-query": "^5.62.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

@@ -9,7 +9,8 @@ interface CreateUserInput {
   email: string;
   name: string;
   role: AdminRole;
-  password: string;
+  /** Optional. Omit to create a Google-only user (no local credentials). */
+  password?: string;
 }
 
 export async function createUser(input: CreateUserInput): Promise<UserSummary> {

@@ -41,12 +41,36 @@ export const EnvSchema = z.object({
   SENTRY_DSN_API: z.string().url().optional().or(z.literal('')),
   SENTRY_ENVIRONMENT: z.string().default('development'),
 
+  // SMTP — used by the password-reset mailer. All optional: when SMTP_HOST
+  // is unset, the mailer logs the message to stdout instead of sending,
+  // which keeps `pnpm dev` workable without an SMTP account.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_SECURE: z
+    .union([z.literal('true'), z.literal('false'), z.boolean()])
+    .default('false')
+    .transform((v) => v === true || v === 'true'),
+  SMTP_FROM: z.string().default('CDP <no-reply@example.com>'),
+
   DEFAULT_TIMEZONE: z.string().default('America/Argentina/Buenos_Aires'),
   DEFAULT_TENANT_SLUG: z.string().default('acme'),
   FEATURE_2FA_ENFORCED: z
     .union([z.literal('true'), z.literal('false'), z.boolean()])
     .default('false')
     .transform((v) => v === true || v === 'true'),
+
+  // Google Sign-In ----------------------------------------------------
+  // Verified against the `aud` claim of the id_token. If empty, the
+  // Google login endpoint refuses every request.
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  // Auto-bootstraps a super_admin row the first time this email signs
+  // in via Google. Empty string disables the bootstrap (the first
+  // user must then be created via CLI / SQL). When an `admin@cdp.local`
+  // seed row exists and OWNER_EMAIL has no matching user, we migrate
+  // the seed row to OWNER_EMAIL so audit history follows the owner.
+  OWNER_EMAIL: z.string().default(''),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

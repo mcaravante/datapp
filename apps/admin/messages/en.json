@@ -19,7 +19,8 @@
     "sync": "Sync",
     "users": "Users",
     "permissions": "Permissions",
-    "security": "Security"
+    "security": "Security",
+    "audit": "Audit log"
   },
   "common": {
     "search": "Search",
@@ -57,10 +58,54 @@
     "password": "Password",
     "submit": "Sign in",
     "errorInvalid": "Invalid email or password.",
+    "errorRateLimited": "Too many attempts. Wait a minute and try again.",
+    "errorLocked": "Account temporarily locked after too many failed attempts. Try again in 15 minutes or reset your password.",
     "totpLabel": "Authenticator code",
     "totpPlaceholder": "123 456",
     "totpHint": "Open Google Authenticator (or your TOTP app) and copy the 6-digit code.",
-    "totpRequired": "This account has 2FA — enter the code from your authenticator app."
+    "totpRequired": "This account has 2FA — enter the code from your authenticator app.",
+    "useRecoveryCode": "Use a recovery code instead",
+    "useTotpInstead": "Use the authenticator code",
+    "recoveryCodeLabel": "Recovery code",
+    "recoveryCodePlaceholder": "abcd-1234",
+    "recoveryCodeHint": "Each code works only once. After using one, generate fresh codes from the security page.",
+    "forgotLink": "Forgot your password?",
+    "continueWithGoogle": "Continue with Google",
+    "or": "or",
+    "errorOauthNotAuthorized": "Your Google account is not authorized. Ask the owner to grant access.",
+    "oauthTwoFactorTitle": "2FA verification",
+    "oauthTwoFactorSubtitle": "Your account {email} verified its identity with Google. Enter your authenticator code to finish signing in.",
+    "oauthTwoFactorSubmit": "Verify and sign in",
+    "oauthBackToLogin": "← Back to login",
+    "errorInvalidTotp": "Authenticator code is invalid or expired.",
+    "errorInvalidRecovery": "Recovery code is invalid or already used."
+  },
+  "forgotPassword": {
+    "title": "Reset your password",
+    "subtitle": "Enter your email and we'll send you a link to set a new password. The link is valid for 30 minutes.",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "submit": "Send link",
+    "submitting": "Sending…",
+    "successTitle": "Done",
+    "successBody": "If your email is on file you'll receive a message with instructions. Check your inbox (and spam folder).",
+    "backToLogin": "← Back to login"
+  },
+  "resetPassword": {
+    "title": "Set a new password",
+    "subtitle": "Choose a new password. Minimum 12 characters. We'll sign you out everywhere.",
+    "password": "New password",
+    "passwordHint": "Minimum 12 characters. Use a long passphrase or a password manager.",
+    "confirm": "Confirm password",
+    "submit": "Save password",
+    "submitting": "Saving…",
+    "errorMismatch": "Passwords don't match.",
+    "errorTooShort": "Password must be at least 12 characters long.",
+    "errorMissingToken": "Reset token is missing. Request a new email.",
+    "errorInvalid": "This link is invalid or has expired. Request a new email.",
+    "successTitle": "Password updated",
+    "successBody": "You can now sign in with your new password.",
+    "goToLogin": "Go to login →"
   },
   "overview": {
     "title": "Overview",
@@ -573,6 +618,8 @@
       "password": "Password",
       "passwordPlaceholder": "At least 12 characters",
       "passwordOptional": "New password (optional)",
+      "passwordOptionalLabel": "Password (optional)",
+      "passwordOptionalHint": "Leave blank to let the user sign in with Google only. Setting one also enables email + password sign-in.",
       "passwordHint": "Leave blank to keep the current one.",
       "submitCreate": "Create user",
       "submitUpdate": "Save changes",
@@ -602,6 +649,7 @@
   },
   "security": {
     "title": "Security",
+    "enforcementBanner": "Your role requires 2FA. Enable it to continue using the admin — the other sections stay locked until you finish.",
     "subtitle": "Set up two-factor authentication (2FA) with your authenticator app. Works with Google Authenticator, Authy, 1Password, Microsoft Authenticator, and similar apps.",
     "statusEnabledTitle": "2FA enabled",
     "statusEnabledBody": "Next sign-in will ask for a code from your authenticator. If you lose your device, an admin can reset it.",
@@ -630,7 +678,57 @@
       "errorWrongPassword": "Wrong password."
     },
     "successEnabled": "2FA enabled. Next time you sign in we'll ask for the code.",
-    "successDisabled": "2FA disabled."
+    "successDisabled": "2FA disabled.",
+    "recovery": {
+      "codesHeading": "Recovery codes",
+      "codesBody": "Save these somewhere safe (a password manager, printed copy). Each code works only once. If you lose your device, enter one of these at the login page instead of the authenticator code.",
+      "codesAcknowledge": "I saved them",
+      "copy": "Copy all",
+      "copied": "Copied!",
+      "download": "Download .txt",
+      "remaining": "{count, plural, =0 {You have no recovery codes left. Generate new ones.} =1 {1 recovery code remaining.} other {# recovery codes remaining.}}",
+      "regenButton": "Generate new codes",
+      "regenHeading": "Generate new codes",
+      "regenBody": "We'll invalidate the old codes and generate 10 fresh ones. Confirm your password to continue.",
+      "regenSubmit": "Generate",
+      "regenerating": "Generating…",
+      "regenSuccess": "New codes generated. Make sure to save them before closing the page."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "subtitle": "Security-sensitive events — sign-ins, lockouts, password resets, 2FA changes, session revocations. Retain this for forensics.",
+    "filter": "Filter by event",
+    "allActions": "All",
+    "next": "Next",
+    "table": {
+      "when": "When",
+      "action": "Event",
+      "actor": "User",
+      "entity": "Entity",
+      "ip": "IP",
+      "detail": "Detail",
+      "empty": "No events match this filter."
+    },
+    "actions": {
+      "create": "create",
+      "update": "update",
+      "delete": "delete",
+      "login": "login",
+      "logout": "logout",
+      "export": "export",
+      "erase": "erase",
+      "login_failed": "login failed",
+      "account_locked": "account locked",
+      "password_reset_requested": "reset requested",
+      "password_reset_completed": "reset completed",
+      "session_revoked": "session revoked",
+      "two_factor_enrolled": "2FA enabled",
+      "two_factor_disabled": "2FA disabled",
+      "two_factor_admin_reset": "2FA reset by admin",
+      "recovery_codes_generated": "recovery codes regenerated",
+      "recovery_code_used": "recovery code used"
+    }
   },
   "permissions": {
     "title": "Role permissions",

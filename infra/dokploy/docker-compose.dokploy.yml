@@ -7,6 +7,37 @@
 
 name: cdp
 
+x-api-env: &api-env
+  NODE_ENV: production
+  LOG_LEVEL: info
+  DATABASE_URL: ${DATABASE_URL}
+  DIRECT_URL: ${DIRECT_URL}
+  REDIS_URL: ${REDIS_URL}
+  AUTH_SECRET: ${AUTH_SECRET}
+  JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+  JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+  ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
+  APP_URL_API: ${APP_URL_API}
+  APP_URL_ADMIN: ${APP_URL_ADMIN}
+  CORS_ALLOWED_ORIGINS: ${APP_URL_ADMIN}
+  MAGENTO_BASE_URL: ${MAGENTO_BASE_URL}
+  MAGENTO_ADMIN_TOKEN: ${MAGENTO_ADMIN_TOKEN}
+  MAGENTO_HMAC_SECRET: ${MAGENTO_HMAC_SECRET}
+  MAGENTO_RATE_LIMIT_RPS: '4'
+  SENTRY_DSN_API: ${SENTRY_DSN_API:-}
+  SENTRY_ENVIRONMENT: production
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_FROM: ${SMTP_FROM:-CDP <no-reply@example.com>}
+  DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
+  DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG}
+  FEATURE_2FA_ENFORCED: ${FEATURE_2FA_ENFORCED:-true}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  OWNER_EMAIL: ${OWNER_EMAIL:-}
+
 services:
   api:
     build:
@@ -16,32 +47,28 @@ services:
     image: cdp-api:latest
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      <<: *api-env
       PORT: '3000'
-      LOG_LEVEL: info
-      DATABASE_URL: ${DATABASE_URL}
-      DIRECT_URL: ${DIRECT_URL}
-      REDIS_URL: ${REDIS_URL}
-      AUTH_SECRET: ${AUTH_SECRET}
-      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
-      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
-      APP_URL_API: ${APP_URL_API}
-      APP_URL_ADMIN: ${APP_URL_ADMIN}
-      CORS_ALLOWED_ORIGINS: ${APP_URL_ADMIN}
-      MAGENTO_BASE_URL: ${MAGENTO_BASE_URL}
-      MAGENTO_ADMIN_TOKEN: ${MAGENTO_ADMIN_TOKEN}
-      MAGENTO_HMAC_SECRET: ${MAGENTO_HMAC_SECRET}
-      MAGENTO_RATE_LIMIT_RPS: '4'
-      SENTRY_DSN_API: ${SENTRY_DSN_API}
-      SENTRY_ENVIRONMENT: production
-      DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
-      DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG}
-      FEATURE_2FA_ENFORCED: 'false'
+      # Only the API container runs migrations on boot. The worker
+      # leaves MIGRATE_ON_BOOT unset to avoid concurrent migrate runs.
+      MIGRATE_ON_BOOT: 'true'
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     expose: ['3000']
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('node:http').get('http://localhost:3000/v1/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
 
   worker:
     build:
@@ -51,35 +78,22 @@ services:
     image: cdp-api-worker:latest
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      LOG_LEVEL: info
-      DATABASE_URL: ${DATABASE_URL}
-      DIRECT_URL: ${DIRECT_URL}
-      REDIS_URL: ${REDIS_URL}
-      AUTH_SECRET: ${AUTH_SECRET}
-      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
-      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
-      APP_URL_API: ${APP_URL_API}
-      APP_URL_ADMIN: ${APP_URL_ADMIN}
-      CORS_ALLOWED_ORIGINS: ${APP_URL_ADMIN}
-      MAGENTO_BASE_URL: ${MAGENTO_BASE_URL}
-      MAGENTO_ADMIN_TOKEN: ${MAGENTO_ADMIN_TOKEN}
-      MAGENTO_HMAC_SECRET: ${MAGENTO_HMAC_SECRET}
-      MAGENTO_RATE_LIMIT_RPS: '4'
-      SENTRY_DSN_API: ${SENTRY_DSN_API}
-      SENTRY_ENVIRONMENT: production
-      DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
-      DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG}
-      FEATURE_2FA_ENFORCED: 'false'
+      <<: *api-env
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      api: { condition: service_healthy } # ensures migrations are done first
+    stop_grace_period: 30s
 
   admin:
     build:
       context: ../..
       dockerfile: infra/docker/admin.Dockerfile
+      args:
+        # NEXT_PUBLIC_* values must be present at build time — they're
+        # inlined into the client JS bundle.
+        NEXT_PUBLIC_SENTRY_DSN_ADMIN: ${NEXT_PUBLIC_SENTRY_DSN_ADMIN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
     image: cdp-admin:latest
     restart: unless-stopped
     environment:
@@ -88,12 +102,15 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: ${APP_URL_ADMIN}
       APP_URL_API: http://api:3000
-      SENTRY_DSN_ADMIN: ${SENTRY_DSN_ADMIN}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
+      SENTRY_DSN_ADMIN: ${SENTRY_DSN_ADMIN:-}
       SENTRY_ENVIRONMENT: production
       DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
     depends_on:
       api: { condition: service_healthy }
     expose: ['3001']
+    stop_grace_period: 30s
 
   postgres:
     image: postgres:16-alpine

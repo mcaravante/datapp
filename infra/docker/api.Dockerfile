@@ -10,7 +10,7 @@ ENV PNPM_HOME=/usr/local/share/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates tini \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -31,8 +31,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM base AS builder
 # Copy the whole deps tree (node_modules + package.jsons + lockfile). pnpm
 # uses per-package node_modules with symlinks; copying everything in one shot
-# is simpler and tolerant of packages that have no transitive deps (e.g.
-# apps/loader, which therefore has no node_modules dir).
+# is simpler and tolerant of packages that have no transitive deps.
 COPY --from=deps /app ./
 COPY . .
 # Defense in depth: scrub any tsbuildinfo that slipped past .dockerignore.
@@ -44,12 +43,20 @@ RUN pnpm --filter @cdp/magento-client build
 RUN pnpm --filter @cdp/api build
 
 # ---- runtime base shared by api + worker ----
+# Non-root for blast-radius reduction. The `node` user (uid 1000) ships
+# with the official image; we add a dedicated `cdp` user (uid 1001) so
+# nothing in the image is owned by uid 0.
 FROM base AS runtime
 ENV NODE_ENV=production
+RUN groupadd --system --gid 1001 cdp \
+  && useradd --system --uid 1001 --gid cdp --shell /usr/sbin/nologin cdp
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db/generated ./packages/db/generated
 COPY --from=builder /app/packages/db/package.json ./packages/db/
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
+# Prisma CLI lives under packages/db/node_modules in pnpm — copy it so
+# the entrypoint can run `prisma migrate deploy` on boot.
+COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
@@ -61,16 +68,27 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/nest-cli.json ./apps/api/
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/.npmrc ./
+COPY infra/docker/entrypoint-api.sh /usr/local/bin/entrypoint-api.sh
+RUN chmod +x /usr/local/bin/entrypoint-api.sh && chown -R cdp:cdp /app
+USER cdp
 WORKDIR /app/apps/api
 EXPOSE 3000
 
 # ---- api: HTTP entry point ----
+# `tini` reaps zombies and forwards SIGTERM to Node, which is critical
+# for graceful shutdown. The entrypoint script optionally runs Prisma
+# migrations before exec'ing the server.
 FROM runtime AS api
 ENV PORT=3000
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint-api.sh"]
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
-  CMD node -e "require('node:http').get('http://localhost:'+(process.env.PORT||3000)+'/v1/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD node -e "require('node:http').get('http://localhost:'+(process.env.PORT||3000)+'/v1/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 CMD ["node", "dist/main.js"]
 
 # ---- worker: BullMQ entry point ----
+# Worker has no HTTP listener, so we don't run the migration entrypoint
+# here — only the api (or a dedicated migrate job) should touch the
+# schema to avoid concurrent prisma migrate deploys.
 FROM runtime AS worker
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "dist/worker.js"]

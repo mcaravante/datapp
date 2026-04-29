@@ -18,7 +18,8 @@ type NavLabelKey =
   | 'sync'
   | 'users'
   | 'permissions'
-  | 'security';
+  | 'security'
+  | 'audit';
 
 interface NavItem {
   href: string;
@@ -128,6 +129,13 @@ const NAV: readonly NavItem[] = [
     icon: LockIcon,
     match: (p) => p.startsWith('/security'),
   },
+  {
+    href: '/audit',
+    labelKey: 'audit',
+    icon: ClipboardIcon,
+    match: (p) => p.startsWith('/audit'),
+    roles: ADMIN_ROLES,
+  },
 ];
 
 interface SidebarProps {
@@ -226,6 +234,26 @@ function LockIcon({ className }: { className?: string }): React.ReactElement {
     >
       <rect x="4" y="11" width="16" height="9" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function ClipboardIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="6" y="4" width="12" height="16" rx="2" />
+      <path d="M9 4h6v3H9z" />
+      <path d="M9 11h6" />
+      <path d="M9 15h6" />
     </svg>
   );
 }

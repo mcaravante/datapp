@@ -19,7 +19,8 @@
     "sync": "Sincronización",
     "users": "Usuarios",
     "permissions": "Permisos",
-    "security": "Seguridad"
+    "security": "Seguridad",
+    "audit": "Auditoría"
   },
   "common": {
     "search": "Buscar",
@@ -57,10 +58,54 @@
     "password": "Contraseña",
     "submit": "Entrar",
     "errorInvalid": "Email o contraseña inválidos.",
+    "errorRateLimited": "Demasiados intentos. Esperá un minuto y volvé a probar.",
+    "errorLocked": "Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intentá de nuevo en 15 minutos o restablecé tu contraseña.",
     "totpLabel": "Código del autenticador",
     "totpPlaceholder": "123 456",
     "totpHint": "Abrí Google Authenticator (o tu app TOTP) y copiá el código de 6 dígitos.",
-    "totpRequired": "Esta cuenta tiene 2FA — ingresá el código de tu app."
+    "totpRequired": "Esta cuenta tiene 2FA — ingresá el código de tu app.",
+    "useRecoveryCode": "Usar un código de recuperación",
+    "useTotpInstead": "Usar el código del autenticador",
+    "recoveryCodeLabel": "Código de recuperación",
+    "recoveryCodePlaceholder": "abcd-1234",
+    "recoveryCodeHint": "Cada código sirve una sola vez. Después de usarlo te recomendamos generar nuevos.",
+    "forgotLink": "¿Olvidaste tu contraseña?",
+    "continueWithGoogle": "Continuar con Google",
+    "or": "o",
+    "errorOauthNotAuthorized": "Tu cuenta de Google no está autorizada. Pedile al owner que te dé acceso.",
+    "oauthTwoFactorTitle": "Verificación 2FA",
+    "oauthTwoFactorSubtitle": "Tu cuenta {email} ya verificó su identidad con Google. Ingresá el código de tu autenticador para terminar de iniciar sesión.",
+    "oauthTwoFactorSubmit": "Verificar y entrar",
+    "oauthBackToLogin": "← Volver al login",
+    "errorInvalidTotp": "Código del autenticador inválido o expirado.",
+    "errorInvalidRecovery": "Código de recuperación inválido o ya usado."
+  },
+  "forgotPassword": {
+    "title": "Restablecer contraseña",
+    "subtitle": "Ingresá tu email y te mandamos un link para crear una contraseña nueva. El link vale por 30 minutos.",
+    "email": "Email",
+    "emailPlaceholder": "vos@ejemplo.com",
+    "submit": "Enviar link",
+    "submitting": "Enviando…",
+    "successTitle": "Listo",
+    "successBody": "Si el email está registrado, te llegó un mensaje con instrucciones. Revisá la bandeja de entrada (y la carpeta de spam).",
+    "backToLogin": "← Volver al login"
+  },
+  "resetPassword": {
+    "title": "Crear nueva contraseña",
+    "subtitle": "Definí una contraseña nueva. Mínimo 12 caracteres. Vamos a cerrar todas tus sesiones activas.",
+    "password": "Nueva contraseña",
+    "passwordHint": "Mínimo 12 caracteres. Usá una frase larga o un gestor de contraseñas.",
+    "confirm": "Confirmar contraseña",
+    "submit": "Guardar contraseña",
+    "submitting": "Guardando…",
+    "errorMismatch": "Las contraseñas no coinciden.",
+    "errorTooShort": "La contraseña debe tener al menos 12 caracteres.",
+    "errorMissingToken": "Falta el token de reseteo. Volvé a pedir un nuevo email.",
+    "errorInvalid": "El link es inválido o ya expiró. Pedí un nuevo email.",
+    "successTitle": "Contraseña actualizada",
+    "successBody": "Ya podés iniciar sesión con tu nueva contraseña.",
+    "goToLogin": "Ir al login →"
   },
   "overview": {
     "title": "Resumen",
@@ -573,6 +618,8 @@
       "password": "Contraseña",
       "passwordPlaceholder": "Mínimo 12 caracteres",
       "passwordOptional": "Nueva contraseña (opcional)",
+      "passwordOptionalLabel": "Contraseña (opcional)",
+      "passwordOptionalHint": "Dejala en blanco para que el usuario solo entre con Google. Si la setteás, va a poder usar email + contraseña también.",
       "passwordHint": "Dejala en blanco para mantener la actual.",
       "submitCreate": "Crear usuario",
       "submitUpdate": "Guardar cambios",
@@ -603,6 +650,7 @@
   "security": {
     "title": "Seguridad",
     "subtitle": "Configurá la verificación en dos pasos (2FA) con tu app de autenticación. Es compatible con Google Authenticator, Authy, 1Password, Microsoft Authenticator y similares.",
+    "enforcementBanner": "Tu rol requiere 2FA. Activalo para seguir usando el admin — el resto de las secciones está bloqueado hasta que termines.",
     "statusEnabledTitle": "2FA activado",
     "statusEnabledBody": "El próximo login va a pedir un código de tu autenticador. Si perdés el dispositivo, un admin puede resetearlo.",
     "statusDisabledTitle": "2FA desactivado",
@@ -630,7 +678,57 @@
       "errorWrongPassword": "Contraseña incorrecta."
     },
     "successEnabled": "2FA activado. La próxima vez que inicies sesión te va a pedir el código.",
-    "successDisabled": "2FA desactivado."
+    "successDisabled": "2FA desactivado.",
+    "recovery": {
+      "codesHeading": "Códigos de recuperación",
+      "codesBody": "Guardalos en un lugar seguro (gestor de contraseñas, papel impreso). Cada código sirve una sola vez. Si perdés el dispositivo, podés ingresar uno de estos en el login en lugar del código del autenticador.",
+      "codesAcknowledge": "Los guardé",
+      "copy": "Copiar todos",
+      "copied": "¡Copiados!",
+      "download": "Descargar .txt",
+      "remaining": "{count, plural, =0 {No te quedan códigos de recuperación. Generá nuevos.} =1 {Te queda 1 código de recuperación.} other {Te quedan # códigos de recuperación.}}",
+      "regenButton": "Generar nuevos códigos",
+      "regenHeading": "Generar nuevos códigos",
+      "regenBody": "Vamos a invalidar los códigos viejos y generar 10 nuevos. Confirmá tu contraseña para seguir.",
+      "regenSubmit": "Generar",
+      "regenerating": "Generando…",
+      "regenSuccess": "Códigos nuevos generados. Asegurate de guardarlos antes de cerrar la página."
+    }
+  },
+  "audit": {
+    "title": "Auditoría",
+    "subtitle": "Eventos sensibles de seguridad — login, lockouts, password reset, cambios en 2FA y revocación de sesiones. Hay que conservar este historial para forensia.",
+    "filter": "Filtrar por evento",
+    "allActions": "Todos",
+    "next": "Siguiente",
+    "table": {
+      "when": "Cuándo",
+      "action": "Evento",
+      "actor": "Usuario",
+      "entity": "Entidad",
+      "ip": "IP",
+      "detail": "Detalle",
+      "empty": "No hay eventos que coincidan con el filtro."
+    },
+    "actions": {
+      "create": "create",
+      "update": "update",
+      "delete": "delete",
+      "login": "login",
+      "logout": "logout",
+      "export": "export",
+      "erase": "erase",
+      "login_failed": "login fallido",
+      "account_locked": "cuenta bloqueada",
+      "password_reset_requested": "reset solicitado",
+      "password_reset_completed": "reset completado",
+      "session_revoked": "sesión revocada",
+      "two_factor_enrolled": "2FA activado",
+      "two_factor_disabled": "2FA desactivado",
+      "two_factor_admin_reset": "2FA reseteado por admin",
+      "recovery_codes_generated": "códigos regenerados",
+      "recovery_code_used": "código de recuperación usado"
+    }
   },
   "permissions": {
     "title": "Permisos por rol",

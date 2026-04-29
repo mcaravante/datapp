@@ -15,6 +15,7 @@
     "generate": "dotenv -e ../../.env -- prisma generate",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "migrate:deploy:ci": "prisma migrate deploy",
     "migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset --skip-seed",
     "reset": "dotenv -e ../../.env -- prisma migrate reset",

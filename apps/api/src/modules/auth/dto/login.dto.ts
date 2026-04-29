@@ -9,6 +9,12 @@ export const LoginRequestSchema = z.object({
    * a `2fa_required` 401 when it's missing or wrong.
    */
   totp: z.string().min(6).max(10).optional(),
+  /**
+   * Optional single-use recovery code, e.g. `xxxx-xxxx`. Accepted
+   * instead of `totp` when the user lost access to their app. The
+   * code is invalidated atomically on successful login.
+   */
+  recovery_code: z.string().min(8).max(20).optional(),
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 

@@ -9,6 +9,7 @@ import { Prisma } from '@cdp/db';
 import type { UserRole } from '@cdp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { AuthService } from '../auth/auth.service';
+import { SessionsService } from '../auth/sessions.service';
 import { TwoFactorService } from '../auth/two-factor.service';
 import type { CreateUserBody, ListUsersQuery, UpdateUserBody } from './dto/users.dto';
 
@@ -18,6 +19,7 @@ export interface UserSummary {
   name: string;
   role: UserRole;
   has_2fa: boolean;
+  has_password: boolean;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -34,6 +36,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly twoFactor: TwoFactorService,
+    private readonly sessions: SessionsService,
   ) {}
 
   async list(tenantId: string, query: ListUsersQuery): Promise<UserSummary[]> {
@@ -60,9 +63,15 @@ export class UsersService {
   }
 
   /** Admin override: clear another user's 2FA without their password. */
-  async resetTwoFactor(tenantId: string, id: string): Promise<void> {
+  async resetTwoFactor(tenantId: string, actor: AuditActor, id: string): Promise<void> {
     await this.findScoped(tenantId, id); // ensure tenant scoping
-    await this.twoFactor.adminReset(id);
+    await this.twoFactor.adminReset(id, {
+      id: actor.id,
+      ip: actor.ip ?? null,
+      userAgent: actor.userAgent ?? null,
+    });
+    // Force the user to re-authenticate so the bypass is single-use.
+    await this.sessions.revokeAllForUser(id);
   }
 
   /**
@@ -78,7 +87,9 @@ export class UsersService {
     const existing = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (existing) throw new ConflictException(`User with email ${email} already exists`);
 
-    const passwordHash = await AuthService.hashPassword(body.password);
+    // Password is optional — when omitted, the user can only sign in
+    // via Google (their email is the whitelist).
+    const passwordHash = body.password ? await AuthService.hashPassword(body.password) : null;
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -100,7 +111,12 @@ export class UsersService {
           entityId: created.id,
           ip: actor.ip ?? null,
           userAgent: actor.userAgent ?? null,
-          after: { email: created.email, name: created.name, role: created.role },
+          after: {
+            email: created.email,
+            name: created.name,
+            role: created.role,
+            has_password: passwordHash !== null,
+          },
         },
       });
       return created;
@@ -153,6 +169,13 @@ export class UsersService {
       });
       return next;
     });
+
+    // Password change invalidates every existing session of the target
+    // user (admin-driven password reset is the textbook example).
+    if (body.password !== undefined) {
+      await this.sessions.revokeAllForUser(id);
+    }
+
     return toSummary(updated);
   }
 
@@ -219,6 +242,7 @@ function toSummary(user: UserWith2fa): UserSummary {
     name: user.name,
     role: user.role,
     has_2fa: user.totpSecret?.verifiedAt != null,
+    has_password: user.passwordHash !== null,
     last_login_at: user.lastLoginAt?.toISOString() ?? null,
     created_at: user.createdAt.toISOString(),
     updated_at: user.updatedAt.toISOString(),

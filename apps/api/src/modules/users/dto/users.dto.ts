@@ -12,8 +12,12 @@ export const CreateUserSchema = z.object({
   email: z.string().email().min(1).max(254),
   name: z.string().min(1).max(120),
   role: ROLE,
-  /** Min 12 chars: enough to make brute force impractical without being annoying. */
-  password: z.string().min(12).max(128),
+  /**
+   * Optional. When omitted, the user can only sign in via Google
+   * (their email matches the row, but they have no local credentials).
+   * When present, must be at least 12 chars.
+   */
+  password: z.string().min(12).max(128).optional(),
 });
 export type CreateUserBody = z.infer<typeof CreateUserSchema>;
 

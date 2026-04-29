@@ -33,12 +33,19 @@ export default async function NewUserPage({
     const role = String(formData.get('role') ?? '') as AdminRole;
     const password = String(formData.get('password') ?? '');
 
-    if (!email || !name || !role || !password) {
+    if (!email || !name || !role) {
       redirect('/users/new?error=missing');
     }
 
     try {
-      const created = await createUser({ email, name, role, password });
+      // Empty password = Google-only user. The API leaves
+      // password_hash NULL and the credentials login refuses them.
+      const created = await createUser({
+        email,
+        name,
+        role,
+        ...(password.length > 0 ? { password } : {}),
+      });
       redirect(`/users/${created.id}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
@@ -99,17 +106,17 @@ export default async function NewUserPage({
 
         <RoleField currentRole={currentRole} />
 
-        <Field id="password" label={t('form.password')} required>
+        <Field id="password" label={t('form.passwordOptionalLabel')}>
           <input
             id="password"
             name="password"
             type="password"
-            required
             minLength={12}
             maxLength={128}
             placeholder={t('form.passwordPlaceholder')}
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
+          <p className="text-xs text-muted-foreground">{t('form.passwordOptionalHint')}</p>
         </Field>
 
         <div className="flex justify-end gap-2 border-t border-border pt-5">

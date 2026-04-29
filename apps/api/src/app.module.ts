@@ -9,7 +9,9 @@ import { CryptoModule } from './modules/crypto/crypto.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { MagentoModule } from './modules/magento/magento.module';
 import { QueueModule } from './modules/queue/queue.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { MailerModule } from './modules/mailer/mailer.module';
 import { UsersModule } from './modules/users/users.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { GeoModule } from './modules/geo/geo.module';
@@ -62,6 +64,8 @@ import { SyncModule } from './modules/sync/sync.module';
     MagentoModule,
     GeoModule,
     QueueModule,
+    MailerModule,
+    AuditModule,
     AuthModule,
     UsersModule,
     PermissionsModule,

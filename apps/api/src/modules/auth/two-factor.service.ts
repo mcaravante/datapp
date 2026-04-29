@@ -8,8 +8,10 @@ import {
 import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
 import { PrismaService } from '../../db/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { AuthService } from './auth.service';
+import { RecoveryCodeService } from './recovery-code.service';
 
 const ISSUER = 'CDP Admin';
 // otplib defaults to a 1-step (30s) window. Allow ±1 step to absorb
@@ -33,6 +35,8 @@ export class TwoFactorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly recoveryCodes: RecoveryCodeService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -85,9 +89,10 @@ export class TwoFactorService {
 
   /**
    * Confirm enrollment by validating a code. Marks the secret as
-   * verified; from this call onward, login requires the TOTP code.
+   * verified, generates a fresh batch of recovery codes, and returns
+   * them in plaintext — the only time the user gets to see them.
    */
-  async verify(userId: string, code: string): Promise<void> {
+  async verify(userId: string, code: string): Promise<{ recovery_codes: string[] }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { totpSecret: true },
@@ -103,6 +108,16 @@ export class TwoFactorService {
       where: { id: user.totpSecret.id },
       data: { verifiedAt: new Date() },
     });
+    const codes = await this.recoveryCodes.generate(userId);
+    await this.audit.log({
+      tenantId: user.tenantId,
+      userId,
+      action: 'two_factor_enrolled',
+      entity: 'auth.two_factor',
+      entityId: userId,
+      after: { recovery_codes_issued: codes.length },
+    });
+    return { recovery_codes: codes };
   }
 
   /**
@@ -112,9 +127,14 @@ export class TwoFactorService {
   async disable(userId: string, password: string): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, passwordHash: true, totpSecretId: true },
+      select: { id: true, passwordHash: true, totpSecretId: true, tenantId: true },
     });
     if (!user) throw new NotFoundException('User not found');
+    if (!user.passwordHash) {
+      // Google-only user — disabling 2FA via password isn't possible
+      // for them. Admin reset is the supported path.
+      throw new UnauthorizedException('Wrong password');
+    }
     const ok = await AuthService.verifyPassword(password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Wrong password');
     if (!user.totpSecretId) return;
@@ -125,24 +145,51 @@ export class TwoFactorService {
         data: { totpSecretId: null },
       }),
       this.prisma.userTotpSecret.delete({ where: { id: user.totpSecretId } }),
+      this.prisma.userRecoveryCode.deleteMany({ where: { userId } }),
     ]);
+
+    await this.audit.log({
+      tenantId: user.tenantId,
+      userId,
+      action: 'two_factor_disabled',
+      entity: 'auth.two_factor',
+      entityId: userId,
+    });
   }
 
   /**
    * Admin override: drop a user's 2FA without their password (to
-   * unblock them when they lose the authenticator). Caller is
-   * audit-logged separately.
+   * unblock them when they lose the authenticator). The audit row
+   * records the acting admin so the trail isn't ambiguous.
    */
-  async adminReset(userId: string): Promise<void> {
+  async adminReset(
+    userId: string,
+    actor?: { id: string; ip?: string | null; userAgent?: string | null },
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { totpSecretId: true },
+      select: { totpSecretId: true, tenantId: true },
     });
-    if (!user?.totpSecretId) return;
+    if (!user?.totpSecretId) {
+      // Still drop any orphan recovery codes from a half-finished setup.
+      await this.recoveryCodes.clear(userId);
+      return;
+    }
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: userId }, data: { totpSecretId: null } }),
       this.prisma.userTotpSecret.delete({ where: { id: user.totpSecretId } }),
+      this.prisma.userRecoveryCode.deleteMany({ where: { userId } }),
     ]);
+
+    await this.audit.log({
+      tenantId: user.tenantId,
+      userId: actor?.id ?? null,
+      action: 'two_factor_admin_reset',
+      entity: 'auth.two_factor',
+      entityId: userId,
+      ip: actor?.ip ?? null,
+      userAgent: actor?.userAgent ?? null,
+    });
   }
 
   /** Whether the user has verified 2FA active right now. */

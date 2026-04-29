@@ -9,6 +9,9 @@ const ServerEnvSchema = z.object({
   AUTH_URL: z.string().url(),
   APP_URL_API: z.string().url(),
   DEFAULT_TIMEZONE: z.string().default('America/Argentina/Buenos_Aires'),
+  // Google OAuth — empty disables the "Iniciar con Google" button.
+  AUTH_GOOGLE_ID: z.string().default(''),
+  AUTH_GOOGLE_SECRET: z.string().default(''),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;

@@ -43,8 +43,43 @@ function makeService(user: MockPrismaUser | null) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const config = { get: vi.fn() } as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const crypto = { encrypt: vi.fn(), decrypt: vi.fn() } as any;
-  return new AuthService(prisma, makeJwtService(), config, crypto);
+  const cryptoSvc = { encrypt: vi.fn(), decrypt: vi.fn() } as any;
+  const sessions = {
+    issue: vi.fn().mockResolvedValue('019ddddd-ddd-7000-8000-000000000001'),
+    isValid: vi.fn().mockResolvedValue(true),
+    revoke: vi.fn().mockResolvedValue(undefined),
+    revokeAllForUser: vi.fn().mockResolvedValue(undefined),
+    purgeExpired: vi.fn().mockResolvedValue(0),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  const throttler = {
+    assertNotThrottled: vi.fn().mockResolvedValue(undefined),
+    recordFailure: vi.fn().mockResolvedValue(undefined),
+    recordSuccess: vi.fn().mockResolvedValue(undefined),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  const recoveryCodes = {
+    consume: vi.fn().mockResolvedValue(false),
+    generate: vi.fn().mockResolvedValue([]),
+    regenerate: vi.fn().mockResolvedValue([]),
+    remaining: vi.fn().mockResolvedValue(0),
+    clear: vi.fn().mockResolvedValue(undefined),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  const audit = {
+    log: vi.fn().mockResolvedValue(undefined),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  return new AuthService(
+    prisma,
+    makeJwtService(),
+    config,
+    cryptoSvc,
+    sessions,
+    throttler,
+    recoveryCodes,
+    audit,
+  );
 }
 
 describe('AuthService.hashPassword + verifyPassword', () => {
@@ -74,26 +109,30 @@ describe('AuthService.signToken + verifyToken', () => {
       role: 'admin' as const,
       tenantId: '019dc614-1d43-7183-8773-a5bd5dd33ca1',
     };
-    const { token, expiresIn } = svc.signToken(principal);
+    const { token, expiresIn } = svc.signToken(principal, 'test-jti');
     expect(expiresIn).toBe(TOKEN_TTL_SECONDS);
     const decoded = svc.verifyToken(token);
     expect(decoded.sub).toBe(principal.id);
     expect(decoded.email).toBe(principal.email);
     expect(decoded.role).toBe(principal.role);
     expect(decoded.tenant_id).toBe(principal.tenantId);
+    expect(decoded.jti).toBe('test-jti');
     expect(decoded.iss).toBe('cdp-api');
     expect(decoded.exp).toBeGreaterThan(Date.now() / 1000);
   });
 
   it('rejects a tampered token', () => {
     const svc = makeService(null);
-    const { token } = svc.signToken({
-      id: '00000000-0000-0000-0000-000000000001',
-      email: 'a@b.c',
-      name: 'X',
-      role: 'viewer',
-      tenantId: null,
-    });
+    const { token } = svc.signToken(
+      {
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'a@b.c',
+        name: 'X',
+        role: 'viewer',
+        tenantId: null,
+      },
+      'test-jti',
+    );
     const parts = token.split('.');
     parts[1] = Buffer.from(JSON.stringify({ sub: 'attacker', role: 'super_admin' })).toString(
       'base64url',

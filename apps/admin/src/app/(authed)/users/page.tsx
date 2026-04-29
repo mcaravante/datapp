@@ -108,6 +108,7 @@ async function UserRow({
         {user.email}
         <div className="mt-0.5 flex flex-wrap items-center gap-1">
           <TwoFactorBadge enabled={user.has_2fa} />
+          <SignInBadge hasPassword={user.has_password} />
         </div>
       </td>
       <td className="px-4 py-3">
@@ -137,6 +138,17 @@ function TwoFactorBadge({ enabled }: { enabled: boolean }): React.ReactElement {
       }
     >
       {enabled ? '2FA' : 'no 2FA'}
+    </span>
+  );
+}
+
+function SignInBadge({ hasPassword }: { hasPassword: boolean }): React.ReactElement {
+  return (
+    <span
+      className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+      title={hasPassword ? 'email + Google' : 'Google only'}
+    >
+      {hasPassword ? 'pw + Google' : 'Google only'}
     </span>
   );
 }

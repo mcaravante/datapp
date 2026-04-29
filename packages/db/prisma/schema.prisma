@@ -109,6 +109,16 @@ enum AuditAction {
   logout
   export
   erase
+  login_failed
+  account_locked
+  password_reset_requested
+  password_reset_completed
+  session_revoked
+  two_factor_enrolled
+  two_factor_disabled
+  two_factor_admin_reset
+  recovery_codes_generated
+  recovery_code_used
 }
 
 enum ProductStatus {
@@ -165,7 +175,10 @@ model User {
   id           String    @id @default(uuid(7)) @db.Uuid
   tenantId     String?   @map("tenant_id") @db.Uuid // nullable for super_admin
   email        String    @unique
-  passwordHash String    @map("password_hash")
+  // Nullable: a user can be Google-only (no password set). The login
+  // flow rejects credentials sign-in for null hashes the same way it
+  // rejects wrong passwords, so an attacker can't tell the two apart.
+  passwordHash String?   @map("password_hash")
   name         String
   role         UserRole  @default(viewer)
   totpSecretId String?   @unique @map("totp_secret_id") @db.Uuid
@@ -176,6 +189,8 @@ model User {
   tenant     Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   totpSecret UserTotpSecret?   @relation(fields: [totpSecretId], references: [id], onDelete: SetNull)
   sessions   Session[]
+  passwordResetTokens PasswordResetToken[]
+  recoveryCodes UserRecoveryCode[]
   auditLogs  AuditLog[]
   segments   CustomerSegment[]
 
@@ -208,6 +223,19 @@ model UserTotpSecret {
   @@map("user_totp_secret")
 }
 
+model UserRecoveryCode {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @unique @map("code_hash") @db.Char(64)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_recovery_code")
+}
+
 model Session {
   id        String   @id @default(uuid(7)) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
@@ -223,10 +251,27 @@ model Session {
   @@map("session")
 }
 
+model PasswordResetToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  ipAddress String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_token")
+}
+
 model AuditLog {
   id        String      @id @default(uuid(7)) @db.Uuid
-  tenantId  String      @map("tenant_id") @db.Uuid
-  userId    String?     @map("user_id") @db.Uuid // null for system actions
+  tenantId  String?     @map("tenant_id") @db.Uuid // null for super_admin / pre-login events
+  userId    String?     @map("user_id") @db.Uuid // null for unknown subjects
   action    AuditAction
   entity    String
   entityId  String?     @map("entity_id")
@@ -236,12 +281,13 @@ model AuditLog {
   userAgent String?     @map("user_agent")
   at        DateTime    @default(now()) @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, at(sort: Desc)])
   @@index([tenantId, entity, entityId])
   @@index([tenantId, userId, at(sort: Desc)])
+  @@index([at(sort: Desc)])
   @@map("audit_log")
 }
 
