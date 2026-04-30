@@ -14,7 +14,11 @@ set -eu
 if [ "${MIGRATE_ON_BOOT:-false}" = "true" ]; then
   echo "[entrypoint] MIGRATE_ON_BOOT=true — running prisma migrate deploy..."
   cd /app/packages/db
-  node ./node_modules/.bin/prisma migrate deploy
+  # `node_modules/.bin/prisma` is a POSIX shell wrapper that pnpm
+  # creates — invoke it directly. Prefixing with `node` made the JS
+  # parser try to read the shell snippet and fail with "missing )"
+  # at the `basedir=$(dirname "$0")` line.
+  ./node_modules/.bin/prisma migrate deploy
   cd /app/apps/api
   echo "[entrypoint] migrations applied"
 fi
