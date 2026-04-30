@@ -235,11 +235,16 @@ export class OAuthService {
       select: { id: true },
     });
 
-    // Migration: an existing seed user (typically `admin@cdp.local`)
-    // without an OWNER_EMAIL match — migrate that single row to the
-    // owner's real email so existing audit logs / sessions stay linked.
+    // Migration: an existing seed user (typically `admin@cdp.local`,
+    // role=admin) — migrate that single row to the owner's real email
+    // and promote to super_admin, so existing audit logs / sessions
+    // stay linked. Match either `admin` or `super_admin` because
+    // different seed flavors use different defaults.
     const seedRow = await this.prisma.user.findFirst({
-      where: { role: 'super_admin', tenantId: tenant.id },
+      where: {
+        role: { in: ['admin', 'super_admin'] },
+        tenantId: tenant.id,
+      },
       orderBy: { createdAt: 'asc' },
       select: this.userSelect(),
     });
@@ -247,7 +252,11 @@ export class OAuthService {
     if (seedRow) {
       const updated = await this.prisma.user.update({
         where: { id: seedRow.id },
-        data: { email: lowered, name: name || seedRow.name },
+        data: {
+          email: lowered,
+          name: name || seedRow.name,
+          role: 'super_admin',
+        },
         select: this.userSelect(),
       });
       this.logger.log(`Bootstrapped owner by migrating seed row ${seedRow.id} to ${lowered}`);
@@ -257,8 +266,8 @@ export class OAuthService {
         action: 'update',
         entity: 'user',
         entityId: updated.id,
-        before: { email: seedRow.email },
-        after: { email: lowered, reason: 'owner_bootstrap_migration' },
+        before: { email: seedRow.email, role: seedRow.role },
+        after: { email: lowered, role: 'super_admin', reason: 'owner_bootstrap_migration' },
       });
       return updated as AuthUserRow;
     }
