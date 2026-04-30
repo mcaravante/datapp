@@ -1,5 +1,5 @@
 {
-  "name": "@cdp/loader",
+  "name": "@datapp/loader",
   "version": "0.0.0",
   "private": true,
   "description": "Public loader script for storefront popups + web event tracking. PHASE 2 — DO NOT IMPLEMENT IN PHASE 1.",

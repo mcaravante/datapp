@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@cdp/db';
+import type { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 import type { ListOrdersQuery } from './dto/list-orders.query';
 

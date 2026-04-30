@@ -39,33 +39,33 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
-        run: pnpm --filter @cdp/db generate
+        run: pnpm --filter @datapp/db generate
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
           DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
 
       - name: Build workspace packages
         run: |
-          pnpm --filter @cdp/shared build
-          pnpm --filter @cdp/magento-client build
+          pnpm --filter @datapp/shared build
+          pnpm --filter @datapp/magento-client build
 
       - name: Format check
         run: pnpm format:check
 
       - name: Type-check (api)
-        run: pnpm --filter @cdp/api type-check
+        run: pnpm --filter @datapp/api type-check
 
       - name: Type-check (admin)
-        run: pnpm --filter @cdp/admin type-check
+        run: pnpm --filter @datapp/admin type-check
 
       - name: Unit tests (api)
-        run: pnpm --filter @cdp/api test
+        run: pnpm --filter @datapp/api test
 
       - name: Build api
-        run: pnpm --filter @cdp/api build
+        run: pnpm --filter @datapp/api build
 
       - name: Build admin
-        run: pnpm --filter @cdp/admin build
+        run: pnpm --filter @datapp/admin build
         env:
           NODE_ENV: production
 
@@ -135,23 +135,23 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
-        run: pnpm --filter @cdp/db generate
+        run: pnpm --filter @datapp/db generate
 
       - name: Apply migrations
-        run: pnpm --filter @cdp/db exec prisma migrate deploy
+        run: pnpm --filter @datapp/db exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Seed
-        run: pnpm --filter @cdp/db exec tsx prisma/seed.ts
+        run: pnpm --filter @datapp/db exec tsx prisma/seed.ts
 
       - name: Build workspace packages
         run: |
-          pnpm --filter @cdp/shared build
-          pnpm --filter @cdp/magento-client build
+          pnpm --filter @datapp/shared build
+          pnpm --filter @datapp/magento-client build
 
       - name: Build api
-        run: pnpm --filter @cdp/api build
+        run: pnpm --filter @datapp/api build
 
       - name: Generate runtime crypto material
         run: |
@@ -183,7 +183,7 @@ jobs:
           exit 1
 
       - name: Run e2e tests
-        run: pnpm --filter @cdp/api test:e2e
+        run: pnpm --filter @datapp/api test:e2e
 
       - name: API logs (on failure)
         if: failure()

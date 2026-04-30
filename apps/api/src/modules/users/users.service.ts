@@ -5,8 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
-import type { UserRole } from '@cdp/db';
+import { Prisma } from '@datapp/db';
+import type { UserRole } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { SessionsService } from '../auth/sessions.service';

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, type RfmSegmentLabel } from '@cdp/db';
+import { Prisma, type RfmSegmentLabel } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { scoreRfm, type RfmScored } from './rfm-scoring';
 

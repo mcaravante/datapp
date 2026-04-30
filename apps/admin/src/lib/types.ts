@@ -1,6 +1,6 @@
 /**
  * Wire types served by the API. Kept inline for Iteration 3-A; will be
- * extracted to `@cdp/shared` once orders + reports endpoints land and
+ * extracted to `@datapp/shared` once orders + reports endpoints land and
  * the surface stabilizes.
  */
 

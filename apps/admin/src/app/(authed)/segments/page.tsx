@@ -6,7 +6,7 @@ import { formatBuenosAires, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { SegmentsListResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Segments' };
+export const metadata = { title: 'Datapp · Segments' };
 
 const RFM_LABEL_KEYS = [
   'champions',

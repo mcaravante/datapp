@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'CDP Admin',
+  title: 'Datapp',
   description: 'Customer Data Platform — admin',
 };
 

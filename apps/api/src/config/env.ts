@@ -52,7 +52,7 @@ export const EnvSchema = z.object({
     .union([z.literal('true'), z.literal('false'), z.boolean()])
     .default('false')
     .transform((v) => v === true || v === 'true'),
-  SMTP_FROM: z.string().default('CDP <no-reply@example.com>'),
+  SMTP_FROM: z.string().default('Datapp <no-reply@datapp.com.ar>'),
 
   DEFAULT_TIMEZONE: z.string().default('America/Argentina/Buenos_Aires'),
   DEFAULT_TENANT_SLUG: z.string().default('acme'),

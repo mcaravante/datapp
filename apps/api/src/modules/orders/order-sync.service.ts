@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
-import type { MagentoOrder } from '@cdp/magento-client';
+import { Prisma } from '@datapp/db';
+import type { MagentoOrder } from '@datapp/magento-client';
 import { PrismaService } from '../../db/prisma.service';
 import { mapOrder, type MappedOrder, type MappedOrderItem } from './order-mapper';
 

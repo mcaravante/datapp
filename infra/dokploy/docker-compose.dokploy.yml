@@ -2,10 +2,10 @@
 # - Build images locally (or in CI) and push to a registry, OR rely on
 #   Dokploy's `build` mode which builds from the linked Git repo.
 # - Secrets come from Dokploy's encrypted env store, NOT from a local .env.
-# - Cloudflare proxies admin.cdp.example.com → admin:3001 and
-#   api.cdp.example.com → api:3000.
+# - Cloudflare proxies datapp.com.ar → admin:3001 and
+#   api.datapp.com.ar → api:3000.
 
-name: cdp
+name: datapp
 
 x-api-env: &api-env
   NODE_ENV: production
@@ -31,7 +31,7 @@ x-api-env: &api-env
   SMTP_USER: ${SMTP_USER:-}
   SMTP_PASSWORD: ${SMTP_PASSWORD:-}
   SMTP_SECURE: ${SMTP_SECURE:-false}
-  SMTP_FROM: ${SMTP_FROM:-CDP <no-reply@example.com>}
+  SMTP_FROM: ${SMTP_FROM:-Datapp <no-reply@datapp.com.ar>}
   DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
   DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG}
   FEATURE_2FA_ENFORCED: ${FEATURE_2FA_ENFORCED:-true}
@@ -44,7 +44,7 @@ services:
       context: ../..
       dockerfile: infra/docker/api.Dockerfile
       target: api
-    image: cdp-api:latest
+    image: datapp-api:latest
     restart: unless-stopped
     environment:
       <<: *api-env
@@ -75,7 +75,7 @@ services:
       context: ../..
       dockerfile: infra/docker/api.Dockerfile
       target: worker
-    image: cdp-api-worker:latest
+    image: datapp-api-worker:latest
     restart: unless-stopped
     environment:
       <<: *api-env
@@ -94,7 +94,7 @@ services:
         # inlined into the client JS bundle.
         NEXT_PUBLIC_SENTRY_DSN_ADMIN: ${NEXT_PUBLIC_SENTRY_DSN_ADMIN:-}
         NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
-    image: cdp-admin:latest
+    image: datapp-admin:latest
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -116,14 +116,14 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-cdp}
+      POSTGRES_USER: ${POSTGRES_USER:-datapp}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-cdp}
+      POSTGRES_DB: ${POSTGRES_DB:-datapp}
     command: ['postgres', '-c', 'max_connections=200', '-c', 'shared_buffers=512MB']
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-cdp} -d ${POSTGRES_DB:-cdp}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-datapp} -d ${POSTGRES_DB:-datapp}']
       interval: 10s
       timeout: 5s
       retries: 5

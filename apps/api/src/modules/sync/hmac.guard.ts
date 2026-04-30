@@ -5,7 +5,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { INGEST_REPLAY_WINDOW_SECONDS } from '@cdp/shared/ingest';
+import { INGEST_REPLAY_WINDOW_SECONDS } from '@datapp/shared/ingest';
 import { TenantService } from '../tenant/tenant.service';
 import { MagentoStoreService } from '../magento/magento-store.service';
 import { isTimestampFresh, verifyHmac } from './hmac';

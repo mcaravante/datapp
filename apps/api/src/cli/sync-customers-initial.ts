@@ -14,7 +14,7 @@ import type { Env } from '../config/env';
  * iterator with the rate limit baked in.
  *
  * Usage:
- *   pnpm --filter @cdp/api cli sync:customers:initial [storeName]
+ *   pnpm --filter @datapp/api cli sync:customers:initial [storeName]
  *
  * `storeName` defaults to "default" (the bootstrap CLI's default).
  */

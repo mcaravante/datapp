@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
+import { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 
 export interface GdprExportPayload {

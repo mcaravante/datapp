@@ -7,14 +7,14 @@
  * with a unique slug and tears them down on exit.
  *
  * Local: `pnpm exec dotenv -e .env -- node apps/api/dist/main.js &`
- *        then `pnpm --filter @cdp/api test:e2e`.
+ *        then `pnpm --filter @datapp/api test:e2e`.
  * CI: the workflow boots the API container before the test step.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { PrismaClient } from '@cdp/db';
+import { PrismaClient } from '@datapp/db';
 import { computeHmac } from '../src/modules/sync/hmac';
-import { INGEST_REPLAY_WINDOW_SECONDS } from '@cdp/shared/ingest';
+import { INGEST_REPLAY_WINDOW_SECONDS } from '@datapp/shared/ingest';
 import { createCipheriv, randomBytes as cryptoRandomBytes } from 'node:crypto';
 
 // Stand-alone AES-256-GCM (matches CryptoService) so the test can write

@@ -11,7 +11,7 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { KpisResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Overview' };
+export const metadata = { title: 'Datapp · Overview' };
 
 interface PageProps {
   searchParams: Promise<{ from?: string; to?: string; window?: string }>;

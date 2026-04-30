@@ -18,7 +18,7 @@ import type { LoginResponse } from './dto/login.dto';
 
 /** Short-lived signed token used between phase 1 (OAuth) and phase 2 (TOTP). */
 const CHALLENGE_TTL_SECONDS = 5 * 60;
-const CHALLENGE_ISSUER = 'cdp-api-oauth-challenge';
+const CHALLENGE_ISSUER = 'datapp-api-oauth-challenge';
 
 export interface OAuthLoginPending {
   status: 'requires_2fa';

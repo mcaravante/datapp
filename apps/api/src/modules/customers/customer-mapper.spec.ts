@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { mapCustomer } from './customer-mapper';
 import { RegionResolverService } from '../geo/region-resolver.service';
-import type { MagentoCustomer } from '@cdp/magento-client';
+import type { MagentoCustomer } from '@datapp/magento-client';
 import type { PrismaService } from '../../db/prisma.service';
 
 const AR_ROWS = [

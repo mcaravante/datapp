@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api-client';
 import { PermissionsMatrix } from '@/components/permissions-matrix';
 import type { AdminRole, PermissionsResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Permissions' };
+export const metadata = { title: 'Datapp · Permissions' };
 
 const ALLOWED: readonly AdminRole[] = ['super_admin', 'admin'];
 

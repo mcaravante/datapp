@@ -4,7 +4,7 @@ import { SessionsService } from './sessions.service';
 import type { AuthenticatedRequest, AuthenticatedUser } from './types';
 
 /**
- * Verifies a Bearer JWT (RS256, issuer=cdp-api), checks that its `jti`
+ * Verifies a Bearer JWT (RS256, issuer=datapp-api), checks that its `jti`
  * still maps to an active Session row (so revocation works), and
  * populates `req.user` with the decoded principal.
  */

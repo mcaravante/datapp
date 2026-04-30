@@ -12,7 +12,7 @@ import { GdprActions } from '@/components/gdpr-actions';
 import type { Locale } from '@/i18n/config';
 import type { CustomerDetail, CustomerProductsResponse, OrderListPage } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Customer' };
+export const metadata = { title: 'Datapp · Customer' };
 
 interface PageProps {
   params: Promise<{ id: string }>;

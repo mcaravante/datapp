@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { MagentoAddress, MagentoOrder, MagentoOrderItem } from '@cdp/magento-client';
+import type { MagentoAddress, MagentoOrder, MagentoOrderItem } from '@datapp/magento-client';
 
 export interface MappedOrderItem {
   magentoOrderItemId: string;

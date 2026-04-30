@@ -6,7 +6,7 @@ import { formatNumber, formatPercent01 } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { ProductAffinityResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Product affinity' };
+export const metadata = { title: 'Datapp · Product affinity' };
 
 interface PageProps {
   params: Promise<{ sku: string }>;

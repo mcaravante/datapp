@@ -1,5 +1,5 @@
 {
-  "name": "@cdp/magento-client",
+  "name": "@datapp/magento-client",
   "version": "0.0.0",
   "private": true,
   "description": "Typed Magento 2 REST API client.",

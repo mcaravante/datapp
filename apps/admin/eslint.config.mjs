@@ -1,4 +1,4 @@
-import nextConfig from '@cdp/config/eslint/next';
+import nextConfig from '@datapp/config/eslint/next';
 
 export default [
   ...nextConfig,

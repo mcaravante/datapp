@@ -5,7 +5,7 @@ import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { AbandonedCartsResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Abandoned carts' };
+export const metadata = { title: 'Datapp · Abandoned carts' };
 
 interface PageProps {
   searchParams: Promise<{ minutes?: string }>;

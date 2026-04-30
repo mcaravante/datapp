@@ -13,7 +13,9 @@ import { CryptoService } from '../crypto/crypto.service';
 import { AuthService } from './auth.service';
 import { RecoveryCodeService } from './recovery-code.service';
 
-const ISSUER = 'CDP Admin';
+// Issuer string shown in Google Authenticator / Authy / 1Password when
+// the user scans the QR. Keep it short and recognizable.
+const ISSUER = 'Datapp';
 // otplib defaults to a 1-step (30s) window. Allow ±1 step to absorb
 // small clock drift without loosening security meaningfully.
 authenticator.options = { window: 1 };

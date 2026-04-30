@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "CDP Admin",
+    "title": "Datapp",
     "tagline": "Customer Data Platform",
     "tenant": "Tenant",
     "signOut": "Cerrar sesión",
@@ -51,7 +51,7 @@
     "all": "Histórico"
   },
   "login": {
-    "title": "CDP Admin",
+    "title": "Datapp",
     "subtitle": "Iniciá sesión en tu tenant.",
     "email": "Email",
     "emailPlaceholder": "vos@ejemplo.com",
@@ -338,7 +338,7 @@
       "paymentMethod": "Medio de pago",
       "shippingMethod": "Método de envío",
       "coupon": "Cupón",
-      "cdpProfile": "Perfil CDP",
+      "cdpProfile": "Perfil Datapp",
       "subtotal": "Subtotal",
       "tax": "Impuestos",
       "shipping": "Envío",
@@ -539,7 +539,7 @@
       "recoverableSub": "clientes conocidos (no invitados)"
     },
     "tableHeading": "Carritos ({count})",
-    "tableSubtitle": "Ordenados por última actividad. La columna Cliente linkea al perfil CDP cuando el comprador está registrado.",
+    "tableSubtitle": "Ordenados por última actividad. La columna Cliente linkea al perfil Datapp cuando el comprador está registrado.",
     "table": {
       "cart": "Carrito",
       "customer": "Cliente",
@@ -580,7 +580,7 @@
   },
   "users": {
     "title": "Usuarios",
-    "subtitle": "Cuentas con acceso al admin del CDP. Solo los roles {adminRole} y {superAdminRole} pueden gestionar usuarios.",
+    "subtitle": "Cuentas con acceso al admin de Datapp. Solo los roles {adminRole} y {superAdminRole} pueden gestionar usuarios.",
     "newUser": "Nuevo usuario",
     "roles": {
       "super_admin": "Super admin",

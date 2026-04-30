@@ -7,7 +7,7 @@ import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { GeoResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Regions' };
+export const metadata = { title: 'Datapp · Regions' };
 
 type MapMetric = 'revenue' | 'customers' | 'orders';
 

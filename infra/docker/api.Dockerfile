@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------
 # CDP API + worker. One image, two CMDs:
-#   docker build -f infra/docker/api.Dockerfile --target api    -t cdp-api    .
-#   docker build -f infra/docker/api.Dockerfile --target worker -t cdp-worker .
+#   docker build -f infra/docker/api.Dockerfile --target api    -t datapp-api    .
+#   docker build -f infra/docker/api.Dockerfile --target worker -t datapp-worker .
 # ---------------------------------------------------------------------
 
 FROM node:22-bookworm-slim AS base
@@ -37,19 +37,19 @@ COPY . .
 # Defense in depth: scrub any tsbuildinfo that slipped past .dockerignore.
 # Stale incremental cache makes tsc emit only declaration files (no .js).
 RUN find . -name '*.tsbuildinfo' -not -path './node_modules/*' -delete || true
-RUN pnpm --filter @cdp/db generate
-RUN pnpm --filter @cdp/shared build
-RUN pnpm --filter @cdp/magento-client build
-RUN pnpm --filter @cdp/api build
+RUN pnpm --filter @datapp/db generate
+RUN pnpm --filter @datapp/shared build
+RUN pnpm --filter @datapp/magento-client build
+RUN pnpm --filter @datapp/api build
 
 # ---- runtime base shared by api + worker ----
 # Non-root for blast-radius reduction. The `node` user (uid 1000) ships
-# with the official image; we add a dedicated `cdp` user (uid 1001) so
+# with the official image; we add a dedicated `datapp` user (uid 1001) so
 # nothing in the image is owned by uid 0.
 FROM base AS runtime
 ENV NODE_ENV=production
-RUN groupadd --system --gid 1001 cdp \
-  && useradd --system --uid 1001 --gid cdp --shell /usr/sbin/nologin cdp
+RUN groupadd --system --gid 1001 datapp \
+  && useradd --system --uid 1001 --gid datapp --shell /usr/sbin/nologin datapp
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/db/generated ./packages/db/generated
 COPY --from=builder /app/packages/db/package.json ./packages/db/
@@ -69,8 +69,8 @@ COPY --from=builder /app/apps/api/nest-cli.json ./apps/api/
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/.npmrc ./
 COPY infra/docker/entrypoint-api.sh /usr/local/bin/entrypoint-api.sh
-RUN chmod +x /usr/local/bin/entrypoint-api.sh && chown -R cdp:cdp /app
-USER cdp
+RUN chmod +x /usr/local/bin/entrypoint-api.sh && chown -R datapp:datapp /app
+USER datapp
 WORKDIR /app/apps/api
 EXPOSE 3000
 

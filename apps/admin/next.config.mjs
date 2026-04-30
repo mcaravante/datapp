@@ -15,11 +15,11 @@ const nextConfig = {
   experimental: {
     typedRoutes: true,
     // Standalone tracing root (Next 14 keeps this under `experimental`).
-    // Without it, workspace packages like `@cdp/shared` are missing from
+    // Without it, workspace packages like `@datapp/shared` are missing from
     // the bundle at runtime.
     outputFileTracingRoot: path.join(__dirname, '../../'),
   },
-  transpilePackages: ['@cdp/shared'],
+  transpilePackages: ['@datapp/shared'],
 };
 
 // Sentry wraps the Next config to register source maps + the

@@ -63,8 +63,8 @@ async function bootstrap(): Promise<void> {
 
   if (env.NODE_ENV !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('CDP API')
-      .setDescription('Custom CDP for Adobe Commerce — Phase 1')
+      .setTitle('Datapp API')
+      .setDescription('Datapp — Customer Data Platform for Adobe Commerce (Phase 1)')
       .setVersion('1.0.0')
       .addBearerAuth()
       .build();

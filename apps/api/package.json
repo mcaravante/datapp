@@ -1,5 +1,5 @@
 {
-  "name": "@cdp/api",
+  "name": "@datapp/api",
   "version": "0.0.0",
   "private": true,
   "description": "CDP API + BullMQ workers (NestJS).",
@@ -17,9 +17,9 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
-    "@cdp/db": "workspace:*",
-    "@cdp/magento-client": "workspace:*",
-    "@cdp/shared": "workspace:*",
+    "@datapp/db": "workspace:*",
+    "@datapp/magento-client": "workspace:*",
+    "@datapp/shared": "workspace:*",
     "@nestjs/bullmq": "^10.2.3",
     "@nestjs/common": "^10.4.7",
     "@nestjs/config": "^3.3.0",
@@ -46,7 +46,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@cdp/config": "workspace:*",
+    "@datapp/config": "workspace:*",
     "@nestjs/cli": "^10.4.8",
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^10.4.7",

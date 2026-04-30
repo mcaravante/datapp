@@ -6,7 +6,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { UserRole } from '@cdp/db';
+import type { UserRole } from '@datapp/db';
 import type { AuthenticatedRequest } from './types';
 
 const ROLES_KEY = 'roles';

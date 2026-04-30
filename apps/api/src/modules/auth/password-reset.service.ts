@@ -83,7 +83,7 @@ export class PasswordResetService {
       text: [
         `Hola ${user.name},`,
         '',
-        'Recibimos una solicitud para restablecer tu contraseña en CDP.',
+        'Recibimos una solicitud para restablecer tu contraseña en Datapp.',
         `Hacé clic en este enlace dentro de los próximos ${TOKEN_TTL_MIN.toString()} minutos:`,
         '',
         link,

@@ -1,4 +1,4 @@
-import nestConfig from '@cdp/config/eslint/nest';
+import nestConfig from '@datapp/config/eslint/nest';
 
 export default [
   ...nestConfig,

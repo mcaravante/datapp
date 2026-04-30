@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api-client';
 import { TwoFactorPanel } from '@/components/two-factor-panel';
 import type { MeResponse, RecoveryCodeCount } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Security' };
+export const metadata = { title: 'Datapp · Security' };
 
 interface PageProps {
   searchParams: Promise<{ require?: string }>;

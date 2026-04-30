@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import type { UserRole } from '@cdp/db';
+import type { UserRole } from '@datapp/db';
 
 /** Decoded JWT payload + the request principal we attach in JwtGuard. */
 export interface JwtPayload {

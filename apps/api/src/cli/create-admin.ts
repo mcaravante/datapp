@@ -10,7 +10,7 @@ import type { Env } from '../config/env';
  * Idempotent: creates or updates an admin user for the default tenant.
  *
  * Usage:
- *   pnpm --filter @cdp/api cli create-admin <email> [password]
+ *   pnpm --filter @datapp/api cli create-admin <email> [password]
  *
  * If `password` is omitted, a random 24-char base64url password is
  * generated and printed once. Existing users keep their password unless

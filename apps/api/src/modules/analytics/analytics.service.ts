@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
+import { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { resolveRange, type AnalyticsRange, type ResolvedRange } from './dto/range.dto';
 import type { TopProductRow, TopProductsQuery, TopProductsResponse } from './dto/top-products.dto';

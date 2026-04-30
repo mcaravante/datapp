@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
-import type { MagentoCart } from '@cdp/magento-client';
+import { Prisma } from '@datapp/db';
+import type { MagentoCart } from '@datapp/magento-client';
 import { PrismaService } from '../../db/prisma.service';
 import { MagentoClientFactory } from '../magento/magento-client.factory';
 import { MagentoStoreService } from '../magento/magento-store.service';

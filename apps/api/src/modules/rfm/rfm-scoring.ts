@@ -1,4 +1,4 @@
-import type { RfmSegmentLabel } from '@cdp/db';
+import type { RfmSegmentLabel } from '@datapp/db';
 
 export interface RfmDimensions {
   /** Days since the customer's most recent order. */

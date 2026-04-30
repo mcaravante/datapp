@@ -6,7 +6,7 @@ import { signIn, auth } from '@/auth';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-export const metadata = { title: 'CDP Admin · 2FA challenge' };
+export const metadata = { title: 'Datapp · 2FA challenge' };
 export const dynamic = 'force-dynamic';
 
 interface PageProps {

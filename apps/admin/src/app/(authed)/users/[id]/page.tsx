@@ -10,7 +10,7 @@ import { updateUser } from '../actions';
 import type { Locale } from '@/i18n/config';
 import type { AdminRole, UserSummary } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Edit user' };
+export const metadata = { title: 'Datapp · Edit user' };
 
 const ROLES: readonly AdminRole[] = ['super_admin', 'admin', 'analyst', 'viewer'];
 const ALLOWED: readonly AdminRole[] = ['super_admin', 'admin'];

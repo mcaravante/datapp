@@ -6,7 +6,7 @@ import { formatCurrencyArs, formatNumber, formatPercent01 } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { CohortsResponse, TimingResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Insights' };
+export const metadata = { title: 'Datapp · Insights' };
 
 interface PageProps {
   searchParams: Promise<{ window?: string; metric?: 'orders' | 'revenue' }>;

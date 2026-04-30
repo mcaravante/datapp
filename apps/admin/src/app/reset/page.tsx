@@ -6,7 +6,7 @@ import { getServerEnv } from '@/lib/env';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-export const metadata = { title: 'CDP Admin · Reset password' };
+export const metadata = { title: 'Datapp · Reset password' };
 export const dynamic = 'force-dynamic';
 
 interface PageProps {

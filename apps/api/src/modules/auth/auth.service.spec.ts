@@ -18,8 +18,8 @@ function makeJwtService(): JwtService {
   return new JwtService({
     privateKey,
     publicKey,
-    signOptions: { algorithm: 'RS256', issuer: 'cdp-api' },
-    verifyOptions: { algorithms: ['RS256'], issuer: 'cdp-api' },
+    signOptions: { algorithm: 'RS256', issuer: 'datapp-api' },
+    verifyOptions: { algorithms: ['RS256'], issuer: 'datapp-api' },
   });
 }
 
@@ -117,7 +117,7 @@ describe('AuthService.signToken + verifyToken', () => {
     expect(decoded.role).toBe(principal.role);
     expect(decoded.tenant_id).toBe(principal.tenantId);
     expect(decoded.jti).toBe('test-jti');
-    expect(decoded.iss).toBe('cdp-api');
+    expect(decoded.iss).toBe('datapp-api');
     expect(decoded.exp).toBeGreaterThan(Date.now() / 1000);
   });
 

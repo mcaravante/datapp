@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
-import type { MagentoCustomer } from '@cdp/magento-client';
+import { Prisma } from '@datapp/db';
+import type { MagentoCustomer } from '@datapp/magento-client';
 import { PrismaService } from '../../db/prisma.service';
 import { RegionResolverService } from '../geo/region-resolver.service';
 import { mapCustomer, type MappedAddress, type MappedCustomer } from './customer-mapper';

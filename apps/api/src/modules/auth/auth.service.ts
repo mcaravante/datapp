@@ -88,7 +88,7 @@ export class AuthService {
     };
     const token = this.jwt.sign(payload, {
       algorithm: 'RS256',
-      issuer: 'cdp-api',
+      issuer: 'datapp-api',
       expiresIn: TOKEN_TTL_SECONDS,
     });
     return { token, expiresIn: TOKEN_TTL_SECONDS };
@@ -98,7 +98,7 @@ export class AuthService {
   verifyToken(token: string): JwtPayload {
     return this.jwt.verify<JwtPayload>(token, {
       algorithms: ['RS256'],
-      issuer: 'cdp-api',
+      issuer: 'datapp-api',
     });
   }
 

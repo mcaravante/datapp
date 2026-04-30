@@ -7,7 +7,7 @@ import { formatBuenosAires } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { AdminRole, UsersListResponse, UserSummary } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Users' };
+export const metadata = { title: 'Datapp · Users' };
 
 const ALLOWED: readonly AdminRole[] = ['super_admin', 'admin'];
 

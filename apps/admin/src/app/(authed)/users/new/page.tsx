@@ -5,7 +5,7 @@ import { auth } from '@/auth';
 import { createUser } from '../actions';
 import type { AdminRole } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · New user' };
+export const metadata = { title: 'Datapp · New user' };
 
 const ROLES: readonly AdminRole[] = ['super_admin', 'admin', 'analyst', 'viewer'];
 const ALLOWED: readonly AdminRole[] = ['super_admin', 'admin'];

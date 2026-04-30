@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@n
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { IngestEnvelopeSchema, type IngestEnvelope } from '@cdp/shared/ingest';
+import { IngestEnvelopeSchema, type IngestEnvelope } from '@datapp/shared/ingest';
 import { HmacGuard } from './hmac.guard';
 import { SyncService } from './sync.service';
 import type { IngestRequest } from './types';

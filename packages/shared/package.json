@@ -1,5 +1,5 @@
 {
-  "name": "@cdp/shared",
+  "name": "@datapp/shared",
   "version": "0.0.0",
   "private": true,
   "description": "Cross-app Zod schemas, types, and constants.",

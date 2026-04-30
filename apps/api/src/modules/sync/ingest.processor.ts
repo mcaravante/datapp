@@ -1,8 +1,8 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
-import type { IngestEnvelope } from '@cdp/shared/ingest';
-import { Prisma, SubscriptionStatus, type SyncEventStatus } from '@cdp/db';
+import type { IngestEnvelope } from '@datapp/shared/ingest';
+import { Prisma, SubscriptionStatus, type SyncEventStatus } from '@datapp/db';
 import { QUEUES } from '../queue/queue.constants';
 import { PrismaService } from '../../db/prisma.service';
 import { MagentoStoreService } from '../magento/magento-store.service';

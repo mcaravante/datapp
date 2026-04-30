@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
-import type { UserRole } from '@cdp/db';
+import { Prisma } from '@datapp/db';
+import type { UserRole } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 
 /**

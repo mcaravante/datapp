@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { MagentoAddress, MagentoCustomer } from '@cdp/magento-client';
+import type { MagentoAddress, MagentoCustomer } from '@datapp/magento-client';
 import type { RegionResolverService } from '../geo/region-resolver.service';
 
 export type AddressType = 'billing' | 'shipping' | 'both';

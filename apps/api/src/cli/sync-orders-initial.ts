@@ -14,7 +14,7 @@ import type { Env } from '../config/env';
  * rate limit (4 rps default).
  *
  * Usage:
- *   pnpm --filter @cdp/api cli sync:orders:initial [storeName]
+ *   pnpm --filter @datapp/api cli sync:orders:initial [storeName]
  */
 export async function runSyncOrdersInitial(
   app: INestApplicationContext,

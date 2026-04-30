@@ -5,7 +5,7 @@ import { formatBuenosAires, formatCurrencyArs, formatNumber } from '@/lib/format
 import type { Locale } from '@/i18n/config';
 import type { CouponsResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Coupons' };
+export const metadata = { title: 'Datapp · Coupons' };
 
 interface PageProps {
   searchParams: Promise<{ window?: string }>;

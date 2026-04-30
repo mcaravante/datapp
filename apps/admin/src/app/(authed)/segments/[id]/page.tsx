@@ -8,7 +8,7 @@ import type { SegmentMembersPage, SegmentSummary } from '@/lib/types';
 import { FilterChips } from '../page';
 import { SegmentActions } from '@/components/segment-actions';
 
-export const metadata = { title: 'CDP Admin · Segment' };
+export const metadata = { title: 'Datapp · Segment' };
 
 interface PageProps {
   params: Promise<{ id: string }>;

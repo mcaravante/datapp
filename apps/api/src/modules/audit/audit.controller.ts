@@ -1,7 +1,7 @@
 import { Controller, ForbiddenException, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Prisma } from '@cdp/db';
-import type { AuditAction } from '@cdp/db';
+import { Prisma } from '@datapp/db';
+import type { AuditAction } from '@datapp/db';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { z } from 'zod';
 import { PrismaService } from '../../db/prisma.service';

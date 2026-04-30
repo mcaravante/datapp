@@ -7,7 +7,7 @@ import { formatBuenosAires } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { AdminRole, AuditActionId, AuditLogPage, AuditLogRow } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Audit log' };
+export const metadata = { title: 'Datapp · Audit log' };
 
 const ALLOWED: readonly AdminRole[] = ['super_admin', 'admin'];
 

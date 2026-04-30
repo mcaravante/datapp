@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@cdp/db';
-import type { AuditAction } from '@cdp/db';
+import { Prisma } from '@datapp/db';
+import type { AuditAction } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 
 export interface AuditEntry {

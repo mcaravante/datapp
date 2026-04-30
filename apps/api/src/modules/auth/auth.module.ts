@@ -32,8 +32,8 @@ class AuthRedis extends IORedis implements OnApplicationShutdown {
         // Keys are PEM-encoded with literal `\n` escapes in env. Convert.
         privateKey: pem(config.get<string>('JWT_PRIVATE_KEY', { infer: true })),
         publicKey: pem(config.get<string>('JWT_PUBLIC_KEY', { infer: true })),
-        signOptions: { algorithm: 'RS256', issuer: 'cdp-api' },
-        verifyOptions: { algorithms: ['RS256'], issuer: 'cdp-api' },
+        signOptions: { algorithm: 'RS256', issuer: 'datapp-api' },
+        verifyOptions: { algorithms: ['RS256'], issuer: 'datapp-api' },
       }),
     }),
   ],

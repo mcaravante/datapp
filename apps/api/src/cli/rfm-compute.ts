@@ -9,7 +9,7 @@ import type { Env } from '../config/env';
  * On-demand RFM computation. The same code runs nightly via BullMQ;
  * this is the human override for backfills + dev iteration.
  *
- * Usage: pnpm --filter @cdp/api cli rfm:compute [tenantSlug]
+ * Usage: pnpm --filter @datapp/api cli rfm:compute [tenantSlug]
  */
 export async function runRfmCompute(app: INestApplicationContext, argv: string[]): Promise<number> {
   const logger = new Logger('rfm:compute');

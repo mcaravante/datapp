@@ -1,4 +1,4 @@
-# Production deployment — Hostinger VPS + Dokploy + Cloudflare
+# Datapp — Production deployment (Hostinger VPS + Dokploy + Cloudflare)
 
 > **STATUS — Iteration 3 finalizes this runbook.** The compose file and the
 > bullet outline below are committed early so the schema for the
@@ -40,8 +40,8 @@
    - `unattended-upgrades` for security patches.
 3. **Dokploy installation.** Single-line installer; reverse proxy via
    Traefik bundled with Dokploy.
-4. **Cloudflare DNS.** A records for `api.cdp.example.com` and
-   `admin.cdp.example.com` proxied through Cloudflare; SSL = Full (Strict).
+4. **Cloudflare DNS.** A records for `api.datapp.com.ar` and
+   `datapp.com.ar` proxied through Cloudflare; SSL = Full (Strict).
 5. **Stack deployment.** Use `docker-compose.dokploy.yml` (committed in
    Iteration 3). Secrets via Dokploy's encrypted env store.
 6. **Postgres backup.** Sidecar cron container running `pg_dump` nightly,

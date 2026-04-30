@@ -6,7 +6,7 @@ import { signIn, auth } from '@/auth';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-export const metadata = { title: 'CDP Admin · Sign in' };
+export const metadata = { title: 'Datapp · Sign in' };
 
 // Reads session cookie via auth(); skip Next's static prerender.
 export const dynamic = 'force-dynamic';

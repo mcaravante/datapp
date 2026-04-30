@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { createSegment } from '../actions';
 import type { RfmSegmentLabel, SegmentDefinition } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · New segment' };
+export const metadata = { title: 'Datapp · New segment' };
 
 interface PageProps {
   searchParams: Promise<{

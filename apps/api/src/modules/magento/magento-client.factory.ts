@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createMagentoClient, type MagentoClient } from '@cdp/magento-client';
+import { createMagentoClient, type MagentoClient } from '@datapp/magento-client';
 import type { Env } from '../../config/env';
 import type { ResolvedMagentoStore } from './magento-store.service';
 

@@ -4,7 +4,7 @@ import { formatBuenosAires } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { SyncStatusResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Sync' };
+export const metadata = { title: 'Datapp · Sync' };
 
 const STATUS_BADGE: Record<string, string> = {
   idle: 'bg-muted text-muted-foreground',

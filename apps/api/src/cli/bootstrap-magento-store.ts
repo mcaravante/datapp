@@ -11,7 +11,7 @@ import type { Env } from '../config/env';
  * secret with the master key.
  *
  * Usage:
- *   pnpm --filter @cdp/api cli magento-store:bootstrap [name]
+ *   pnpm --filter @datapp/api cli magento-store:bootstrap [name]
  *
  * The optional `name` argument is the store handle written to
  * `magento_store.name` and matched by the X-Crm-Store header. Defaults

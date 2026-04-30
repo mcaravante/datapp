@@ -6,7 +6,7 @@ import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { TopProductsResponse } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Top products' };
+export const metadata = { title: 'Datapp · Top products' };
 
 interface PageProps {
   searchParams: Promise<{

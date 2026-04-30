@@ -35,7 +35,7 @@ importers:
 
   apps/admin:
     dependencies:
-      '@cdp/shared':
+      '@datapp/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@sentry/nextjs':
@@ -81,7 +81,7 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@cdp/config':
+      '@datapp/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -114,13 +114,13 @@ importers:
 
   apps/api:
     dependencies:
-      '@cdp/db':
+      '@datapp/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@cdp/magento-client':
+      '@datapp/magento-client':
         specifier: workspace:*
         version: link:../../packages/magento-client
-      '@cdp/shared':
+      '@datapp/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@nestjs/bullmq':
@@ -196,7 +196,7 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@cdp/config':
+      '@datapp/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@nestjs/cli':

@@ -6,7 +6,7 @@ import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { OrderListPage } from '@/lib/types';
 
-export const metadata = { title: 'CDP Admin · Orders' };
+export const metadata = { title: 'Datapp · Orders' };
 
 interface PageProps {
   searchParams: Promise<{

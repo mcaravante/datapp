@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mapOrder } from './order-mapper';
-import type { MagentoOrder } from '@cdp/magento-client';
+import type { MagentoOrder } from '@datapp/magento-client';
 
 const baseOrder: MagentoOrder = {
   entity_id: 1234,

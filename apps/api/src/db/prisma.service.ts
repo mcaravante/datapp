@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@cdp/db';
+import { PrismaClient } from '@datapp/db';
 
 /**
  * Prisma client lifecycle-managed by Nest. Provided as a singleton via
