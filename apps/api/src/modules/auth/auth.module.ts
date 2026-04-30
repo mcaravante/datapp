@@ -29,7 +29,13 @@ class AuthRedis extends IORedis implements OnApplicationShutdown {
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
-        // Keys are PEM-encoded with literal `\n` escapes in env. Convert.
+        // Accept three formats so the env var works with any deploy
+        // platform's parser (Dokploy / Coolify / k8s secrets / .env):
+        //   1. Plain multiline PEM (newlines preserved as-is).
+        //   2. Single-line PEM with `\n` literal (legacy `.env` style).
+        //   3. Base64-encoded PEM (single-line, no whitespace, no escape
+        //      chars). Recommended for production deploys to avoid
+        //      multi-line / escape interpretation pitfalls.
         privateKey: pem(config.get<string>('JWT_PRIVATE_KEY', { infer: true })),
         publicKey: pem(config.get<string>('JWT_PUBLIC_KEY', { infer: true })),
         signOptions: { algorithm: 'RS256', issuer: 'datapp-api' },
@@ -73,6 +79,33 @@ class AuthRedis extends IORedis implements OnApplicationShutdown {
 })
 export class AuthModule {}
 
+/**
+ * Normalize a PEM-encoded key value coming from env into the canonical
+ * multi-line PEM string. Accepts three input shapes:
+ *
+ *   1. Multi-line PEM (already correct) — passed through.
+ *   2. Single-line PEM with `\n` literals — `\n` chars get expanded
+ *      back to real newlines.
+ *   3. Base64-encoded PEM — decoded, then expected to be a multi-line
+ *      PEM. This is the recommended shape for env vars in Dokploy /
+ *      Coolify / any platform that mangles whitespace or escapes,
+ *      because base64 has no whitespace or `\` characters.
+ *
+ * Detection is conservative: if the raw string contains the literal
+ * "-----BEGIN" marker we treat it as PEM (cases 1 + 2); otherwise we
+ * decode base64 first.
+ */
 function pem(raw: string): string {
-  return raw.replace(/\\n/g, '\n');
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return trimmed;
+  if (trimmed.includes('-----BEGIN')) {
+    return trimmed.replace(/\\n/g, '\n');
+  }
+  // Assume base64-encoded PEM. Strip whitespace just in case the env
+  // platform inserted line wraps.
+  const decoded = Buffer.from(trimmed.replace(/\s+/g, ''), 'base64').toString('utf8');
+  if (!decoded.includes('-----BEGIN')) {
+    throw new Error('JWT key env var does not look like a PEM or base64-encoded PEM');
+  }
+  return decoded;
 }
