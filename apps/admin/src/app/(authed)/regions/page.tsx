@@ -41,7 +41,7 @@ function rangeFromPreset(presetId: string): { from: string; to: string } {
 export default async function RegionsPage({
   searchParams,
 }: PageProps): Promise<React.ReactElement> {
-  const { window: windowParam = 'all', metric: metricParam } = await searchParams;
+  const { window: windowParam = '7d', metric: metricParam } = await searchParams;
   const metric = pickMetric(metricParam);
   const range = rangeFromPreset(windowParam);
   const params = new URLSearchParams({ from: range.from, to: range.to, country: 'AR' });

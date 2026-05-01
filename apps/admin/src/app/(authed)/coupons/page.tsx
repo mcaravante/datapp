@@ -34,7 +34,7 @@ export default async function CouponsPage({
   searchParams,
 }: PageProps): Promise<React.ReactElement> {
   const sp = await searchParams;
-  const windowParam = sp.window ?? 'all';
+  const windowParam = sp.window ?? '7d';
   const range = rangeFromPreset(windowParam);
 
   const params = new URLSearchParams({ from: range.from, to: range.to });

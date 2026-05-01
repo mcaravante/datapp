@@ -39,7 +39,7 @@ export default async function TopProductsPage({
   searchParams,
 }: PageProps): Promise<React.ReactElement> {
   const {
-    window: windowParam = 'all',
+    window: windowParam = '7d',
     order_by: orderBy = 'revenue',
     limit = '50',
   } = await searchParams;
