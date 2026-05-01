@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { runBootstrapMagentoStore } from './cli/bootstrap-magento-store';
 import { runSyncCustomersInitial } from './cli/sync-customers-initial';
 import { runSyncOrdersInitial } from './cli/sync-orders-initial';
+import { runSyncCartsAbandoned } from './cli/sync-carts-abandoned';
 import { runCreateAdmin } from './cli/create-admin';
 import { runRfmCompute } from './cli/rfm-compute';
 
@@ -15,6 +16,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   'magento-store:bootstrap': runBootstrapMagentoStore,
   'sync:customers:initial': runSyncCustomersInitial,
   'sync:orders:initial': runSyncOrdersInitial,
+  'sync:carts:abandoned': runSyncCartsAbandoned,
   'rfm:compute': runRfmCompute,
   'create-admin': runCreateAdmin,
 };

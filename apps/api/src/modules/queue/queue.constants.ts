@@ -16,6 +16,8 @@ export const QUEUES = {
   syncReconciliation: 'sync.reconciliation',
   /** Nightly RFM scoring. */
   analyticsRfmNightly: 'analytics.rfm.nightly',
+  /** Periodic refresh of the abandoned_cart snapshot. */
+  cartsAbandonedSync: 'carts.abandoned.sync',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

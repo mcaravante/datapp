@@ -531,11 +531,11 @@
   },
   "carts": {
     "title": "Abandoned carts",
-    "subtitle": "Live snapshot from Magento — active carts with at least one item, idle for ≥ {threshold}. Generated {when}.",
+    "subtitle": "Active carts with at least one item, idle for ≥ {threshold}. Last sync: {when}.",
     "presets": {
-      "15m": "15 min",
       "1h": "1 hour",
       "3h": "3 hours",
+      "12h": "12 hours",
       "1d": "1 day",
       "7d": "7 days"
     },

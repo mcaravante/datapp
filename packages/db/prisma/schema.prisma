@@ -167,6 +167,7 @@ model Tenant {
   marketingLists  MarketingList[]
   subscriptions   Subscription[]
   roleAccess      RoleSectionAccess[]
+  abandonedCarts  AbandonedCart[]
 
   @@map("tenant")
 }
@@ -308,10 +309,11 @@ model MagentoStore {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  syncStates SyncState[]
-  syncEvents SyncEventLog[]
-  orders     Order[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  syncStates     SyncState[]
+  syncEvents     SyncEventLog[]
+  orders         Order[]
+  abandonedCarts AbandonedCart[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
@@ -399,6 +401,7 @@ model CustomerProfile {
   webEvents       WebEvent[]
   formSubmissions FormSubmission[]
   subscriptions   Subscription[]
+  abandonedCarts  AbandonedCart[]
 
   @@unique([tenantId, magentoCustomerId])
   @@index([tenantId, emailHash])
@@ -623,6 +626,47 @@ model OrderStatusHistory {
 
   @@index([orderId, createdAt(sort: Desc)])
   @@map("order_status_history")
+}
+
+/// Snapshot of currently-active Magento carts that are likely abandoned.
+///
+/// Refreshed every ~15 minutes by a BullMQ cron that calls
+/// `/V1/carts/search`, upserts rows here, and removes carts that no
+/// longer come back from Magento (i.e. converted to orders or were
+/// deleted upstream). The admin UI reads exclusively from this table —
+/// no live Magento round-trip — so the page is fast and resilient to
+/// temporary Magento downtime.
+///
+/// Histories are NOT preserved: once a cart converts or expires it
+/// disappears from the table. If we ever need cart-level analytics
+/// over time we'll add `cart_event` later.
+model AbandonedCart {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  magentoStoreId    String   @map("magento_store_id") @db.Uuid
+  magentoCartId     Int      @map("magento_cart_id")
+  customerProfileId String?  @map("customer_profile_id") @db.Uuid
+  magentoCustomerId String?  @map("magento_customer_id")
+  customerEmail     String?  @map("customer_email")
+  customerName      String?  @map("customer_name")
+  isGuest           Boolean  @map("is_guest")
+  itemsCount        Int      @map("items_count")
+  itemsQty          Int      @map("items_qty")
+  subtotal          Decimal  @db.Decimal(20, 4)
+  grandTotal        Decimal  @map("grand_total") @db.Decimal(20, 4)
+  currencyCode      String?  @map("currency_code") @db.Char(3)
+  magentoCreatedAt  DateTime @map("magento_created_at") @db.Timestamptz(6)
+  magentoUpdatedAt  DateTime @map("magento_updated_at") @db.Timestamptz(6)
+  syncedAt          DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  magentoStore MagentoStore     @relation(fields: [magentoStoreId], references: [id], onDelete: Cascade)
+  customer     CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, magentoStoreId, magentoCartId])
+  @@index([tenantId, magentoUpdatedAt(sort: Desc)])
+  @@index([tenantId, customerProfileId])
+  @@map("abandoned_cart")
 }
 
 // =====================================================================

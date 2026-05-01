@@ -531,11 +531,11 @@
   },
   "carts": {
     "title": "Carritos abandonados",
-    "subtitle": "Snapshot en vivo desde Magento — carritos activos con al menos un item, ociosos por al menos {threshold}. Generado {when}.",
+    "subtitle": "Carritos activos con al menos un item, ociosos por al menos {threshold}. Última sincronización: {when}.",
     "presets": {
-      "15m": "15 min",
       "1h": "1 hora",
       "3h": "3 horas",
+      "12h": "12 horas",
       "1d": "1 día",
       "7d": "7 días"
     },

@@ -208,6 +208,8 @@ export interface AbandonedCartRow {
 export interface AbandonedCartsResponse {
   generated_at: string;
   threshold_minutes: number;
+  /** When the cron last refreshed the snapshot (null if never synced). */
+  last_synced_at: string | null;
   totals: {
     carts: number;
     items_qty: number;

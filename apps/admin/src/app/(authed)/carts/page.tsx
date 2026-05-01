@@ -12,16 +12,16 @@ interface PageProps {
 }
 
 const PRESETS = [
-  { id: '15', presetKey: '15m' as const, minutes: 15 },
   { id: '60', presetKey: '1h' as const, minutes: 60 },
   { id: '180', presetKey: '3h' as const, minutes: 180 },
+  { id: '720', presetKey: '12h' as const, minutes: 720 },
   { id: '1440', presetKey: '1d' as const, minutes: 1440 },
   { id: '10080', presetKey: '7d' as const, minutes: 10_080 },
 ] as const;
 
 type PresetKey = (typeof PRESETS)[number]['presetKey'];
 
-const DEFAULT_PRESET = PRESETS[1];
+const DEFAULT_PRESET = PRESETS[3]; // 1d
 
 function pickPreset(raw: string | undefined): (typeof PRESETS)[number] {
   return PRESETS.find((p) => p.id === raw) ?? DEFAULT_PRESET;
@@ -67,7 +67,9 @@ export default async function AbandonedCartsPage({
           <p className="mt-1 text-sm text-muted-foreground">
             {t('subtitle', {
               threshold: formatIdle(preset.minutes),
-              when: formatBuenosAires(result.generated_at, locale),
+              when: result.last_synced_at
+                ? formatBuenosAires(result.last_synced_at, locale)
+                : formatBuenosAires(result.generated_at, locale),
             })}
           </p>
         </div>
