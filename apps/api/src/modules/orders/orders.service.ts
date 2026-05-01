@@ -21,7 +21,10 @@ export interface OrderListItem {
 
 export interface OrderListPage {
   data: OrderListItem[];
-  next_cursor: string | null;
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
 }
 
 export interface OrderDetail extends OrderListItem {
@@ -204,47 +207,37 @@ export class OrdersService {
       if (query.to) where.placedAt.lt = new Date(query.to);
     }
 
-    const cursor = query.cursor ? decodeCursor(query.cursor) : null;
-    if (cursor) {
-      const cursorClause: Prisma.OrderWhereInput = {
-        OR: [
-          { placedAt: { lt: cursor.placedAt } },
-          { placedAt: cursor.placedAt, id: { lt: cursor.id } },
-        ],
-      };
-      where.AND = where.AND
-        ? [...(Array.isArray(where.AND) ? where.AND : [where.AND]), cursorClause]
-        : [cursorClause];
-    }
+    const skip = (query.page - 1) * query.limit;
 
-    const rows = await this.prisma.order.findMany({
-      where,
-      orderBy: [{ placedAt: 'desc' }, { id: 'desc' }],
-      take: query.limit + 1,
-      select: {
-        id: true,
-        magentoOrderNumber: true,
-        customerProfileId: true,
-        customerEmail: true,
-        status: true,
-        state: true,
-        currencyCode: true,
-        grandTotal: true,
-        realRevenue: true,
-        couponCode: true,
-        itemCount: true,
-        placedAt: true,
-        customer: { select: { firstName: true, lastName: true } },
-      },
-    });
+    const [rows, totalCount] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: [{ placedAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take: query.limit,
+        select: {
+          id: true,
+          magentoOrderNumber: true,
+          customerProfileId: true,
+          customerEmail: true,
+          status: true,
+          state: true,
+          currencyCode: true,
+          grandTotal: true,
+          realRevenue: true,
+          couponCode: true,
+          itemCount: true,
+          placedAt: true,
+          customer: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
 
-    const hasMore = rows.length > query.limit;
-    const page = hasMore ? rows.slice(0, query.limit) : rows;
-    const last = page[page.length - 1];
-    const nextCursor = hasMore && last ? encodeCursor(last.placedAt, last.id) : null;
+    const totalPages = Math.max(1, Math.ceil(totalCount / query.limit));
 
     return {
-      data: page.map((r) => ({
+      data: rows.map((r) => ({
         id: r.id,
         magento_order_number: r.magentoOrderNumber,
         customer_id: r.customerProfileId,
@@ -259,7 +252,10 @@ export class OrdersService {
         item_count: r.itemCount,
         placed_at: r.placedAt.toISOString(),
       })),
-      next_cursor: nextCursor,
+      page: query.page,
+      limit: query.limit,
+      total_count: totalCount,
+      total_pages: totalPages,
     };
   }
 
@@ -342,24 +338,3 @@ function jsonObject(value: Prisma.JsonValue): Record<string, unknown> {
   return {};
 }
 
-interface DecodedCursor {
-  placedAt: Date;
-  id: string;
-}
-
-function encodeCursor(placedAt: Date, id: string): string {
-  return Buffer.from(`${placedAt.toISOString()}|${id}`, 'utf8').toString('base64url');
-}
-
-function decodeCursor(raw: string): DecodedCursor | null {
-  try {
-    const decoded = Buffer.from(raw, 'base64url').toString('utf8');
-    const [iso, id] = decoded.split('|');
-    if (!iso || !id) return null;
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return null;
-    return { placedAt: date, id };
-  } catch {
-    return null;
-  }
-}

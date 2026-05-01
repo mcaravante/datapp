@@ -17,7 +17,10 @@ export interface CustomerListItem {
 
 export interface CustomerListPage {
   data: CustomerListItem[];
-  next_cursor: string | null;
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
 }
 
 export interface CustomerDetail extends CustomerListItem {
@@ -216,7 +219,10 @@ export interface AbandonedCartsResponse {
 
 export interface OrderListPage {
   data: OrderListItem[];
-  next_cursor: string | null;
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
 }
 
 export interface OrderItemView {

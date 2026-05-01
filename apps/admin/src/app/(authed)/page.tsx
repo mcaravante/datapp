@@ -188,10 +188,10 @@ function Tile({ label, value, delta, sub }: TileProps): React.ReactElement {
       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="mt-2 flex items-baseline gap-3">
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-2xl font-semibold tabular-nums text-foreground">{value}</span>
         <span
-          className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}
+          className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}
         >
           {tone === 'up' ? (
             <TrendUpIcon className="h-3 w-3" />

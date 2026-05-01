@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
 import { ExportButton } from '@/components/export-button';
+import { Pagination } from '@/components/pagination';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { OrderListPage } from '@/lib/types';
@@ -11,7 +12,7 @@ export const metadata = { title: 'Datapp · Orders' };
 interface PageProps {
   searchParams: Promise<{
     q?: string;
-    cursor?: string;
+    page?: string;
     limit?: string;
     status?: string | string[];
     window?: string;
@@ -67,7 +68,7 @@ export default async function OrdersListPage({
 }: PageProps): Promise<React.ReactElement> {
   const sp = await searchParams;
   const q = sp.q ?? '';
-  const cursor = sp.cursor ?? '';
+  const pageParam = sp.page ?? '1';
   const limit = sp.limit ?? '50';
   const windowParam = sp.window ?? '30d';
   const statusFilter = sp.status === 'all' || sp.status === undefined ? null : sp.status;
@@ -76,16 +77,17 @@ export default async function OrdersListPage({
 
   const params = new URLSearchParams();
   if (q) params.set('q', q);
-  if (cursor) params.set('cursor', cursor);
+  params.set('page', pageParam);
   params.set('limit', limit);
   if (range.from) params.set('from', range.from);
   if (range.to) params.set('to', range.to);
   if (typeof statusFilter === 'string') params.set('status', statusFilter);
   if (Array.isArray(statusFilter)) statusFilter.forEach((s) => params.append('status', s));
 
-  const page = await apiFetch<OrderListPage>(`/v1/admin/orders?${params.toString()}`);
+  const result = await apiFetch<OrderListPage>(`/v1/admin/orders?${params.toString()}`);
 
-  const buildHref = (overrides: Record<string, string | undefined>): string => {
+  // Filter changes (search, window, status) reset page to 1; pagination keeps it.
+  const buildFilterHref = (overrides: Record<string, string | undefined>): string => {
     const next = new URLSearchParams();
     if (q) next.set('q', q);
     next.set('window', windowParam);
@@ -97,6 +99,16 @@ export default async function OrdersListPage({
     }
     const qs = next.toString();
     return qs ? `/orders?${qs}` : '/orders';
+  };
+
+  const buildPageHref = (overrides: { page?: number; limit?: number }): string => {
+    const next = new URLSearchParams();
+    if (q) next.set('q', q);
+    next.set('window', windowParam);
+    if (typeof statusFilter === 'string') next.set('status', statusFilter);
+    next.set('page', String(overrides.page ?? result.page));
+    next.set('limit', String(overrides.limit ?? result.limit));
+    return `/orders?${next.toString()}`;
   };
 
   const activeStatus =
@@ -121,7 +133,10 @@ export default async function OrdersListPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('onThisPage', { count: page.data.length })}
+            {t('onThisPageOf', {
+              count: formatNumber(result.data.length, locale),
+              total: formatNumber(result.total_count, locale),
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -132,7 +147,7 @@ export default async function OrdersListPage({
               return (
                 <Link
                   key={p.id}
-                  href={buildHref({ window: p.id, cursor: undefined })}
+                  href={buildFilterHref({ window: p.id, page: undefined })}
                   className={
                     active
                       ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
@@ -170,7 +185,7 @@ export default async function OrdersListPage({
         </button>
         {q && (
           <Link
-            href={buildHref({ q: undefined, cursor: undefined })}
+            href={buildFilterHref({ q: undefined, page: undefined })}
             className="rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
           >
             {tCommon('clear')}
@@ -185,7 +200,7 @@ export default async function OrdersListPage({
           return (
             <Link
               key={id}
-              href={buildHref({ status: id === 'all' ? undefined : id, cursor: undefined })}
+              href={buildFilterHref({ status: id === 'all' ? undefined : id, page: undefined })}
               className={
                 active
                   ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
@@ -212,14 +227,14 @@ export default async function OrdersListPage({
             </tr>
           </thead>
           <tbody>
-            {page.data.length === 0 && (
+            {result.data.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   {t('table.empty')}
                 </td>
               </tr>
             )}
-            {page.data.map((o) => (
+            {result.data.map((o) => (
               <tr
                 key={o.id}
                 className="border-b border-border last:border-0 transition hover:bg-muted/40"
@@ -272,17 +287,13 @@ export default async function OrdersListPage({
         </table>
       </div>
 
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{t('footer')}</span>
-        {page.next_cursor && (
-          <Link
-            href={buildHref({ cursor: page.next_cursor })}
-            className="rounded-md border border-border bg-card px-4 py-2 text-foreground transition hover:bg-muted"
-          >
-            {tCommon('next')} →
-          </Link>
-        )}
-      </div>
+      <Pagination
+        page={result.page}
+        totalPages={result.total_pages}
+        totalCount={result.total_count}
+        limit={result.limit}
+        buildHref={buildPageHref}
+      />
     </div>
   );
 }

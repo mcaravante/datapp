@@ -50,6 +50,14 @@
     "365d": "1 año",
     "all": "Histórico"
   },
+  "pagination": {
+    "label": "Paginación",
+    "range": "{from}–{to} de {total}",
+    "perPage": "Por página",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "pageOf": "Página {page} de {total}"
+  },
   "login": {
     "title": "Datapp",
     "subtitle": "Iniciá sesión en tu tenant.",
@@ -139,6 +147,7 @@
   "customers": {
     "title": "Clientes",
     "onThisPage": "{count} en esta página.",
+    "onThisPageOf": "{count} en esta página de {total} totales.",
     "searchPlaceholder": "Buscar email, nombre o apellido…",
     "saveAsSegment": "Guardar como segmento",
     "table": {
@@ -149,7 +158,7 @@
       "updated": "Actualizado",
       "empty": "Ningún cliente coincide."
     },
-    "footer": "Paginación por cursor — orden por updated_at de Magento desc."
+    "footer": "Ordenado por updated_at de Magento desc."
   },
   "customerDetail": {
     "back": "← Clientes",
@@ -288,6 +297,7 @@
   "orders": {
     "title": "Pedidos",
     "onThisPage": "{count} en esta página · ordenados por placed_at desc.",
+    "onThisPageOf": "{count} en esta página de {total} totales.",
     "searchPlaceholder": "Buscar # de pedido o email del cliente…",
     "statusLabel": "Estado:",
     "statusFilters": {

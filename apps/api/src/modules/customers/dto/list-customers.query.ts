@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const ListCustomersQuerySchema = z.object({
-  cursor: z.string().min(1).optional(),
+  page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   /** Free text — matches email / first_name / last_name (case-insensitive). */
   q: z.string().min(1).max(200).optional(),

@@ -177,7 +177,7 @@ export default async function CustomerDetailPage({
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t('recentOrdersHeading', {
-                count: `${orders.data.length}${orders.next_cursor ? '+' : ''}`,
+                count: `${orders.data.length}${orders.total_count > orders.data.length ? '+' : ''}`,
               })}
             </h2>
             <Link

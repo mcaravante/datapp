@@ -17,7 +17,10 @@ export interface CustomerListItem {
 
 export interface CustomerListPage {
   data: CustomerListItem[];
-  next_cursor: string | null;
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
 }
 
 export interface CustomerProductRow {
@@ -172,43 +175,32 @@ export class CustomersService {
       where.customerGroup = query.customer_group;
     }
 
-    const cursor = query.cursor ? decodeCursor(query.cursor) : null;
-    if (cursor) {
-      where.OR = [
-        { magentoUpdatedAt: { lt: cursor.magentoUpdatedAt } },
-        {
-          magentoUpdatedAt: cursor.magentoUpdatedAt,
-          id: { lt: cursor.id },
+    const skip = (query.page - 1) * query.limit;
+
+    const [rows, totalCount] = await Promise.all([
+      this.prisma.customerProfile.findMany({
+        where,
+        orderBy: [{ magentoUpdatedAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take: query.limit,
+        select: {
+          id: true,
+          magentoCustomerId: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          customerGroup: true,
+          magentoCreatedAt: true,
+          magentoUpdatedAt: true,
         },
-      ];
-    }
+      }),
+      this.prisma.customerProfile.count({ where }),
+    ]);
 
-    const rows = await this.prisma.customerProfile.findMany({
-      where,
-      orderBy: [{ magentoUpdatedAt: 'desc' }, { id: 'desc' }],
-      take: query.limit + 1,
-      select: {
-        id: true,
-        magentoCustomerId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        customerGroup: true,
-        magentoCreatedAt: true,
-        magentoUpdatedAt: true,
-      },
-    });
-
-    const hasMore = rows.length > query.limit;
-    const page = hasMore ? rows.slice(0, query.limit) : rows;
-    const last = page[page.length - 1];
-    const nextCursor =
-      hasMore && last && last.magentoUpdatedAt
-        ? encodeCursor(last.magentoUpdatedAt, last.id)
-        : null;
+    const totalPages = Math.max(1, Math.ceil(totalCount / query.limit));
 
     return {
-      data: page.map((r) => ({
+      data: rows.map((r) => ({
         id: r.id,
         magento_customer_id: r.magentoCustomerId,
         email: r.email,
@@ -218,7 +210,10 @@ export class CustomersService {
         magento_created_at: r.magentoCreatedAt?.toISOString() ?? null,
         magento_updated_at: r.magentoUpdatedAt?.toISOString() ?? null,
       })),
-      next_cursor: nextCursor,
+      page: query.page,
+      limit: query.limit,
+      total_count: totalCount,
+      total_pages: totalPages,
     };
   }
 
@@ -361,24 +356,3 @@ export class CustomersService {
   }
 }
 
-interface DecodedCursor {
-  magentoUpdatedAt: Date;
-  id: string;
-}
-
-function encodeCursor(magentoUpdatedAt: Date, id: string): string {
-  return Buffer.from(`${magentoUpdatedAt.toISOString()}|${id}`, 'utf8').toString('base64url');
-}
-
-function decodeCursor(raw: string): DecodedCursor | null {
-  try {
-    const decoded = Buffer.from(raw, 'base64url').toString('utf8');
-    const [iso, id] = decoded.split('|');
-    if (!iso || !id) return null;
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return null;
-    return { magentoUpdatedAt: date, id };
-  } catch {
-    return null;
-  }
-}

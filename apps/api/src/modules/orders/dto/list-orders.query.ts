@@ -6,7 +6,7 @@ const isoDate = z
   .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
 
 export const ListOrdersQuerySchema = z.object({
-  cursor: z.string().min(1).optional(),
+  page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   /** Free text — matches order_number / customer_email (case-insensitive). */
   q: z.string().min(1).max(200).optional(),
