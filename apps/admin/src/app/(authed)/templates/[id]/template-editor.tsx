@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { previewTemplate, updateTemplate, deleteTemplate } from '../actions';
+import { RichTextEditor } from '@/components/rich-text-editor';
 import type { EmailTemplateDetail, EmailTemplatePreviewResponse } from '@/lib/types';
 
 const SAMPLE_VARIABLES: Record<string, unknown> = {
@@ -121,14 +122,23 @@ export function TemplateEditor({
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Cuerpo HTML / MJML
+            Cuerpo del email
           </label>
-          <textarea
-            value={bodyHtml}
-            onChange={(e) => setBodyHtml(e.target.value)}
-            rows={20}
-            className="block w-full rounded-md border border-input bg-background p-3 font-mono text-xs text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-          />
+          {format === 'mjml' ? (
+            <>
+              <textarea
+                value={bodyHtml}
+                onChange={(e) => setBodyHtml(e.target.value)}
+                rows={20}
+                className="block w-full rounded-md border border-input bg-background p-3 font-mono text-xs text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Modo MJML: el editor visual no aplica. Escribí el markup MJML directamente.
+              </p>
+            </>
+          ) : (
+            <RichTextEditor value={bodyHtml} onChange={setBodyHtml} minHeight={420} />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
