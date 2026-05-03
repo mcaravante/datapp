@@ -2,7 +2,53 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { RfmService } from '../rfm/rfm.service';
-import type { ListCustomersQuery } from './dto/list-customers.query';
+import type { CustomerSortField, ListCustomersQuery } from './dto/list-customers.query';
+
+/** Maps DTO sort fields to Prisma columns. The Zod enum guards the input. */
+const CUSTOMER_SORT_COLUMN: Record<
+  CustomerSortField,
+  keyof Prisma.CustomerProfileOrderByWithRelationInput
+> = {
+  email: 'email',
+  magento_updated_at: 'magentoUpdatedAt',
+  magento_created_at: 'magentoCreatedAt',
+  customer_group: 'customerGroup',
+};
+
+function buildCustomerOrderBy(
+  sort: CustomerSortField,
+  dir: 'asc' | 'desc',
+): Prisma.CustomerProfileOrderByWithRelationInput[] {
+  const column = CUSTOMER_SORT_COLUMN[sort];
+  return [
+    { [column]: dir } as Prisma.CustomerProfileOrderByWithRelationInput,
+    { id: 'desc' },
+  ];
+}
+
+function buildCustomerWhere(
+  tenantId: string,
+  query: Pick<ListCustomersQuery, 'q' | 'region_id' | 'customer_group' | 'rfm_segment'>,
+): Prisma.CustomerProfileWhereInput {
+  const where: Prisma.CustomerProfileWhereInput = { tenantId };
+  if (query.q) {
+    where.OR = [
+      { email: { contains: query.q, mode: 'insensitive' } },
+      { firstName: { contains: query.q, mode: 'insensitive' } },
+      { lastName: { contains: query.q, mode: 'insensitive' } },
+    ];
+  }
+  if (query.region_id !== undefined && query.region_id.length > 0) {
+    where.addresses = { some: { regionId: { in: query.region_id } } };
+  }
+  if (query.customer_group !== undefined) {
+    where.customerGroup = query.customer_group;
+  }
+  if (query.rfm_segment !== undefined && query.rfm_segment.length > 0) {
+    where.rfmScore = { is: { segment: { in: query.rfm_segment } } };
+  }
+  return where;
+}
 
 export interface CustomerListItem {
   id: string;
@@ -83,10 +129,38 @@ export interface CustomerDetail extends CustomerListItem {
 
 @Injectable()
 export class CustomersService {
+  /**
+   * Tenant-scoped facet cache. We rebuild from a SELECT DISTINCT, which
+   * for ~88k customers is sub-50ms but called on every page render of
+   * /customers — caching the answer for a minute keeps the dropdown
+   * responsive without a stale-data risk worth worrying about.
+   */
+  private readonly facetCache = new Map<string, { groups: string[]; expiresAt: number }>();
+  private static readonly FACET_TTL_MS = 60_000;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly rfm: RfmService,
   ) {}
+
+  async facets(tenantId: string): Promise<{ customer_groups: string[] }> {
+    const cached = this.facetCache.get(tenantId);
+    const now = Date.now();
+    if (cached && cached.expiresAt > now) {
+      return { customer_groups: cached.groups };
+    }
+    const rows = await this.prisma.customerProfile.findMany({
+      where: { tenantId, customerGroup: { not: null } },
+      distinct: ['customerGroup'],
+      select: { customerGroup: true },
+      orderBy: { customerGroup: 'asc' },
+    });
+    const groups = rows
+      .map((r) => r.customerGroup)
+      .filter((g): g is string => Boolean(g));
+    this.facetCache.set(tenantId, { groups, expiresAt: now + CustomersService.FACET_TTL_MS });
+    return { customer_groups: groups };
+  }
 
   /**
    * CSV-shaped export of all customers matching the same filters as
@@ -98,24 +172,11 @@ export class CustomersService {
     query: Omit<ListCustomersQuery, 'cursor' | 'limit'>,
     cap = 50_000,
   ): Promise<{ headers: string[]; rows: unknown[][] }> {
-    const where: Prisma.CustomerProfileWhereInput = { tenantId };
-    if (query.q) {
-      where.OR = [
-        { email: { contains: query.q, mode: 'insensitive' } },
-        { firstName: { contains: query.q, mode: 'insensitive' } },
-        { lastName: { contains: query.q, mode: 'insensitive' } },
-      ];
-    }
-    if (query.region_id !== undefined && query.region_id.length > 0) {
-      where.addresses = { some: { regionId: { in: query.region_id } } };
-    }
-    if (query.customer_group !== undefined) {
-      where.customerGroup = query.customer_group;
-    }
+    const where = buildCustomerWhere(tenantId, query);
 
     const rows = await this.prisma.customerProfile.findMany({
       where,
-      orderBy: [{ magentoUpdatedAt: 'desc' }, { id: 'desc' }],
+      orderBy: buildCustomerOrderBy(query.sort, query.dir),
       take: cap,
       select: {
         id: true,
@@ -160,27 +221,13 @@ export class CustomersService {
   }
 
   async list(tenantId: string, query: ListCustomersQuery): Promise<CustomerListPage> {
-    const where: Prisma.CustomerProfileWhereInput = { tenantId };
-    if (query.q) {
-      where.OR = [
-        { email: { contains: query.q, mode: 'insensitive' } },
-        { firstName: { contains: query.q, mode: 'insensitive' } },
-        { lastName: { contains: query.q, mode: 'insensitive' } },
-      ];
-    }
-    if (query.region_id !== undefined && query.region_id.length > 0) {
-      where.addresses = { some: { regionId: { in: query.region_id } } };
-    }
-    if (query.customer_group !== undefined) {
-      where.customerGroup = query.customer_group;
-    }
-
+    const where = buildCustomerWhere(tenantId, query);
     const skip = (query.page - 1) * query.limit;
 
     const [rows, totalCount] = await Promise.all([
       this.prisma.customerProfile.findMany({
         where,
-        orderBy: [{ magentoUpdatedAt: 'desc' }, { id: 'desc' }],
+        orderBy: buildCustomerOrderBy(query.sort, query.dir),
         skip,
         take: query.limit,
         select: {
@@ -285,21 +332,23 @@ export class CustomersService {
     });
     if (!profile) throw new NotFoundException(`Customer ${id} not found`);
 
-    // Lifetime metrics — computed live for now. Memoized projection to follow
-    // when orders sync lands. `real_revenue` is the GENERATED column.
-    const aggregate = await this.prisma.order.aggregate({
-      where: { tenantId, customerProfileId: id },
-      _count: { _all: true },
-      _sum: { realRevenue: true },
-      _min: { placedAt: true },
-      _max: { placedAt: true },
-    });
+    // Lifetime metrics + RFM are independent of each other and of the
+    // profile read — fan out concurrently so the page is gated by the
+    // slowest of the two, not their sum.
+    const [aggregate, rfm] = await Promise.all([
+      this.prisma.order.aggregate({
+        where: { tenantId, customerProfileId: id },
+        _count: { _all: true },
+        _sum: { realRevenue: true },
+        _min: { placedAt: true },
+        _max: { placedAt: true },
+      }),
+      this.rfm.forCustomer(tenantId, id),
+    ]);
 
     const total = aggregate._count._all;
     const sum = aggregate._sum.realRevenue;
     const aov = total > 0 && sum ? sum.div(total) : null;
-
-    const rfm = await this.rfm.forCustomer(tenantId, id);
 
     return {
       id: profile.id,

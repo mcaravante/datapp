@@ -1,7 +1,9 @@
 import { z } from 'zod';
-import { AnalyticsRangeSchema } from './range.dto';
+import { AnalyticsRangeSchema, CurrencyFilter } from './range.dto';
 
-export const TimingQuerySchema = AnalyticsRangeSchema;
+export const TimingQuerySchema = AnalyticsRangeSchema.extend({
+  currency: CurrencyFilter.default('ars'),
+});
 export type TimingQuery = z.infer<typeof TimingQuerySchema>;
 
 export interface HeatmapCell {

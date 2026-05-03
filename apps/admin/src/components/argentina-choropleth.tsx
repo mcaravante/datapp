@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CABA, PROVINCE_PATHS, VIEWBOX } from '@/lib/ar-map';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
@@ -7,6 +8,12 @@ import type { GeoRegionRow } from '@/lib/types';
 interface Props {
   data: GeoRegionRow[];
   metric: 'revenue' | 'customers' | 'orders';
+  /**
+   * Optional drill-down link builder. When provided, each province
+   * with data becomes clickable. Provinces without data render as
+   * static fills.
+   */
+  hrefForRegion?: (row: GeoRegionRow) => string;
 }
 
 function metricValue(row: GeoRegionRow, metric: Props['metric']): number {
@@ -29,7 +36,11 @@ function formatMetric(value: number, metric: Props['metric'], locale: Locale): s
  * CABA doesn't have a polygon in the source GeoJSON; we render it as
  * a small ring at its real lat/lng so it stays visible and clickable.
  */
-export async function ArgentinaChoropleth({ data, metric }: Props): Promise<React.ReactElement> {
+export async function ArgentinaChoropleth({
+  data,
+  metric,
+  hrefForRegion,
+}: Props): Promise<React.ReactElement> {
   const t = await getTranslations('regions.choropleth');
   const locale = (await getLocale()) as Locale;
 
@@ -81,9 +92,9 @@ export async function ArgentinaChoropleth({ data, metric }: Props): Promise<Reac
             const tip = row
               ? `${row.region_name} — ${formatMetric(value, metric, locale)}`
               : `${p.name} — ${noDataLabel}`;
-            return (
+            const href = row && hrefForRegion ? hrefForRegion(row) : null;
+            const path = (
               <path
-                key={p.region_id}
                 d={p.d}
                 fill={
                   opacity === 0
@@ -93,30 +104,45 @@ export async function ArgentinaChoropleth({ data, metric }: Props): Promise<Reac
                 stroke="hsl(var(--border))"
                 strokeWidth="0.6"
                 strokeLinejoin="round"
+                className={href ? 'cursor-pointer transition hover:brightness-110' : undefined}
               >
                 <title>{tip}</title>
               </path>
             );
+            return href ? (
+              <Link key={p.region_id} href={href}>
+                {path}
+              </Link>
+            ) : (
+              <g key={p.region_id}>{path}</g>
+            );
           })}
           {/* CABA marker — small filled circle at the real coordinates. */}
-          <circle
-            cx={CABA.centroid[0]}
-            cy={CABA.centroid[1]}
-            r={4}
-            fill={
-              cabaOpacity === 0
-                ? 'hsl(var(--muted))'
-                : `hsl(var(--primary) / ${Math.max(0.45, cabaOpacity).toFixed(3)})`
-            }
-            stroke="hsl(var(--card))"
-            strokeWidth="1"
-          >
-            <title>
-              {cabaRow
-                ? `${cabaRow.region_name} — ${formatMetric(cabaValue, metric, locale)}`
-                : `${CABA.name} — ${noDataLabel}`}
-            </title>
-          </circle>
+          {(() => {
+            const cabaHref = cabaRow && hrefForRegion ? hrefForRegion(cabaRow) : null;
+            const circle = (
+              <circle
+                cx={CABA.centroid[0]}
+                cy={CABA.centroid[1]}
+                r={4}
+                fill={
+                  cabaOpacity === 0
+                    ? 'hsl(var(--muted))'
+                    : `hsl(var(--primary) / ${Math.max(0.45, cabaOpacity).toFixed(3)})`
+                }
+                stroke="hsl(var(--card))"
+                strokeWidth="1"
+                className={cabaHref ? 'cursor-pointer transition hover:brightness-110' : undefined}
+              >
+                <title>
+                  {cabaRow
+                    ? `${cabaRow.region_name} — ${formatMetric(cabaValue, metric, locale)}`
+                    : `${CABA.name} — ${noDataLabel}`}
+                </title>
+              </circle>
+            );
+            return cabaHref ? <Link href={cabaHref}>{circle}</Link> : circle;
+          })()}
         </svg>
 
         <div className="self-end">

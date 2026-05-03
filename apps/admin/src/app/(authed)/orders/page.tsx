@@ -3,7 +3,9 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
 import { ExportButton } from '@/components/export-button';
 import { Pagination } from '@/components/pagination';
+import { SortableHeader } from '@/components/sortable-header';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
+import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import type { Locale } from '@/i18n/config';
 import type { OrderListPage } from '@/lib/types';
 
@@ -16,13 +18,31 @@ interface PageProps {
     limit?: string;
     status?: string | string[];
     window?: string;
+    sort?: string;
+    dir?: string;
+    region?: string;
+    region_name?: string;
   }>;
 }
+
+const SORT_FIELDS = [
+  'placed_at',
+  'grand_total',
+  'magento_order_number',
+  'customer_email',
+  'status',
+  'item_count',
+] as const;
+
+type SortField = (typeof SORT_FIELDS)[number];
+
+const DEFAULT_SORT: SortState<SortField> = { field: 'placed_at', dir: 'desc' };
 
 const PRESETS = [
   { id: '7d', days: 7 },
   { id: '30d', days: 30 },
   { id: '90d', days: 90 },
+  { id: '365d', days: 365 },
   { id: 'all', days: null },
 ] as const;
 
@@ -72,44 +92,50 @@ export default async function OrdersListPage({
   const limit = sp.limit ?? '50';
   const windowParam = sp.window ?? '30d';
   const statusFilter = sp.status === 'all' || sp.status === undefined ? null : sp.status;
+  const region = sp.region;
+  const regionName = sp.region_name;
+  const sort = parseSort<SortField>(sp, SORT_FIELDS, DEFAULT_SORT);
 
   const range = rangeFromPreset(windowParam);
 
-  const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  params.set('page', pageParam);
-  params.set('limit', limit);
-  if (range.from) params.set('from', range.from);
-  if (range.to) params.set('to', range.to);
-  if (typeof statusFilter === 'string') params.set('status', statusFilter);
-  if (Array.isArray(statusFilter)) statusFilter.forEach((s) => params.append('status', s));
+  // Live params shipped to the API. Always includes sort/dir so the
+  // server applies the same orderBy the user is staring at.
+  const apiParams = new URLSearchParams();
+  if (q) apiParams.set('q', q);
+  apiParams.set('page', pageParam);
+  apiParams.set('limit', limit);
+  if (range.from) apiParams.set('from', range.from);
+  if (range.to) apiParams.set('to', range.to);
+  if (typeof statusFilter === 'string') apiParams.set('status', statusFilter);
+  if (Array.isArray(statusFilter)) statusFilter.forEach((s) => apiParams.append('status', s));
+  if (region) apiParams.set('region', region);
+  apiParams.set('sort', sort.field);
+  apiParams.set('dir', sort.dir);
 
-  const result = await apiFetch<OrderListPage>(`/v1/admin/orders?${params.toString()}`);
+  const result = await apiFetch<OrderListPage>(`/v1/admin/orders?${apiParams.toString()}`);
 
-  // Filter changes (search, window, status) reset page to 1; pagination keeps it.
-  const buildFilterHref = (overrides: Record<string, string | undefined>): string => {
-    const next = new URLSearchParams();
-    if (q) next.set('q', q);
-    next.set('window', windowParam);
-    if (typeof statusFilter === 'string') next.set('status', statusFilter);
-    next.set('limit', limit);
-    for (const [k, v] of Object.entries(overrides)) {
-      if (v === undefined) next.delete(k);
-      else next.set(k, v);
-    }
-    const qs = next.toString();
-    return qs ? `/orders?${qs}` : '/orders';
+  // The set of search params currently in the URL — used by sort/filter/page
+  // links to preserve everything the user already chose.
+  const currentParams: Record<string, string | string[] | undefined> = {
+    q,
+    window: windowParam,
+    limit,
+    status: typeof statusFilter === 'string' ? statusFilter : undefined,
+    region,
+    region_name: regionName,
+    sort: sort.field === DEFAULT_SORT.field ? undefined : sort.field,
+    dir: sort.field === DEFAULT_SORT.field && sort.dir === DEFAULT_SORT.dir ? undefined : sort.dir,
   };
 
-  const buildPageHref = (overrides: { page?: number; limit?: number }): string => {
-    const next = new URLSearchParams();
-    if (q) next.set('q', q);
-    next.set('window', windowParam);
-    if (typeof statusFilter === 'string') next.set('status', statusFilter);
-    next.set('page', String(overrides.page ?? result.page));
-    next.set('limit', String(overrides.limit ?? result.limit));
-    return `/orders?${next.toString()}`;
-  };
+  // Filter / search / window changes reset page to 1; pagination keeps it.
+  const buildFilterHref = (overrides: Record<string, string | undefined>): string =>
+    buildListHref('/orders', currentParams, { ...overrides, page: undefined });
+
+  const buildPageHref = (overrides: { page?: number; limit?: number }): string =>
+    buildListHref('/orders', currentParams, {
+      page: overrides.page !== undefined ? String(overrides.page) : String(result.page),
+      limit: overrides.limit !== undefined ? String(overrides.limit) : String(result.limit),
+    });
 
   const activeStatus =
     typeof statusFilter === 'string' ? statusFilter : statusFilter === null ? 'all' : 'all';
@@ -119,6 +145,7 @@ export default async function OrdersListPage({
   if (typeof statusFilter === 'string') exportQs.set('status', statusFilter);
   if (range.from) exportQs.set('from', range.from);
   if (range.to) exportQs.set('to', range.to);
+  if (region) exportQs.set('region', region);
   const exportHref = `/api/export/orders${exportQs.toString() ? `?${exportQs.toString()}` : ''}`;
 
   const t = await getTranslations('orders');
@@ -193,6 +220,22 @@ export default async function OrdersListPage({
         )}
       </form>
 
+      {region && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">{t('regionLabel')}</span>
+          <Link
+            href={buildFilterHref({ region: undefined, region_name: undefined })}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20"
+          >
+            <span>{regionName ?? `#${region}`}</span>
+            <span aria-hidden="true" className="text-base leading-none">
+              ×
+            </span>
+            <span className="sr-only">{tCommon('clear')}</span>
+          </Link>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">{t('statusLabel')}</span>
         {STATUS_FILTERS.map((id) => {
@@ -215,15 +258,75 @@ export default async function OrdersListPage({
 
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+          <thead className="border-b border-border bg-muted/50">
             <tr>
-              <th className="px-4 py-3 font-semibold">{t('table.orderNumber')}</th>
-              <th className="px-4 py-3 font-semibold">{t('table.placed')}</th>
-              <th className="px-4 py-3 font-semibold">{t('table.customer')}</th>
-              <th className="px-4 py-3 font-semibold">{t('table.status')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('table.items')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('table.total')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('table.realRevenue')}</th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="magento_order_number"
+                  current={sort}
+                  basePath="/orders"
+                  currentParams={currentParams}
+                >
+                  {t('table.orderNumber')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="placed_at"
+                  current={sort}
+                  basePath="/orders"
+                  currentParams={currentParams}
+                >
+                  {t('table.placed')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="customer_email"
+                  current={sort}
+                  defaultDir="asc"
+                  basePath="/orders"
+                  currentParams={currentParams}
+                >
+                  {t('table.customer')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="status"
+                  current={sort}
+                  defaultDir="asc"
+                  basePath="/orders"
+                  currentParams={currentParams}
+                >
+                  {t('table.status')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="item_count"
+                  current={sort}
+                  align="right"
+                  basePath="/orders"
+                  currentParams={currentParams}
+                >
+                  {t('table.items')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="grand_total"
+                  current={sort}
+                  align="right"
+                  basePath="/orders"
+                  currentParams={currentParams}
+                >
+                  {t('table.total')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('table.realRevenue')}
+              </th>
             </tr>
           </thead>
           <tbody>

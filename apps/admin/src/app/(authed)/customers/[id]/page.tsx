@@ -8,9 +8,66 @@ import {
   formatCurrencyArs,
   formatNumber,
 } from '@/lib/format';
+import { DonutChart } from '@/components/charts/donut-chart';
+import { LineChart } from '@/components/charts/line-chart';
 import { GdprActions } from '@/components/gdpr-actions';
 import type { Locale } from '@/i18n/config';
-import type { CustomerDetail, CustomerProductsResponse, OrderListPage } from '@/lib/types';
+import type {
+  CustomerDetail,
+  CustomerProductsResponse,
+  OrderListItem,
+  OrderListPage,
+} from '@/lib/types';
+
+const DONUT_TONES = [
+  'fill-primary',
+  'fill-success',
+  'fill-accent',
+  'fill-info',
+  'fill-warning',
+  'fill-muted-foreground',
+] as const;
+
+interface SpendBucket {
+  iso: string;
+  label: string;
+  total: number;
+}
+
+/**
+ * Group the customer's orders into monthly buckets so we can draw a
+ * lifetime spend curve. Months without activity are emitted as zero so
+ * the line stays continuous between purchases — useful to spot dormancy.
+ */
+function spendByMonth(orders: OrderListItem[], locale: Locale): SpendBucket[] {
+  if (orders.length === 0) return [];
+  const sorted = [...orders].sort(
+    (a, b) => new Date(a.placed_at).getTime() - new Date(b.placed_at).getTime(),
+  );
+  const start = new Date(sorted[0]!.placed_at);
+  const end = new Date();
+  const months = new Map<string, number>();
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor.getTime() <= end.getTime()) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+    months.set(key, 0);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  for (const o of sorted) {
+    const d = new Date(o.placed_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.set(key, (months.get(key) ?? 0) + Number(o.real_revenue ?? o.grand_total));
+  }
+  const fmt = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-AR', {
+    month: 'short',
+    year: '2-digit',
+  });
+  return Array.from(months.entries()).map(([key, total]) => {
+    const [y, m] = key.split('-').map(Number);
+    const d = new Date(y!, (m ?? 1) - 1, 1);
+    return { iso: d.toISOString(), label: fmt.format(d), total };
+  });
+}
 
 export const metadata = { title: 'Datapp · Customer' };
 
@@ -53,11 +110,39 @@ export default async function CustomerDetailPage({
 
   const fullName = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—';
 
-  const ordersParams = new URLSearchParams({ customer_id: id, limit: '10' });
-  const [orders, products] = await Promise.all([
-    apiFetch<OrderListPage>(`/v1/admin/orders?${ordersParams.toString()}`).catch(() => null),
+  // Two reads: the recent-orders timeline (latest 10 desc) and a wider
+  // ascending slice for the lifetime spend curve. Capped at 200 — past
+  // that the curve granularity is monthly anyway, so older points
+  // beyond the cap rarely change the shape.
+  const recentParams = new URLSearchParams({ customer_id: id, limit: '10' });
+  const spendParams = new URLSearchParams({
+    customer_id: id,
+    limit: '200',
+    sort: 'placed_at',
+    dir: 'asc',
+  });
+  const [orders, spendOrders, products] = await Promise.all([
+    apiFetch<OrderListPage>(`/v1/admin/orders?${recentParams.toString()}`).catch(() => null),
+    apiFetch<OrderListPage>(`/v1/admin/orders?${spendParams.toString()}`).catch(() => null),
     apiFetch<CustomerProductsResponse>(`/v1/admin/customers/${id}/products`).catch(() => null),
   ]);
+
+  const spend = spendOrders ? spendByMonth(spendOrders.data, await getLocale() as Locale) : [];
+
+  // Top 5 SKUs by revenue → donut. Fold the rest into "other" so the
+  // chart fits at most 6 slices.
+  const top5Products = products
+    ? [...products.data]
+        .sort((a, b) => Number(b.revenue) - Number(a.revenue))
+        .slice(0, 5)
+    : [];
+  const otherRevenue = products
+    ? products.data
+        .slice()
+        .sort((a, b) => Number(b.revenue) - Number(a.revenue))
+        .slice(5)
+        .reduce((sum, p) => sum + Number(p.revenue), 0)
+    : 0;
 
   const t = await getTranslations('customerDetail');
   const tRfm = await getTranslations('segments.rfmLabels');
@@ -171,6 +256,74 @@ export default async function CustomerDetailPage({
           <p className="col-span-full text-xs text-muted-foreground">{t('noOrders')}</p>
         )}
       </Section>
+
+      {(spend.length > 1 || top5Products.length > 0) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {spend.length > 1 && (
+            <section className="rounded-lg border border-border bg-card p-5 shadow-card">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('charts.spend')}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t('charts.spendSubtitle')}
+              </p>
+              <div className="mt-3">
+                <LineChart
+                  yUnit="ARS"
+                  series={[
+                    {
+                      id: 'spend',
+                      label: t('charts.spend'),
+                      values: spend.map((b) => b.total),
+                      dates: spend.map((b) => b.iso),
+                      tone: 'primary',
+                    },
+                  ]}
+                  formatY={(v) => formatCurrencyArs(v, locale)}
+                  formatX={(iso) => {
+                    const fmt = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-AR', {
+                      month: 'short',
+                      year: '2-digit',
+                    });
+                    return fmt.format(new Date(iso));
+                  }}
+                  height={200}
+                />
+              </div>
+            </section>
+          )}
+          {top5Products.length > 0 && (
+            <section className="rounded-lg border border-border bg-card p-5 shadow-card">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('charts.skuMix')}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t('charts.skuMixSubtitle')}</p>
+              <div className="mt-3">
+                <DonutChart
+                  slices={[
+                    ...top5Products.map((p, i) => ({
+                      id: p.sku,
+                      label: p.name,
+                      value: Number(p.revenue),
+                      tone: DONUT_TONES[i] ?? 'fill-muted-foreground',
+                    })),
+                    ...(otherRevenue > 0
+                      ? [
+                          {
+                            id: 'other',
+                            label: t('charts.other'),
+                            value: otherRevenue,
+                            tone: 'fill-muted-foreground',
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </div>
+            </section>
+          )}
+        </div>
+      )}
 
       {orders && orders.data.length > 0 && (
         <section className="rounded-lg border border-border bg-card p-5 shadow-card">

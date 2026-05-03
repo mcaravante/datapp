@@ -1,6 +1,7 @@
 import type { MagentoHttpClient } from './http';
 import {
   MagentoCartSchema,
+  MagentoMaskedIdSchema,
   MagentoSearchResultSchema,
   type MagentoCart,
   type MagentoSearchResult,
@@ -15,6 +16,23 @@ export class MagentoCartsResource {
   async get(cartId: number): Promise<MagentoCart> {
     const raw = await this.http.getJson<unknown>(`/rest/V1/carts/${cartId.toString()}`);
     return MagentoCartSchema.parse(raw);
+  }
+
+  /**
+   * `GET /rest/V1/pupe-abandoned/masked-id/:quoteId` — exposed by the
+   * Pupe_AbandonedCart Magento module. Returns the 32-char alphanumeric
+   * `quote_id_mask` used to build cart-recovery URLs of the form
+   *   {storefront}/pupe_abandoned/cart/restore?token={maskedId}
+   *
+   * Magento returns a bare JSON string (not an object envelope). The Zod
+   * regex below rejects malformed responses defensively. Throws
+   * `MagentoApiError` with status 404 when the quote does not exist.
+   */
+  async getMaskedId(quoteId: number): Promise<string> {
+    const raw = await this.http.getJson<unknown>(
+      `/rest/V1/pupe-abandoned/masked-id/${quoteId.toString()}`,
+    );
+    return MagentoMaskedIdSchema.parse(raw);
   }
 
   /**

@@ -1,13 +1,14 @@
+import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { signOut } from '@/auth';
-import { LocaleToggle } from '@/components/locale-toggle';
-import { ThemeToggle } from '@/components/theme-toggle';
+import type { AdminRole } from '@/lib/types';
 
 interface TopbarProps {
   user: { name?: string | null | undefined; email?: string | null | undefined };
+  role: AdminRole;
 }
 
-export async function Topbar({ user }: TopbarProps): Promise<React.ReactElement> {
+export async function Topbar({ user, role }: TopbarProps): Promise<React.ReactElement> {
   const t = await getTranslations('app');
 
   async function logoutAction(): Promise<void> {
@@ -18,18 +19,27 @@ export async function Topbar({ user }: TopbarProps): Promise<React.ReactElement>
   const display = user.name ?? user.email ?? 'Account';
   const initials = (display.match(/[A-Za-z]/g) ?? ['?']).slice(0, 2).join('').toUpperCase();
 
+  // Tenant badge is only meaningful for super_admins, who can impersonate
+  // across tenants. Everyone else is bound to a single tenant for the
+  // life of their account, so the indicator is just visual noise.
+  const showTenantBadge = role === 'super_admin';
+
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
-          {t('tenant')}: <span className="text-foreground">acme</span>
-        </span>
+        {showTenantBadge && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+            {t('tenant')}: <span className="text-foreground">acme</span>
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-3">
-        <LocaleToggle />
-        <ThemeToggle />
-        <div className="hidden items-center gap-2 sm:flex">
+        <Link
+          href="/account"
+          className="hidden items-center gap-2 rounded-full px-2 py-0.5 transition hover:bg-muted sm:inline-flex"
+          title={t('myAccount')}
+        >
           <span
             className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary"
             aria-hidden="true"
@@ -37,7 +47,7 @@ export async function Topbar({ user }: TopbarProps): Promise<React.ReactElement>
             {initials}
           </span>
           <span className="text-sm text-muted-foreground">{display}</span>
-        </div>
+        </Link>
         <form action={logoutAction}>
           <button
             type="submit"

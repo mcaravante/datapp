@@ -1,6 +1,15 @@
 import { z } from 'zod';
 
 /**
+ * Currency selector for revenue-bearing analytics endpoints. `ars` is
+ * the natural unit (Magento stores prices in pesos); `usd` triggers a
+ * per-day join against `currency_rate` and converts via the average of
+ * Bluelytics buy/sell at order date.
+ */
+export const CurrencyFilter = z.enum(['ars', 'usd']);
+export type CurrencyFilter = z.infer<typeof CurrencyFilter>;
+
+/**
  * Common date range query for analytics endpoints. `to` is exclusive
  * (`< to`). Default: last 30 days ending now.
  */

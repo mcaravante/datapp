@@ -18,6 +18,16 @@ export const QUEUES = {
   analyticsRfmNightly: 'analytics.rfm.nightly',
   /** Periodic refresh of the abandoned_cart snapshot. */
   cartsAbandonedSync: 'carts.abandoned.sync',
+  /** Phase 3: scans active campaigns for stages whose `delayHours` has
+   *  elapsed and enqueues `emailRecoveryPrepare` jobs. */
+  emailRecoverySchedule: 'email.recovery.schedule',
+  /** Phase 3: builds an `EmailSend` row (resolves coupon, masked id,
+   *  recovery URL, render context) and enqueues `emailSend`. */
+  emailRecoveryPrepare: 'email.recovery.prepare',
+  /** Phase 3: hands the prepared `EmailSend` row to Resend. */
+  emailSend: 'email.send',
+  /** Phase 3: processes Resend webhook events (delivered/bounced/...). */
+  emailEventsResend: 'email.events.resend',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

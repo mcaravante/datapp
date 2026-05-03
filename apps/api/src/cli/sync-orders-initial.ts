@@ -66,7 +66,10 @@ export async function runSyncOrdersInitial(
       pageSize,
       sortOrders: [{ field: 'updated_at', direction: 'ASC' }],
     })) {
-      const result = await sync.upsert({ tenantId: tenant.id, magentoStoreId: store.id }, raw);
+      const result = await sync.upsert(
+        { tenantId: tenant.id, magentoStoreId: store.id, defaultCountry: store.defaultCountry },
+        raw,
+      );
       if (result.created) created += 1;
       else updated += 1;
       processed += 1;

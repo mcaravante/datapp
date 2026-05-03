@@ -5,6 +5,21 @@ const isoDate = z
   .datetime({ offset: true })
   .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
 
+/**
+ * Whitelisted sort fields for `/orders`. Anything not in this set is
+ * coerced back to the default — protects the indexed orderBy from
+ * being driven by arbitrary input.
+ */
+export const OrderSortField = z.enum([
+  'placed_at',
+  'grand_total',
+  'magento_order_number',
+  'customer_email',
+  'status',
+  'item_count',
+]);
+export type OrderSortField = z.infer<typeof OrderSortField>;
+
 export const ListOrdersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -23,6 +38,10 @@ export const ListOrdersQuerySchema = z.object({
   from: isoDate.optional(),
   /** Exclusive upper bound on placed_at. */
   to: isoDate.optional(),
+  /** CDP region id (Int autoincrement, see `region` table). */
+  region: z.coerce.number().int().positive().optional(),
+  sort: OrderSortField.default('placed_at'),
+  dir: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export type ListOrdersQuery = z.infer<typeof ListOrdersQuerySchema>;

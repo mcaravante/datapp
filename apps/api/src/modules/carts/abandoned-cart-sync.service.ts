@@ -6,33 +6,45 @@ import { MagentoClientFactory } from '../magento/magento-client.factory';
 import { MagentoStoreService } from '../magento/magento-store.service';
 
 /**
- * The Magento search returns carts ordered by updated_at DESC. We pull
- * carts whose `updated_at` is older than this window — anything fresher
- * is still in active use and the UI doesn't surface it as abandoned. A
- * generous minimum (30 minutes) keeps the table small enough to be
- * filtered in the UI by any threshold the operator picks.
+ * A cart is considered abandoned once Magento hasn't touched it for
+ * this many minutes. Anything fresher is still in active use and is
+ * skipped by the sweep.
  */
-const MIN_IDLE_MINUTES = 30;
+const ABANDON_THRESHOLD_MINUTES = 24 * 60; // 24h
 
-/** Pull at most this many carts per sweep. Hard cap to keep run time bounded. */
+/**
+ * Carts in `open` that disappear from Magento and have no matching
+ * order recovery beyond this window are considered lost permanently
+ * (`expired`). Phase 3 nudge campaigns will use this to stop targeting
+ * them.
+ */
+const EXPIRY_WINDOW_DAYS = 30;
+
+/** Hard cap on how many carts we ingest in a single sweep. */
 const MAX_CARTS_PER_SWEEP = 5_000;
 
 const PAGE_SIZE = 100;
 
 export interface AbandonedCartSyncResult {
   fetched: number;
-  upserted: number;
-  removed: number;
+  inserted: number;
+  updated: number;
+  recovered: number;
+  expired: number;
+  purged: number;
   durationMs: number;
 }
 
 /**
- * Pulls active Magento carts whose `updated_at` is older than
- * `MIN_IDLE_MINUTES` and snapshots them into `abandoned_cart`. Carts
- * that no longer come back from Magento (converted to orders, deleted,
- * emptied) are dropped from the table. The admin UI reads from this
- * table only — no live round-trip — so /carts is fast and resilient
- * to Magento downtime.
+ * State machine for the `abandoned_cart` table:
+ *
+ *   open ──(matching order placed)──▶ recovered
+ *   open ──(disappears, age > 30d)─▶ expired
+ *   open ──(disappears, age ≤ 30d)─▶ purged
+ *
+ * Terminal states (recovered / expired / purged) are never reverted.
+ * The sweep is fully idempotent — safe to run from the BullMQ cron and
+ * the one-shot CLI without coordination.
  */
 @Injectable()
 export class AbandonedCartSyncService {
@@ -44,10 +56,6 @@ export class AbandonedCartSyncService {
     private readonly factory: MagentoClientFactory,
   ) {}
 
-  /**
-   * Sweep abandoned carts for one tenant + store. Idempotent: safe to
-   * run as cron every N minutes and as a one-shot CLI.
-   */
   async sweepStore(tenantId: string, storeName?: string): Promise<AbandonedCartSyncResult> {
     const startedAt = Date.now();
     const store = storeName
@@ -56,13 +64,17 @@ export class AbandonedCartSyncService {
     const client = this.factory.forStore(store);
 
     const now = new Date();
-    const cutoff = new Date(now.getTime() - MIN_IDLE_MINUTES * 60_000);
+    const cutoff = new Date(now.getTime() - ABANDON_THRESHOLD_MINUTES * 60_000);
     const cutoffMagento = formatMagentoDate(cutoff);
 
     let fetched = 0;
-    let upserted = 0;
-    const seenCartIds: number[] = [];
+    let inserted = 0;
+    let updated = 0;
+    const seenCartIds = new Set<number>();
 
+    // Phase 1: pull every active Magento cart that has been idle past
+    // the threshold and either insert (new abandonment) or refresh
+    // totals (existing open row).
     for (let page = 1; ; page += 1) {
       const result = await client.carts.search({
         pageSize: PAGE_SIZE,
@@ -78,22 +90,16 @@ export class AbandonedCartSyncService {
       if (result.items.length === 0) break;
       fetched += result.items.length;
 
-      const magentoCustomerIds = uniqueDefined(
+      const profilesByMagentoId = await this.lookupCustomerProfiles(
+        tenantId,
         result.items.map((c) => extractMagentoCustomerId(c)),
       );
-      const profilesByMagentoId = new Map<string, string>();
-      if (magentoCustomerIds.length > 0) {
-        const profiles = await this.prisma.customerProfile.findMany({
-          where: { tenantId, magentoCustomerId: { in: magentoCustomerIds.map(String) } },
-          select: { id: true, magentoCustomerId: true },
-        });
-        for (const p of profiles) profilesByMagentoId.set(p.magentoCustomerId, p.id);
-      }
 
       for (const cart of result.items) {
-        await this.upsertCart(tenantId, store.id, cart, profilesByMagentoId);
-        upserted += 1;
-        seenCartIds.push(cart.id);
+        const outcome = await this.upsertOpenCart(tenantId, store.id, cart, profilesByMagentoId);
+        if (outcome === 'inserted') inserted += 1;
+        else if (outcome === 'updated') updated += 1;
+        seenCartIds.add(cart.id);
       }
 
       if (result.items.length < PAGE_SIZE) break;
@@ -105,36 +111,148 @@ export class AbandonedCartSyncService {
       }
     }
 
-    // Drop rows that didn't come back this sweep (cart converted to
-    // order, deleted, or aged past whatever Magento search returns).
-    const deleted = await this.prisma.abandonedCart.deleteMany({
-      where: {
-        tenantId,
-        magentoStoreId: store.id,
-        ...(seenCartIds.length > 0 ? { magentoCartId: { notIn: seenCartIds } } : {}),
-      },
+    // Phase 2: transition `open` rows that no longer come back from
+    // Magento. Try to recover via `order.magento_quote_id`; otherwise
+    // expire (older than the window) or purge (younger).
+    const openRows = await this.prisma.abandonedCart.findMany({
+      where: { tenantId, magentoStoreId: store.id, status: 'open' },
+      select: { id: true, magentoCartId: true, abandonedAt: true, grandTotal: true },
     });
+
+    let recovered = 0;
+    let expired = 0;
+    let purged = 0;
+
+    const expiryCutoff = new Date(now.getTime() - EXPIRY_WINDOW_DAYS * 24 * 60 * 60_000);
+
+    // Subset that needs terminal resolution: open rows that didn't come
+    // back from Magento. Skip the rest in a single pass.
+    const disappeared = openRows.filter((r) => !seenCartIds.has(r.magentoCartId));
+
+    if (disappeared.length > 0) {
+      // Batch lookup: one query for all candidate orders. Indexed by
+      // (tenant_id, magento_store_id, magento_quote_id), so this is a
+      // single index scan regardless of the open-set size.
+      const candidateOrders = await this.prisma.order.findMany({
+        where: {
+          tenantId,
+          magentoStoreId: store.id,
+          magentoQuoteId: { in: disappeared.map((r) => String(r.magentoCartId)) },
+        },
+        select: {
+          id: true,
+          magentoQuoteId: true,
+          realRevenue: true,
+          grandTotal: true,
+          placedAt: true,
+        },
+        orderBy: { placedAt: 'asc' },
+      });
+
+      // Group by quote_id and keep the earliest order per cart that
+      // post-dates the abandonment (matches the previous semantics).
+      const ordersByQuote = new Map<
+        string,
+        { id: string; realRevenue: Prisma.Decimal | null; grandTotal: Prisma.Decimal; placedAt: Date }
+      >();
+      for (const o of candidateOrders) {
+        if (!o.magentoQuoteId) continue;
+        if (!ordersByQuote.has(o.magentoQuoteId)) {
+          ordersByQuote.set(o.magentoQuoteId, {
+            id: o.id,
+            realRevenue: o.realRevenue,
+            grandTotal: o.grandTotal,
+            placedAt: o.placedAt,
+          });
+        }
+      }
+
+      for (const row of disappeared) {
+        const order = ordersByQuote.get(String(row.magentoCartId));
+        if (order && order.placedAt.getTime() >= row.abandonedAt.getTime()) {
+          const recoveredAmount =
+            order.realRevenue !== null && order.realRevenue.gt(0)
+              ? order.realRevenue
+              : order.grandTotal;
+          await this.prisma.abandonedCart.update({
+            where: { id: row.id },
+            data: {
+              status: 'recovered',
+              recoveredAt: order.placedAt,
+              recoveredByOrderId: order.id,
+              recoveredAmount,
+              syncedAt: now,
+            },
+          });
+          recovered += 1;
+          continue;
+        }
+
+        if (row.abandonedAt.getTime() < expiryCutoff.getTime()) {
+          await this.prisma.abandonedCart.update({
+            where: { id: row.id },
+            data: { status: 'expired', expiredAt: now, syncedAt: now },
+          });
+          expired += 1;
+        } else {
+          await this.prisma.abandonedCart.update({
+            where: { id: row.id },
+            data: { status: 'purged', expiredAt: now, syncedAt: now },
+          });
+          purged += 1;
+        }
+      }
+    }
 
     const durationMs = Date.now() - startedAt;
     this.logger.log(
-      `Sweep tenant=${tenantId} store=${store.name}: fetched=${fetched} upserted=${upserted} removed=${deleted.count} durationMs=${durationMs}`,
+      `Sweep tenant=${tenantId} store=${store.name}: fetched=${fetched} inserted=${inserted} updated=${updated} recovered=${recovered} expired=${expired} purged=${purged} durationMs=${durationMs}`,
     );
-    return { fetched, upserted, removed: deleted.count, durationMs };
+    return { fetched, inserted, updated, recovered, expired, purged, durationMs };
   }
 
-  private async upsertCart(
+  private async lookupCustomerProfiles(
+    tenantId: string,
+    candidates: (number | null)[],
+  ): Promise<Map<string, string>> {
+    const ids = uniqueDefined(candidates);
+    if (ids.length === 0) return new Map();
+    const profiles = await this.prisma.customerProfile.findMany({
+      where: { tenantId, magentoCustomerId: { in: ids.map(String) } },
+      select: { id: true, magentoCustomerId: true },
+    });
+    const out = new Map<string, string>();
+    for (const p of profiles) out.set(p.magentoCustomerId, p.id);
+    return out;
+  }
+
+  private async upsertOpenCart(
     tenantId: string,
     storeId: string,
     cart: MagentoCart,
     profilesByMagentoId: Map<string, string>,
-  ): Promise<void> {
+  ): Promise<'inserted' | 'updated' | 'skipped'> {
+    const existing = await this.prisma.abandonedCart.findUnique({
+      where: {
+        tenantId_magentoStoreId_magentoCartId: {
+          tenantId,
+          magentoStoreId: storeId,
+          magentoCartId: cart.id,
+        },
+      },
+      select: { id: true, status: true },
+    });
+
+    // Already terminal: keep the historical record untouched. (A cart
+    // id won't be reissued by Magento; this is mostly defensive.)
+    if (existing && existing.status !== 'open') return 'skipped';
+
     const magentoId = extractMagentoCustomerId(cart);
     const customerProfileId =
       magentoId !== null ? (profilesByMagentoId.get(String(magentoId)) ?? null) : null;
-    const data = {
-      tenantId,
-      magentoStoreId: storeId,
-      magentoCartId: cart.id,
+    const now = new Date();
+
+    const snapshot = {
       customerProfileId,
       magentoCustomerId: magentoId !== null ? String(magentoId) : null,
       customerEmail: extractEmail(cart),
@@ -147,20 +265,28 @@ export class AbandonedCartSyncService {
       currencyCode: pickCurrency(cart),
       magentoCreatedAt: parseUtc(cart.created_at),
       magentoUpdatedAt: parseUtc(cart.updated_at),
-      syncedAt: new Date(),
+      syncedAt: now,
     };
 
-    await this.prisma.abandonedCart.upsert({
-      where: {
-        tenantId_magentoStoreId_magentoCartId: {
-          tenantId,
-          magentoStoreId: storeId,
-          magentoCartId: cart.id,
-        },
+    if (existing) {
+      await this.prisma.abandonedCart.update({
+        where: { id: existing.id },
+        data: snapshot,
+      });
+      return 'updated';
+    }
+
+    await this.prisma.abandonedCart.create({
+      data: {
+        tenantId,
+        magentoStoreId: storeId,
+        magentoCartId: cart.id,
+        abandonedAt: now,
+        status: 'open',
+        ...snapshot,
       },
-      create: data,
-      update: data,
     });
+    return 'inserted';
   }
 }
 

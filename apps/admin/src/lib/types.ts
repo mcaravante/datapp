@@ -90,6 +90,102 @@ export interface KpiBlock {
   repeat_purchase_rate: number;
 }
 
+export interface RevenueTimePoint {
+  bucket: string;
+  revenue: string;
+  orders: number;
+}
+
+export interface RevenueTimeseriesResponse {
+  range: { from: string; to: string };
+  previous_range: { from: string; to: string };
+  granularity: 'day' | 'week' | 'month';
+  current: RevenueTimePoint[];
+  previous: RevenueTimePoint[];
+}
+
+export interface AovHistogramBucket {
+  min: string;
+  max: string;
+  orders: number;
+}
+
+export interface AovHistogramResponse {
+  range: { from: string; to: string };
+  total_orders: number;
+  median: string;
+  buckets: AovHistogramBucket[];
+}
+
+export interface YearlyMonthPoint {
+  month: number;
+  revenue: string;
+  orders: number;
+}
+
+export interface YearlyRevenueYear {
+  year: number;
+  total_revenue: string;
+  total_orders: number;
+  months: YearlyMonthPoint[];
+}
+
+export interface YearlyRevenueResponse {
+  years: YearlyRevenueYear[];
+}
+
+export type BreakdownDimension = 'payment_method' | 'shipping_method';
+
+export interface BreakdownRow {
+  key: string;
+  orders: number;
+  revenue: string;
+  share_orders: number;
+  share_revenue: number;
+}
+
+export interface BreakdownResponse {
+  range: { from: string; to: string };
+  dimension: BreakdownDimension;
+  total_orders: number;
+  total_revenue: string;
+  data: BreakdownRow[];
+}
+
+export interface ExcludedEmailRow {
+  id: string;
+  email: string;
+  reason: string | null;
+  added_by: { id: string; email: string; name: string } | null;
+  created_at: string;
+}
+
+export interface ExcludedEmailsResponse {
+  data: ExcludedEmailRow[];
+}
+
+export type MethodKind = 'payment' | 'shipping';
+
+export interface MethodLabelRow {
+  id: string;
+  kind: MethodKind;
+  code: string;
+  title: string;
+  /**
+   * When set, the breakdown reports group this row's orders under
+   * `merge_into_code` instead of `code`. Used to fold legacy Magento
+   * codes (e.g. `mercadopago_basic`) into their renamed canonical
+   * (e.g. `mercadopago_adbpayment_checkout_pro`).
+   */
+  merge_into_code: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MethodLabelsResponse {
+  data: MethodLabelRow[];
+}
+
 export interface KpisResponse {
   range: { from: string; to: string };
   previous_range: { from: string; to: string };
@@ -111,9 +207,12 @@ export interface TopProductRow {
   orders: number;
 }
 
+export type TopProductsSortField = 'revenue' | 'units' | 'orders' | 'sku' | 'name';
+
 export interface TopProductsResponse {
   range: { from: string; to: string };
-  order_by: 'units' | 'revenue';
+  sort: TopProductsSortField;
+  dir: 'asc' | 'desc';
   data: TopProductRow[];
 }
 
@@ -188,7 +287,12 @@ export interface CouponsResponse {
   data: CouponRow[];
 }
 
+export type AbandonedCartStatus = 'open' | 'recovered' | 'expired';
+export type AbandonedCartRange = '7d' | '30d' | '90d' | 'all';
+
 export interface AbandonedCartRow {
+  /** CDP UUID — used in detail-page URLs and admin actions. */
+  id: string;
   cart_id: number;
   customer_id: string | null;
   magento_customer_id: number | null;
@@ -202,20 +306,40 @@ export interface AbandonedCartRow {
   currency_code: string | null;
   created_at: string;
   updated_at: string;
-  minutes_idle: number;
+  abandoned_at: string;
+  status: AbandonedCartStatus;
+  recovered_at: string | null;
+  recovered_by_order_id: string | null;
+  recovered_amount: string | null;
+  expired_at: string | null;
+  /** Minutes since `abandoned_at` (open) or until recovery (recovered). */
+  age_minutes: number;
+}
+
+export interface AbandonedCartRecoveryKpis {
+  window_days: number;
+  carts_open: number;
+  carts_recovered: number;
+  carts_expired: number;
+  recovered_revenue: string;
+  open_at_risk: string;
+  recovery_rate: number | null;
 }
 
 export interface AbandonedCartsResponse {
   generated_at: string;
-  threshold_minutes: number;
-  /** When the cron last refreshed the snapshot (null if never synced). */
+  status: AbandonedCartStatus;
+  range: AbandonedCartRange;
+  /** When the cron last touched any row for this tenant (null if never synced). */
   last_synced_at: string | null;
   totals: {
     carts: number;
     items_qty: number;
     grand_total: string;
     recoverable_customers: number;
+    recovered_revenue: string;
   };
+  kpis: AbandonedCartRecoveryKpis;
   data: AbandonedCartRow[];
 }
 
@@ -496,3 +620,104 @@ export interface OrderDetail extends OrderListItem {
   attributes: Record<string, unknown>;
   magento_updated_at: string;
 }
+
+
+// =====================================================================
+// Phase 3 — Email engine (abandoned-cart recovery vertical)
+// =====================================================================
+
+export type EmailTemplateChannel = 'abandoned_cart' | 'transactional' | 'marketing';
+export type EmailTemplateFormat = 'mjml' | 'html';
+
+export interface EmailTemplateSummary {
+  id: string;
+  channel: EmailTemplateChannel;
+  slug: string;
+  name: string;
+  subject: string;
+  format: EmailTemplateFormat;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailTemplateDetail extends EmailTemplateSummary {
+  body_html: string;
+  body_text: string | null;
+  variables: Record<string, unknown>;
+}
+
+export interface EmailTemplatePreviewResponse {
+  subject: string;
+  html: string;
+  text: string | null;
+}
+
+export type EmailCampaignStatus = 'draft' | 'active' | 'paused' | 'archived';
+export type EmailCampaignTrigger = 'abandoned_cart_stage';
+export type CouponMode = 'none' | 'static_code' | 'unique_code';
+
+export interface EmailCampaignStageDto {
+  id: string;
+  position: number;
+  delay_hours: number;
+  template_id: string;
+  template_slug: string;
+  template_name: string;
+  coupon_mode: CouponMode;
+  coupon_static_code: string | null;
+  magento_sales_rule_id: number | null;
+  coupon_discount: string | null;
+  coupon_discount_type: 'percent' | 'fixed' | null;
+  coupon_ttl_hours: number | null;
+  is_active: boolean;
+}
+
+export interface EmailCampaignSummary {
+  id: string;
+  slug: string;
+  name: string;
+  trigger: EmailCampaignTrigger;
+  status: EmailCampaignStatus;
+  stage_count: number;
+  send_count_30d: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailCampaignDetail extends EmailCampaignSummary {
+  from_email: string | null;
+  reply_to_email: string | null;
+  archived_at: string | null;
+  stages: EmailCampaignStageDto[];
+}
+
+export interface SendHistoryRow {
+  id: string;
+  campaign_id: string;
+  campaign_name: string;
+  stage_position: number;
+  status: string;
+  to_email: string;
+  subject: string;
+  coupon_code: string | null;
+  coupon_source: string | null;
+  recovery_url: string;
+  resend_message_id: string | null;
+  last_event_type: string | null;
+  last_event_at: string | null;
+  scheduled_for: string;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface SendRecoveryResponse {
+  email_send_id: string;
+  status: string;
+  recovery_url: string;
+  coupon_code: string | null;
+  resend_message_id: string | null;
+  error_message: string | null;
+}
+

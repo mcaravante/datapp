@@ -23,12 +23,14 @@ export class AbandonedCartSyncProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<AbandonedCartSyncJobData>): Promise<{ ok: true; carts: number }> {
+  async process(
+    job: Job<AbandonedCartSyncJobData>,
+  ): Promise<{ ok: true; carts: number; recovered: number }> {
     const { tenantId, storeName } = job.data;
     this.logger.log(
       `Abandoned cart sync — tenant=${tenantId} store=${storeName ?? '<first>'} job=${job.id ?? '?'}`,
     );
     const result = await this.sync.sweepStore(tenantId, storeName);
-    return { ok: true, carts: result.upserted };
+    return { ok: true, carts: result.inserted + result.updated, recovered: result.recovered };
   }
 }

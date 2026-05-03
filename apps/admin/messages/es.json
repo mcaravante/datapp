@@ -4,6 +4,7 @@
     "tagline": "Customer Data Platform",
     "tenant": "Tenant",
     "signOut": "Cerrar sesión",
+    "myAccount": "Mi cuenta",
     "version": "v0.1 · Fase 1"
   },
   "nav": {
@@ -12,15 +13,20 @@
     "segments": "Segmentos",
     "orders": "Pedidos",
     "carts": "Carritos abandonados",
+    "campaigns": "Campañas de email",
+    "templates": "Templates de email",
     "products": "Top productos",
     "coupons": "Cupones",
     "regions": "Regiones",
     "insights": "Insights",
+    "reports": "Reportes",
     "sync": "Sincronización",
     "users": "Usuarios",
     "permissions": "Permisos",
     "security": "Seguridad",
-    "audit": "Auditoría"
+    "audit": "Auditoría",
+    "account": "Mi cuenta",
+    "system": "Sistema"
   },
   "common": {
     "search": "Buscar",
@@ -41,7 +47,12 @@
     "all": "Todos",
     "switchToLight": "Cambiar a tema claro",
     "switchToDark": "Cambiar a tema oscuro",
-    "language": "Idioma"
+    "language": "Idioma",
+    "currencyToggle": {
+      "label": "Moneda",
+      "ars": "ARS",
+      "usd": "USD"
+    }
   },
   "presets": {
     "7d": "7 días",
@@ -142,6 +153,26 @@
     },
     "delta": {
       "vs": "vs"
+    },
+    "chart": {
+      "title": "Facturación en el tiempo",
+      "subtitle": "Línea actual contra el período anterior · agrupado por {granularity}.",
+      "yUnit": "ARS",
+      "legendCurrent": "Período actual",
+      "legendPrevious": "Período anterior",
+      "bucket": {
+        "day": "día",
+        "week": "semana"
+      }
+    },
+    "top": {
+      "products": "Top productos",
+      "regions": "Top provincias",
+      "coupons": "Top cupones"
+    },
+    "miniMap": {
+      "title": "Facturación por provincia",
+      "open": "Ver todo"
     }
   },
   "customers": {
@@ -149,6 +180,8 @@
     "onThisPage": "{count} en esta página.",
     "onThisPageOf": "{count} en esta página de {total} totales.",
     "searchPlaceholder": "Buscar email, nombre o apellido…",
+    "groupLabel": "Grupo:",
+    "rfmLabel": "Segmento RFM:",
     "saveAsSegment": "Guardar como segmento",
     "table": {
       "email": "Email",
@@ -163,6 +196,13 @@
   "customerDetail": {
     "back": "← Clientes",
     "subhead": "{fullName} · Magento #{magentoId} · grupo {group}",
+    "charts": {
+      "spend": "Gasto a lo largo del tiempo",
+      "spendSubtitle": "Suma de pedidos por mes (real revenue cuando está disponible).",
+      "skuMix": "Mix de SKUs",
+      "skuMixSubtitle": "Top 5 SKUs por facturación · el resto agrupado.",
+      "other": "Otros"
+    },
     "identity": "Identidad",
     "rfm": "Segmento RFM",
     "rfmCalculated": "calculado {when}",
@@ -234,6 +274,7 @@
     },
     "title": "Segmentos",
     "subtitle": "Segmentos estáticos de clientes. La membresía se snapshotea al crear y se refresca a demanda.",
+    "searchPlaceholder": "Buscar segmento…",
     "newSegment": "Nuevo segmento",
     "table": {
       "name": "Nombre",
@@ -299,6 +340,7 @@
     "onThisPage": "{count} en esta página · ordenados por placed_at desc.",
     "onThisPageOf": "{count} en esta página de {total} totales.",
     "searchPlaceholder": "Buscar # de pedido o email del cliente…",
+    "regionLabel": "Provincia:",
     "statusLabel": "Estado:",
     "statusFilters": {
       "all": "Todos",
@@ -377,9 +419,7 @@
   "products": {
     "title": "Top productos",
     "subtitle": "Agregado por SKU. Los productos configurables padre se filtran automáticamente.",
-    "sortBy": "Ordenar por:",
-    "sortRevenue": "Facturación",
-    "sortUnits": "Unidades",
+    "searchPlaceholder": "Buscar SKU o nombre…",
     "table": {
       "rank": "#",
       "product": "Producto",
@@ -417,6 +457,9 @@
   "regions": {
     "title": "Regiones · Argentina",
     "subtitle": "Clientes + pedidos + facturación por provincia INDEC. Los conteos de clientes son snapshot (independiente del rango); compradores / pedidos / facturación dependen del rango.",
+    "searchPlaceholder": "Buscar provincia…",
+    "hideInactive": "Ocultar sin actividad",
+    "showing": "Mostrando {shown} de {total}",
     "tiles": {
       "customers": "Clientes",
       "buyers": "Compradores en ventana",
@@ -503,6 +546,7 @@
   "coupons": {
     "title": "Cupones",
     "subtitle": "Uso de códigos de cupón en el período. Las reglas automáticas (sin código) se reportan aparte abajo.",
+    "searchPlaceholder": "Buscar código o regla…",
     "tiles": {
       "couponOrders": "Pedidos con cupón",
       "couponRevenue": "Facturación con cupón",
@@ -531,36 +575,59 @@
   },
   "carts": {
     "title": "Carritos abandonados",
-    "subtitle": "Carritos activos con al menos un item, ociosos por al menos {threshold}. Última sincronización: {when}.",
-    "presets": {
-      "1h": "1 hora",
-      "3h": "3 horas",
-      "12h": "12 horas",
-      "1d": "1 día",
-      "7d": "7 días"
+    "subtitle": "Un carrito se considera abandonado luego de 24 h sin actividad. Última sincronización: {when}.",
+    "tabs": {
+      "open": "Abiertos",
+      "recovered": "Recuperados",
+      "expired": "Expirados"
     },
-    "tiles": {
-      "carts": "Carritos",
-      "items": "Items en carritos",
-      "itemsSub": "suma entre todos los carritos",
-      "atRisk": "Facturación en riesgo",
-      "atRiskSub": "grand_total de carritos pendientes",
-      "recoverable": "Recuperables",
-      "recoverableSub": "clientes conocidos (no invitados)"
+    "ranges": {
+      "7d": "Últimos 7 días",
+      "30d": "Últimos 30 días",
+      "90d": "Últimos 90 días",
+      "all": "Histórico"
     },
-    "tableHeading": "Carritos ({count})",
-    "tableSubtitle": "Ordenados por última actividad. La columna Cliente linkea al perfil Datapp cuando el comprador está registrado.",
+    "kpis": {
+      "openNow": "Abiertos",
+      "openNowSub": "carritos vigentes en esta ventana",
+      "openAtRisk": "En riesgo",
+      "openAtRiskSub": "monto total de carritos abiertos",
+      "recovered": "Recuperados",
+      "recoveredSub": "últimos {days} días",
+      "recoveredRevenue": "Ingreso recuperado",
+      "recoveredRevenueSub": "últimos {days} días",
+      "recoveryRate": "Tasa de recuperación",
+      "recoveryRateSub": "recuperados / (recuperados + expirados)",
+      "expired": "Expirados",
+      "expiredSub": "últimos {days} días"
+    },
+    "tableHeading": {
+      "open": "Carritos abiertos ({count})",
+      "recovered": "Carritos recuperados ({count})",
+      "expired": "Carritos expirados ({count})"
+    },
+    "tableSubtitle": {
+      "open": "Ordenados por momento de abandono. La columna Cliente linkea al perfil Datapp cuando el comprador está registrado.",
+      "recovered": "Ordenados por momento de recuperación. El monto refleja el ingreso real (facturado − reembolsado) cuando está disponible.",
+      "expired": "Carritos que cumplieron 30 días sin recuperación. Se mantienen como histórico para análisis."
+    },
     "table": {
       "cart": "Carrito",
       "customer": "Cliente",
       "items": "Items",
       "total": "Total",
-      "lastActivity": "Última actividad",
-      "idle": "Inactivo",
+      "abandonedAt": "Abandonado",
+      "recoveredAt": "Recuperado",
+      "expiredAt": "Expirado",
+      "recoveredAmount": "Monto recuperado",
+      "ageOpen": "Antigüedad",
+      "ageRecovered": "Tiempo a recuperación",
       "noEmail": "(sin email)",
       "guest": "invitado",
       "registered": "registrado",
-      "empty": "No hay carritos abandonados en esta ventana."
+      "emptyOpen": "No hay carritos abandonados en esta ventana.",
+      "emptyRecovered": "Aún no se registraron recuperaciones en esta ventana.",
+      "emptyExpired": "Aún no se registraron carritos expirados en esta ventana."
     }
   },
   "sync": {
@@ -591,6 +658,9 @@
   "users": {
     "title": "Usuarios",
     "subtitle": "Cuentas con acceso al admin de Datapp. Solo los roles {adminRole} y {superAdminRole} pueden gestionar usuarios.",
+    "searchPlaceholder": "Buscar nombre o email…",
+    "roleFilterLabel": "Rol:",
+    "roleFilterAll": "Todos",
     "newUser": "Nuevo usuario",
     "roles": {
       "super_admin": "Super admin",
@@ -705,11 +775,127 @@
       "regenSuccess": "Códigos nuevos generados. Asegurate de guardarlos antes de cerrar la página."
     }
   },
+  "account": {
+    "title": "Mi cuenta",
+    "subtitle": "Tu información personal y preferencias de la interfaz.",
+    "identity": {
+      "title": "Identidad",
+      "name": "Nombre",
+      "email": "Email",
+      "role": "Rol",
+      "security": "Seguridad",
+      "manageSecurity": "Administrar 2FA y sesiones"
+    },
+    "preferences": {
+      "title": "Preferencias",
+      "body": "Estas opciones son personales y se guardan localmente en tu navegador.",
+      "theme": "Tema",
+      "themeHint": "Claro u oscuro.",
+      "language": "Idioma",
+      "languageHint": "Idioma de la interfaz."
+    }
+  },
+  "system": {
+    "title": "Sistema",
+    "subtitle": "Operaciones a nivel del CDP. El refresh de caché afecta a todo el tenant.",
+    "cache": {
+      "title": "Caché",
+      "body": "Después de un sync manual, o si los datos parecen viejos, refrescá para regenerar los reportes pesados (insights, regiones, top productos, cupones) en la próxima visita."
+    },
+    "refreshButton": {
+      "idle": "Refrescar caché",
+      "pending": "Refrescando…",
+      "done": "Listo · {ms}ms · {at}"
+    },
+    "methodLabels": {
+      "title": "Etiquetas de métodos de pago y envío",
+      "body": "Magento usa códigos técnicos (mercadopago_basic, banktransfer). Acá podés mapearlos a nombres amigables para que tu cliente los reconozca en los reportes. El código lo encontrás en el detalle de cualquier pedido.",
+      "kindLabel": "Tipo",
+      "kinds": { "payment": "Pago", "shipping": "Envío" },
+      "codeLabel": "Código",
+      "codePlaceholder": "mercadopago_basic",
+      "titleLabel": "Título amigable",
+      "titlePlaceholder": "Mercado Pago (Débito | Crédito | Dinero en cuenta)",
+      "mergeIntoLabel": "Unificar bajo (opcional)",
+      "mergeIntoPlaceholder": "mercadopago_adbpayment_checkout_pro",
+      "mergeIntoHint": "Dejá vacío para etiquetas normales. Completá para unificar un código viejo bajo el canónico.",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "clear": "Limpiar",
+      "table": {
+        "kind": "Tipo",
+        "code": "Código",
+        "title": "Título",
+        "mergeInto": "Unificar bajo",
+        "edit": "Editar",
+        "remove": "Quitar",
+        "empty": "Todavía no hay etiquetas configuradas."
+      }
+    },
+    "excluded": {
+      "title": "Emails excluidos de los reportes",
+      "body": "Los pedidos cuyo email del cliente coincida con esta lista se descartan de todos los reportes y métricas (KPIs, regiones, top productos, cohortes, ticket, etc.). Útil para no contaminar las cifras con pedidos de prueba.",
+      "emailLabel": "Email o dominio",
+      "emailPlaceholder": "tu-email@dominio.com  o  @dominio.com",
+      "emailHint": "Empezá con @ para excluir todo un dominio (ej: @pupemoda.com.ar).",
+      "reasonLabel": "Motivo (opcional)",
+      "reasonPlaceholder": "Ej: cuenta de prueba",
+      "add": "Agregar",
+      "adding": "Agregando…",
+      "table": {
+        "email": "Email",
+        "reason": "Motivo",
+        "addedBy": "Agregado por",
+        "remove": "Quitar",
+        "empty": "Todavía no hay emails excluidos."
+      }
+    }
+  },
+  "reports": {
+    "title": "Reportes",
+    "subtitle": "Comparativos year-over-year y distribución del ticket.",
+    "yoy": {
+      "title": "Facturación mensual por año",
+      "subtitle": "Una línea por año, alineadas mes contra mes. El año más reciente queda en color primario.",
+      "empty": "Todavía no hay pedidos sincronizados.",
+      "yearLabel": "Año",
+      "totalLabel": "Total"
+    },
+    "yoyOrders": {
+      "title": "Cantidad de pedidos mensual por año",
+      "subtitle": "Mismo eje temporal y misma asignación de color por año. La leyenda muestra el total anual."
+    },
+    "histogram": {
+      "title": "Distribución de ticket",
+      "subtitle": "{total} pedidos del año. La mediana ({median}) está marcada en la línea naranja."
+    },
+    "breakdown": {
+      "payment": {
+        "title": "Pedidos por método de pago",
+        "subtitle": "Distribución del año actual."
+      },
+      "shipping": {
+        "title": "Pedidos por método de envío",
+        "subtitle": "Distribución del año actual."
+      },
+      "other": "Otros",
+      "noData": "No hay datos disponibles para esta dimensión en los pedidos sincronizados. Pegale un re-sync desde Magento para refrescar.",
+      "table": {
+        "method": "Método",
+        "orders": "Pedidos",
+        "revenue": "Facturación",
+        "share": "%"
+      }
+    }
+  },
   "audit": {
     "title": "Auditoría",
     "subtitle": "Eventos sensibles de seguridad — login, lockouts, password reset, cambios en 2FA y revocación de sesiones. Hay que conservar este historial para forensia.",
     "filter": "Filtrar por evento",
     "allActions": "Todos",
+    "allEntities": "Todas las entidades",
+    "searchPlaceholder": "Buscar email, IP o ID…",
+    "shownOnPage": "{shown} de {total} en esta página",
     "next": "Siguiente",
     "table": {
       "when": "Cuándo",

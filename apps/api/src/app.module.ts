@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type DynamicModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -19,10 +19,30 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { CartsModule } from './modules/carts/carts.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { CurrencyRatesModule } from './modules/currency-rates/currency-rates.module';
 import { SegmentsModule } from './modules/segments/segments.module';
 import { RfmModule } from './modules/rfm/rfm.module';
 import { HealthModule } from './modules/health/health.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { EmailModule } from './modules/email/email.module';
+import { EmailSuppressionModule } from './modules/email-suppression/email-suppression.module';
+import { CouponStrategyModule } from './modules/coupon-strategy/coupon-strategy.module';
+import { AbandonedCartRecoveryModule } from './modules/abandoned-cart-recovery/abandoned-cart-recovery.module';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
+
+// Phase 3 — abandoned-cart recovery vertical. Loaded only when the
+// engine is opted in (default off). See docs/adr/0007.
+function emailEngineModules(): (DynamicModule | typeof EmailModule)[] {
+  const enabled = process.env['EMAIL_ENGINE_ENABLED'] === 'true';
+  if (!enabled) return [];
+  return [
+    EmailSuppressionModule,
+    EmailModule,
+    CouponStrategyModule,
+    AbandonedCartRecoveryModule,
+    CampaignsModule,
+  ];
+}
 
 @Module({
   imports: [
@@ -72,11 +92,13 @@ import { SyncModule } from './modules/sync/sync.module';
     CustomersModule,
     OrdersModule,
     CartsModule,
+    CurrencyRatesModule,
     AnalyticsModule,
     SegmentsModule,
     RfmModule,
     HealthModule,
     SyncModule,
+    ...emailEngineModules(),
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

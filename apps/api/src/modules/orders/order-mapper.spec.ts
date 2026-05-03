@@ -1,10 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { mapOrder } from './order-mapper';
 import type { MagentoOrder } from '@datapp/magento-client';
+import type { RegionResolverService } from '../geo/region-resolver.service';
+
+/**
+ * Minimal fake — `mapOrder` only calls `.resolve()`. Returning a fixed
+ * region keeps tests focused on mapping logic; the resolver itself has
+ * its own unit tests.
+ */
+const fakeResolver = {
+  resolve: (_country: string, raw: unknown) => {
+    const name =
+      typeof raw === 'string'
+        ? raw
+        : raw && typeof raw === 'object' && typeof (raw as { region?: unknown }).region === 'string'
+          ? (raw as { region: string }).region
+          : null;
+    return name === 'Buenos Aires'
+      ? { regionId: 27, canonicalName: 'Buenos Aires' }
+      : { regionId: null, canonicalName: null };
+  },
+} as unknown as RegionResolverService;
+
+const map = (raw: MagentoOrder) => mapOrder(raw, fakeResolver, 'AR');
 
 const baseOrder: MagentoOrder = {
   entity_id: 1234,
   increment_id: '1000026840',
+  quote_id: 9876,
   customer_id: 42,
   customer_email: 'JANE.Doe@Example.COM',
   status: 'processing',
@@ -56,23 +79,43 @@ const baseOrder: MagentoOrder = {
 
 describe('mapOrder', () => {
   it('maps the canonical fields', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.magentoOrderId).toBe('1234');
     expect(m.magentoOrderNumber).toBe('1000026840');
+    expect(m.magentoQuoteId).toBe('9876');
     expect(m.magentoCustomerId).toBe('42');
     expect(m.status).toBe('processing');
     expect(m.state).toBe('processing');
     expect(m.currencyCode).toBe('ARS');
   });
 
+  it('returns null quote_id when missing', () => {
+    const { quote_id: _omit, ...withoutQuote } = baseOrder;
+    const m = map(withoutQuote as MagentoOrder);
+    expect(m.magentoQuoteId).toBeNull();
+  });
+
+  it('resolves region from billing when shipping is missing', () => {
+    const m = map(baseOrder);
+    expect(m.regionId).toBe(27); // resolver matches "Buenos Aires"
+  });
+
+  it('returns null regionId when no address has a known region', () => {
+    const m = map({
+      ...baseOrder,
+      billing_address: { ...baseOrder.billing_address!, region: 'Atlantis' },
+    });
+    expect(m.regionId).toBeNull();
+  });
+
   it('lowercases email and computes sha256 hash', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.customerEmail).toBe('jane.doe@example.com');
     expect(m.customerEmailHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('serializes money as strings (Decimal-safe)', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.subtotal).toBe('100000');
     expect(m.totalTax).toBe('21000');
     expect(m.grandTotal).toBe('124000');
@@ -81,13 +124,13 @@ describe('mapOrder', () => {
   });
 
   it('parses Magento timestamps as UTC', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.placedAt.toISOString()).toBe('2024-01-15T10:00:00.000Z');
     expect(m.magentoUpdatedAt.toISOString()).toBe('2024-01-15T10:05:00.000Z');
   });
 
   it('maps order items with quantities + row totals', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.items).toHaveLength(1);
     const item = m.items[0]!;
     expect(item.magentoOrderItemId).toBe('5001');
@@ -99,7 +142,7 @@ describe('mapOrder', () => {
   });
 
   it('counts items and unique SKUs', () => {
-    const m = mapOrder({
+    const m = map({
       ...baseOrder,
       items: [
         ...baseOrder.items,
@@ -117,7 +160,7 @@ describe('mapOrder', () => {
   });
 
   it('captures status history sorted by Magento order, parsing dates', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.statusHistory).toHaveLength(2);
     expect(m.statusHistory[0]!.status).toBe('pending');
     expect(m.statusHistory[0]!.createdAt.toISOString()).toBe('2024-01-15T10:00:00.000Z');
@@ -125,7 +168,7 @@ describe('mapOrder', () => {
   });
 
   it('extracts shipping address from extension_attributes', () => {
-    const m = mapOrder({
+    const m = map({
       ...baseOrder,
       extension_attributes: {
         shipping_assignments: [
@@ -153,26 +196,26 @@ describe('mapOrder', () => {
   });
 
   it('captures payment method and shipping method', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.paymentMethod).toBe('mercadopago_custom');
     expect(m.shippingMethod).toBe('tablerate_bestway');
   });
 
   it('captures the customer IP', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m.ipAddress).toBe('190.16.42.7');
   });
 
   it('treats guest orders (no customer_id) gracefully', () => {
     const guest: MagentoOrder = { ...baseOrder };
     delete (guest as { customer_id?: unknown }).customer_id;
-    const m = mapOrder(guest);
+    const m = map(guest);
     expect(m.magentoCustomerId).toBeNull();
     expect(m.customerEmail).toBe('jane.doe@example.com');
   });
 
   it('omits real_revenue from the mapped output (it is a generated DB column)', () => {
-    const m = mapOrder(baseOrder);
+    const m = map(baseOrder);
     expect(m).not.toHaveProperty('realRevenue');
     expect(m).not.toHaveProperty('real_revenue');
   });
@@ -183,7 +226,7 @@ describe('mapOrder', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       magento_custom_field: 'some value',
     } as MagentoOrder & { magento_custom_field: string };
-    const m = mapOrder(withUnknown);
+    const m = map(withUnknown);
     expect(m.attributes['magento_custom_field']).toBe('some value');
     expect(m.attributes).not.toHaveProperty('items');
     expect(m.attributes).not.toHaveProperty('billing_address');

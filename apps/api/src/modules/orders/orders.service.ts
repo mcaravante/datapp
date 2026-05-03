@@ -1,7 +1,30 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
-import type { ListOrdersQuery } from './dto/list-orders.query';
+import type { ListOrdersQuery, OrderSortField } from './dto/list-orders.query';
+
+/**
+ * Map whitelisted sort fields from the DTO to Prisma column names. Any
+ * field not in this map is unreachable thanks to the Zod enum guard.
+ */
+const ORDER_SORT_COLUMN: Record<OrderSortField, keyof Prisma.OrderOrderByWithRelationInput> = {
+  placed_at: 'placedAt',
+  grand_total: 'grandTotal',
+  magento_order_number: 'magentoOrderNumber',
+  customer_email: 'customerEmail',
+  status: 'status',
+  item_count: 'itemCount',
+};
+
+function buildOrderBy(
+  sort: OrderSortField,
+  dir: 'asc' | 'desc',
+): Prisma.OrderOrderByWithRelationInput[] {
+  const column = ORDER_SORT_COLUMN[sort];
+  // Always tiebreak by id desc — keeps pagination stable when the
+  // primary sort has duplicates (common on `status`, `customer_email`).
+  return [{ [column]: dir } as Prisma.OrderOrderByWithRelationInput, { id: 'desc' }];
+}
 
 export interface OrderListItem {
   id: string;
@@ -93,6 +116,7 @@ export class OrdersService {
       where.couponCode = { equals: query.coupon_code, mode: 'insensitive' };
     }
     if (query.status && query.status.length > 0) where.status = { in: query.status };
+    if (query.region !== undefined) where.regionId = query.region;
     if (query.from || query.to) {
       where.placedAt = {};
       if (query.from) where.placedAt.gte = new Date(query.from);
@@ -201,6 +225,7 @@ export class OrdersService {
       where.couponCode = { equals: query.coupon_code, mode: 'insensitive' };
     }
     if (query.status && query.status.length > 0) where.status = { in: query.status };
+    if (query.region !== undefined) where.regionId = query.region;
     if (query.from || query.to) {
       where.placedAt = {};
       if (query.from) where.placedAt.gte = new Date(query.from);
@@ -208,11 +233,12 @@ export class OrdersService {
     }
 
     const skip = (query.page - 1) * query.limit;
+    const orderBy = buildOrderBy(query.sort, query.dir);
 
     const [rows, totalCount] = await Promise.all([
       this.prisma.order.findMany({
         where,
-        orderBy: [{ placedAt: 'desc' }, { id: 'desc' }],
+        orderBy,
         skip,
         take: query.limit,
         select: {

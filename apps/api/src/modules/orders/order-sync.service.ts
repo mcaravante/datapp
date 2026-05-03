@@ -2,18 +2,23 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@datapp/db';
 import type { MagentoOrder } from '@datapp/magento-client';
 import { PrismaService } from '../../db/prisma.service';
+import { RegionResolverService } from '../geo/region-resolver.service';
 import { mapOrder, type MappedOrder, type MappedOrderItem } from './order-mapper';
 
 export interface OrderSyncContext {
   tenantId: string;
   magentoStoreId: string;
+  defaultCountry: string;
 }
 
 @Injectable()
 export class OrderSyncService {
   private readonly logger = new Logger(OrderSyncService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly regions: RegionResolverService,
+  ) {}
 
   /**
    * Idempotent upsert of one Magento order. Items + status history are
@@ -27,7 +32,7 @@ export class OrderSyncService {
     ctx: OrderSyncContext,
     raw: MagentoOrder,
   ): Promise<{ id: string; created: boolean }> {
-    const m = mapOrder(raw);
+    const m = mapOrder(raw, this.regions, ctx.defaultCountry);
 
     return this.prisma.$transaction(async (tx) => {
       // Resolve the customer FK with two fallbacks so order sync is resilient
@@ -113,6 +118,8 @@ function orderCreateData(
     magentoStoreId: ctx.magentoStoreId,
     magentoOrderId: m.magentoOrderId,
     magentoOrderNumber: m.magentoOrderNumber,
+    magentoQuoteId: m.magentoQuoteId,
+    regionId: m.regionId,
     customerProfileId,
     customerEmail: m.customerEmail,
     customerEmailHash: m.customerEmailHash,
@@ -151,6 +158,8 @@ function orderUpdateData(
 ): Prisma.OrderUncheckedUpdateInput {
   return {
     magentoOrderNumber: m.magentoOrderNumber,
+    magentoQuoteId: m.magentoQuoteId,
+    regionId: m.regionId,
     customerProfileId,
     customerEmail: m.customerEmail,
     customerEmailHash: m.customerEmailHash,

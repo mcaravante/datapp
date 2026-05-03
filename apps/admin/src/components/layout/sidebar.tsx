@@ -11,15 +11,20 @@ type NavLabelKey =
   | 'segments'
   | 'orders'
   | 'carts'
+  | 'campaigns'
+  | 'templates'
   | 'products'
   | 'coupons'
   | 'regions'
   | 'insights'
+  | 'reports'
   | 'sync'
   | 'users'
   | 'permissions'
   | 'security'
-  | 'audit';
+  | 'audit'
+  | 'account'
+  | 'system';
 
 interface NavItem {
   href: string;
@@ -75,6 +80,18 @@ const NAV: readonly NavItem[] = [
     section: 'carts',
   },
   {
+    href: '/campaigns',
+    labelKey: 'campaigns',
+    icon: MailIcon,
+    match: (p) => p.startsWith('/campaigns'),
+  },
+  {
+    href: '/templates',
+    labelKey: 'templates',
+    icon: FileTextIcon,
+    match: (p) => p.startsWith('/templates'),
+  },
+  {
     href: '/products',
     labelKey: 'products',
     icon: BoxIcon,
@@ -101,6 +118,12 @@ const NAV: readonly NavItem[] = [
     icon: ActivityIcon,
     match: (p) => p.startsWith('/insights'),
     section: 'insights',
+  },
+  {
+    href: '/reports',
+    labelKey: 'reports',
+    icon: BarChartIcon,
+    match: (p) => p.startsWith('/reports'),
   },
   {
     href: '/sync',
@@ -136,6 +159,18 @@ const NAV: readonly NavItem[] = [
     match: (p) => p.startsWith('/audit'),
     roles: ADMIN_ROLES,
   },
+  {
+    href: '/account',
+    labelKey: 'account',
+    icon: UserCircleIcon,
+    match: (p) => p.startsWith('/account'),
+  },
+  {
+    href: '/system',
+    labelKey: 'system',
+    icon: SettingsIcon,
+    match: (p) => p.startsWith('/system'),
+  },
 ];
 
 interface SidebarProps {
@@ -156,7 +191,10 @@ export function Sidebar({ role, access }: SidebarProps): React.ReactElement {
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
-      <div className="flex h-14 items-center gap-2 border-b border-border px-5">
+      <Link
+        href="/"
+        className="flex h-14 items-center gap-2 border-b border-border px-5 transition hover:bg-muted/40"
+      >
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-soft">
           <SparkIcon className="h-4 w-4" />
         </span>
@@ -168,7 +206,7 @@ export function Sidebar({ role, access }: SidebarProps): React.ReactElement {
             {tApp('tagline')}
           </span>
         </div>
-      </div>
+      </Link>
       <nav className="flex-1 space-y-0.5 px-2 py-3 text-sm">
         {visibleNav.map((item) => {
           const active = item.match ? item.match(pathname) : pathname === item.href;
@@ -296,6 +334,63 @@ function ShieldIcon({ className }: { className?: string }): React.ReactElement {
   );
 }
 
+function BarChartIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="12" y1="20" x2="12" y2="10" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="3" y1="20" x2="21" y2="20" />
+    </svg>
+  );
+}
+
+function UserCircleIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M5.6 19a8 8 0 0 1 12.8 0" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </svg>
+  );
+}
+
 function HomeIcon({ className }: { className?: string }): React.ReactElement {
   return (
     <svg
@@ -406,6 +501,45 @@ function CartIcon({ className }: { className?: string }): React.ReactElement {
       <circle cx="9" cy="20" r="1.4" />
       <circle cx="18" cy="20" r="1.4" />
       <path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6" />
+    </svg>
+  );
+}
+
+function MailIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function FileTextIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
+      <path d="M9 9h2" />
     </svg>
   );
 }

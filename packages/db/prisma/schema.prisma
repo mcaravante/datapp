@@ -145,31 +145,87 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  users           User[]
-  magentoStores   MagentoStore[]
-  customers       CustomerProfile[]
-  addresses       CustomerAddress[]
-  segments        CustomerSegment[]
-  rfmScores       RfmScore[]
-  rfmHistory      RfmScoreHistory[]
-  orders          Order[]
-  orderItems      OrderItem[]
-  products        Product[]
-  categories      ProductCategory[]
-  geoUnmatched    GeoUnmatched[]
-  syncStates      SyncState[]
-  syncEvents      SyncEventLog[]
-  auditLogs       AuditLog[]
-  visitors        Visitor[]
-  webEvents       WebEvent[]
-  forms           Form[]
-  formSubmissions FormSubmission[]
-  marketingLists  MarketingList[]
-  subscriptions   Subscription[]
-  roleAccess      RoleSectionAccess[]
-  abandonedCarts  AbandonedCart[]
+  users               User[]
+  magentoStores       MagentoStore[]
+  customers           CustomerProfile[]
+  addresses           CustomerAddress[]
+  segments            CustomerSegment[]
+  rfmScores           RfmScore[]
+  rfmHistory          RfmScoreHistory[]
+  orders              Order[]
+  orderItems          OrderItem[]
+  products            Product[]
+  categories          ProductCategory[]
+  geoUnmatched        GeoUnmatched[]
+  syncStates          SyncState[]
+  syncEvents          SyncEventLog[]
+  auditLogs           AuditLog[]
+  visitors            Visitor[]
+  webEvents           WebEvent[]
+  forms               Form[]
+  formSubmissions     FormSubmission[]
+  marketingLists      MarketingList[]
+  subscriptions       Subscription[]
+  roleAccess          RoleSectionAccess[]
+  abandonedCarts      AbandonedCart[]
+  excludedEmails      ReportExcludedEmail[]
+  methodLabels        AnalyticsMethodLabel[]
+  emailTemplates      EmailTemplate[]
+  emailCampaigns      EmailCampaign[]
+  emailCampaignStages EmailCampaignStage[]
+  emailSends          EmailSend[]
+  emailEvents         EmailEvent[]
+  emailSuppressions   EmailSuppression[]
 
   @@map("tenant")
+}
+
+/// Operator-curated display names for Magento payment / shipping
+/// codes. The breakdown reports show `title` when a row exists for
+/// the (kind, code) pair, otherwise they fall back to a prettified
+/// version of the raw code. One row per tenant × kind × code.
+model AnalyticsMethodLabel {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  /// `payment` or `shipping`. Plain string instead of an enum so the
+  /// shape stays open if we add more dimensions later.
+  kind          String
+  code          String
+  title         String
+  /// Optional canonical code this row is an alias of. When set, the
+  /// breakdown SQL groups by the canonical code so legacy + new
+  /// integrations of the same provider (e.g. mercadopago_basic and
+  /// mercadopago_adbpayment_checkout_pro) sum into one slice.
+  mergeIntoCode String?  @map("merge_into_code")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, kind, code])
+  @@map("analytics_method_label")
+}
+
+/// Emails to drop from every analytics aggregation. Used by operators
+/// to keep their own test orders (or those of a client doing QA) from
+/// distorting revenue / orders / cohort numbers.
+///
+/// Email is stored lowercased + matched against `Order.customer_email`
+/// (which the order mapper also lowercases). The `addedBy` link is
+/// nullable so the row survives the deletion of the user who added it.
+model ReportExcludedEmail {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  email     String
+  reason    String?
+  addedById String?  @map("added_by_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  addedBy User?  @relation(fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, email])
+  @@map("report_excluded_email")
 }
 
 model User {
@@ -187,13 +243,14 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant     Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  totpSecret UserTotpSecret?   @relation(fields: [totpSecretId], references: [id], onDelete: SetNull)
-  sessions   Session[]
+  tenant              Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  totpSecret          UserTotpSecret?       @relation(fields: [totpSecretId], references: [id], onDelete: SetNull)
+  sessions            Session[]
   passwordResetTokens PasswordResetToken[]
-  recoveryCodes UserRecoveryCode[]
-  auditLogs  AuditLog[]
-  segments   CustomerSegment[]
+  recoveryCodes       UserRecoveryCode[]
+  auditLogs           AuditLog[]
+  segments            CustomerSegment[]
+  excludedEmails      ReportExcludedEmail[]
 
   @@index([tenantId, role])
   @@map("user")
@@ -402,6 +459,7 @@ model CustomerProfile {
   formSubmissions FormSubmission[]
   subscriptions   Subscription[]
   abandonedCarts  AbandonedCart[]
+  emailSends      EmailSend[]
 
   @@unique([tenantId, magentoCustomerId])
   @@index([tenantId, emailHash])
@@ -522,57 +580,66 @@ model RfmScoreHistory {
 // =====================================================================
 
 model Order {
-  id                 String   @id @default(uuid(7)) @db.Uuid
-  tenantId           String   @map("tenant_id") @db.Uuid
-  magentoStoreId     String   @map("magento_store_id") @db.Uuid
-  magentoOrderId     String   @map("magento_order_id")
-  magentoOrderNumber String   @map("magento_order_number")
-  customerProfileId  String?  @map("customer_profile_id") @db.Uuid // null for guest checkout / erased customers
-  customerEmail      String   @map("customer_email") // lowercased
-  customerEmailHash  String   @map("customer_email_hash") @db.Char(64)
-  status             String
-  state              String
-  currencyCode       String   @map("currency_code") @db.Char(3)
-  subtotal           Decimal  @db.Decimal(20, 4)
-  totalTax           Decimal  @default(0) @map("total_tax") @db.Decimal(20, 4)
-  shippingAmount     Decimal  @default(0) @map("shipping_amount") @db.Decimal(20, 4)
-  discountAmount     Decimal  @default(0) @map("discount_amount") @db.Decimal(20, 4)
-  grandTotal         Decimal  @map("grand_total") @db.Decimal(20, 4)
-  totalInvoiced      Decimal  @default(0) @map("total_invoiced") @db.Decimal(20, 4)
-  totalRefunded      Decimal  @default(0) @map("total_refunded") @db.Decimal(20, 4)
-  totalPaid          Decimal  @default(0) @map("total_paid") @db.Decimal(20, 4)
-  totalShipped       Decimal  @default(0) @map("total_shipped") @db.Decimal(20, 4)
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  magentoStoreId      String   @map("magento_store_id") @db.Uuid
+  magentoOrderId      String   @map("magento_order_id")
+  magentoOrderNumber  String   @map("magento_order_number")
+  /// Magento `quote_id` — the cart entity this order came from. Null
+  /// only for legacy orders synced before this column existed.
+  magentoQuoteId      String?  @map("magento_quote_id")
+  /// Resolved CDP region for the shipping address (fallback billing).
+  /// Null when the address didn't match any seeded province — those
+  /// rows still appear in `geo_unmatched` for manual review.
+  regionId            Int?     @map("region_id")
+  customerProfileId   String?  @map("customer_profile_id") @db.Uuid // null for guest checkout / erased customers
+  customerEmail       String   @map("customer_email") // lowercased
+  customerEmailHash   String   @map("customer_email_hash") @db.Char(64)
+  status              String
+  state               String
+  currencyCode        String   @map("currency_code") @db.Char(3)
+  subtotal            Decimal  @db.Decimal(20, 4)
+  totalTax            Decimal  @default(0) @map("total_tax") @db.Decimal(20, 4)
+  shippingAmount      Decimal  @default(0) @map("shipping_amount") @db.Decimal(20, 4)
+  discountAmount      Decimal  @default(0) @map("discount_amount") @db.Decimal(20, 4)
+  grandTotal          Decimal  @map("grand_total") @db.Decimal(20, 4)
+  totalInvoiced       Decimal  @default(0) @map("total_invoiced") @db.Decimal(20, 4)
+  totalRefunded       Decimal  @default(0) @map("total_refunded") @db.Decimal(20, 4)
+  totalPaid           Decimal  @default(0) @map("total_paid") @db.Decimal(20, 4)
+  totalShipped        Decimal  @default(0) @map("total_shipped") @db.Decimal(20, 4)
   // realRevenue is materialized as `GENERATED ALWAYS AS (total_invoiced - total_refunded) STORED`
   // by a follow-up migration. Treat this column as read-only — never INSERT/UPDATE it from the
   // application layer. Prisma will leave it untouched as long as we don't pass it in writes.
-  realRevenue        Decimal? @map("real_revenue") @db.Decimal(20, 4)
-  billingAddress     Json     @default("{}") @map("billing_address")
-  shippingAddress    Json     @default("{}") @map("shipping_address")
-  paymentMethod      String?  @map("payment_method")
-  shippingMethod     String?  @map("shipping_method")
+  realRevenue         Decimal? @map("real_revenue") @db.Decimal(20, 4)
+  billingAddress      Json     @default("{}") @map("billing_address")
+  shippingAddress     Json     @default("{}") @map("shipping_address")
+  paymentMethod       String?  @map("payment_method")
+  shippingMethod      String?  @map("shipping_method")
   // Coupon / promotion provenance. `couponCode` is the literal code the
   // customer entered (null when only auto cart-rules fired).
   // `discountDescription` is the rule label Magento includes alongside
   // the discount; `appliedRuleIds` is the comma-separated list of every
   // cart-rule that applied (auto + coupon).
-  couponCode         String?  @map("coupon_code")
-  discountDescription String? @map("discount_description")
-  appliedRuleIds     String?  @map("applied_rule_ids")
-  itemCount          Int      @default(0) @map("item_count")
-  skuCount           Int      @default(0) @map("sku_count")
-  ipAddress          String?  @map("ip_address")
-  userAgent          String?  @map("user_agent")
-  placedAt           DateTime @map("placed_at") @db.Timestamptz(6)
-  magentoUpdatedAt   DateTime @map("magento_updated_at") @db.Timestamptz(6)
-  attributes         Json     @default("{}")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  couponCode          String?  @map("coupon_code")
+  discountDescription String?  @map("discount_description")
+  appliedRuleIds      String?  @map("applied_rule_ids")
+  itemCount           Int      @default(0) @map("item_count")
+  skuCount            Int      @default(0) @map("sku_count")
+  ipAddress           String?  @map("ip_address")
+  userAgent           String?  @map("user_agent")
+  placedAt            DateTime @map("placed_at") @db.Timestamptz(6)
+  magentoUpdatedAt    DateTime @map("magento_updated_at") @db.Timestamptz(6)
+  attributes          Json     @default("{}")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  magentoStore MagentoStore         @relation(fields: [magentoStoreId], references: [id], onDelete: Restrict)
-  customer     CustomerProfile?     @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
-  items        OrderItem[]
-  history      OrderStatusHistory[]
+  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  magentoStore   MagentoStore         @relation(fields: [magentoStoreId], references: [id], onDelete: Restrict)
+  customer       CustomerProfile?     @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  region         Region?              @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  history        OrderStatusHistory[]
+  recoveredCarts AbandonedCart[]      @relation("AbandonedCartRecovery")
 
   @@unique([tenantId, magentoStoreId, magentoOrderId])
   @@unique([tenantId, magentoOrderNumber])
@@ -582,6 +649,8 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, magentoUpdatedAt(sort: Desc)])
   @@index([tenantId, couponCode])
+  @@index([tenantId, magentoStoreId, magentoQuoteId])
+  @@index([tenantId, regionId, placedAt(sort: Desc)])
   @@map("order")
 }
 
@@ -628,44 +697,98 @@ model OrderStatusHistory {
   @@map("order_status_history")
 }
 
-/// Snapshot of currently-active Magento carts that are likely abandoned.
+/// Daily blue-dollar quote captured from Bluelytics. Indexed lookups
+/// by date back the USD toggle on `/insights` and `/reports`.
 ///
-/// Refreshed every ~15 minutes by a BullMQ cron that calls
-/// `/V1/carts/search`, upserts rows here, and removes carts that no
-/// longer come back from Magento (i.e. converted to orders or were
-/// deleted upstream). The admin UI reads exclusively from this table —
-/// no live Magento round-trip — so the page is fast and resilient to
-/// temporary Magento downtime.
-///
-/// Histories are NOT preserved: once a cart converts or expires it
-/// disappears from the table. If we ever need cart-level analytics
-/// over time we'll add `cart_event` later.
-model AbandonedCart {
-  id                String   @id @default(uuid(7)) @db.Uuid
-  tenantId          String   @map("tenant_id") @db.Uuid
-  magentoStoreId    String   @map("magento_store_id") @db.Uuid
-  magentoCartId     Int      @map("magento_cart_id")
-  customerProfileId String?  @map("customer_profile_id") @db.Uuid
-  magentoCustomerId String?  @map("magento_customer_id")
-  customerEmail     String?  @map("customer_email")
-  customerName      String?  @map("customer_name")
-  isGuest           Boolean  @map("is_guest")
-  itemsCount        Int      @map("items_count")
-  itemsQty          Int      @map("items_qty")
-  subtotal          Decimal  @db.Decimal(20, 4)
-  grandTotal        Decimal  @map("grand_total") @db.Decimal(20, 4)
-  currencyCode      String?  @map("currency_code") @db.Char(3)
-  magentoCreatedAt  DateTime @map("magento_created_at") @db.Timestamptz(6)
-  magentoUpdatedAt  DateTime @map("magento_updated_at") @db.Timestamptz(6)
-  syncedAt          DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+/// Tenants share the same rate (ARS is the same for everyone), so
+/// there's no `tenant_id` here — keeps the row count tiny (one per day).
+/// Bluelytics doesn't publish weekends/holidays; consumers should walk
+/// back to the previous available date when the day is missing.
+model CurrencyRate {
+  /// UTC date of the quote. We use a real DATE column rather than a
+  /// timestamp so equality lookups stay simple.
+  date      DateTime @id @db.Date
+  source    String   @default("bluelytics")
+  blueBuy   Decimal  @map("blue_buy") @db.Decimal(14, 4)
+  blueSell  Decimal  @map("blue_sell") @db.Decimal(14, 4)
+  /// Average of buy/sell; precomputed so the conversion query stays
+  /// on a single column.
+  blueAvg   Decimal  @map("blue_avg") @db.Decimal(14, 4)
+  fetchedAt DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
 
-  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  magentoStore MagentoStore     @relation(fields: [magentoStoreId], references: [id], onDelete: Cascade)
-  customer     CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  @@map("currency_rate")
+}
+
+/// Lifecycle state of an abandoned cart row.
+///
+/// Phase 3 (email marketing) consumes this to compute recovery KPIs
+/// (recovered count, recovered revenue, time-to-recover) so the table
+/// retains rows after their terminal state — they are never deleted by
+/// the sweep.
+enum AbandonedCartStatus {
+  open      @map("open")
+  recovered @map("recovered")
+  expired   @map("expired")
+  purged    @map("purged")
+
+  @@map("abandoned_cart_status")
+}
+
+/// Historical record of carts that crossed the 24-hour idle threshold.
+///
+/// Populated every ~15 minutes by a BullMQ cron that pulls active Magento
+/// carts whose `updated_at` is older than 24h. Rows are inserted as
+/// `open` and then transition once on a terminal event:
+///
+/// - `recovered` when a subsequent Order arrives whose `magento_quote_id`
+///   matches `magento_cart_id` (placed after `abandoned_at`).
+/// - `expired` when the cart no longer comes back from Magento and
+///   `abandoned_at` is older than the expiry window (default 30d).
+/// - `purged` when the cart no longer comes back from Magento and is
+///   younger than the expiry window (user emptied it manually).
+model AbandonedCart {
+  id                   String              @id @default(uuid(7)) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  magentoStoreId       String              @map("magento_store_id") @db.Uuid
+  magentoCartId        Int                 @map("magento_cart_id")
+  customerProfileId    String?             @map("customer_profile_id") @db.Uuid
+  magentoCustomerId    String?             @map("magento_customer_id")
+  customerEmail        String?             @map("customer_email")
+  customerName         String?             @map("customer_name")
+  isGuest              Boolean             @map("is_guest")
+  itemsCount           Int                 @map("items_count")
+  itemsQty             Int                 @map("items_qty")
+  subtotal             Decimal             @db.Decimal(20, 4)
+  grandTotal           Decimal             @map("grand_total") @db.Decimal(20, 4)
+  currencyCode         String?             @map("currency_code") @db.Char(3)
+  magentoCreatedAt     DateTime            @map("magento_created_at") @db.Timestamptz(6)
+  magentoUpdatedAt     DateTime            @map("magento_updated_at") @db.Timestamptz(6)
+  /// First time this cart crossed the 24h-idle threshold. Never updated.
+  abandonedAt          DateTime            @map("abandoned_at") @db.Timestamptz(6)
+  status               AbandonedCartStatus @default(open)
+  recoveredAt          DateTime?           @map("recovered_at") @db.Timestamptz(6)
+  recoveredByOrderId   String?             @map("recovered_by_order_id") @db.Uuid
+  /// `Order.realRevenue` if available, otherwise `Order.grandTotal`.
+  recoveredAmount      Decimal?            @map("recovered_amount") @db.Decimal(20, 4)
+  expiredAt            DateTime?           @map("expired_at") @db.Timestamptz(6)
+  syncedAt             DateTime            @default(now()) @map("synced_at") @db.Timestamptz(6)
+  /// Magento native masked quote id (32-char alphanumeric, lives in
+  /// `quote_id_mask`). Filled lazily the first time a recovery email is
+  /// prepared for this cart, via the magento-client `getMaskedId` call.
+  /// Used to build the `/pupe_abandoned/cart/restore?token=…` URL.
+  magentoMaskedQuoteId String?             @map("magento_masked_quote_id") @db.VarChar(32)
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  magentoStore     MagentoStore     @relation(fields: [magentoStoreId], references: [id], onDelete: Cascade)
+  customer         CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  recoveredByOrder Order?           @relation("AbandonedCartRecovery", fields: [recoveredByOrderId], references: [id], onDelete: SetNull)
+  emailSends       EmailSend[]
 
   @@unique([tenantId, magentoStoreId, magentoCartId])
-  @@index([tenantId, magentoUpdatedAt(sort: Desc)])
+  @@index([tenantId, status, abandonedAt(sort: Desc)])
+  @@index([tenantId, status, recoveredAt(sort: Desc)])
   @@index([tenantId, customerProfileId])
+  @@index([tenantId, magentoMaskedQuoteId])
   @@map("abandoned_cart")
 }
 
@@ -746,6 +869,7 @@ model Region {
   isActive    Boolean @default(true) @map("is_active")
 
   addresses CustomerAddress[]
+  orders    Order[]
 
   @@unique([countryCode, code])
   @@index([countryCode, name])
@@ -889,4 +1013,290 @@ model Subscription {
   @@index([tenantId, status])
   @@index([tenantId, listId])
   @@map("subscription")
+}
+
+// =====================================================================
+//  Phase 3 — Email engine (abandoned-cart recovery vertical)
+//  See docs/adr/0007-phase3-abandoned-cart-recovery-vertical.md.
+//
+//  EmailTemplate / EmailCampaign / EmailCampaignStage / EmailSend /
+//  EmailEvent / EmailSuppression are intentionally generic so future
+//  Phase 3 surfaces (broadcast, segments) reuse them; only the
+//  EmailCampaignTrigger enum is restricted to `abandoned_cart_stage`
+//  for now.
+// =====================================================================
+
+enum EmailTemplateChannel {
+  abandoned_cart
+  /// Reserved for future Phase 3 use cases (password reset, receipts).
+  transactional
+  /// Reserved for future broadcast campaigns. Not implemented in this iteration.
+  marketing
+
+  @@map("email_template_channel")
+}
+
+enum EmailCampaignStatus {
+  draft
+  active
+  paused
+  archived
+
+  @@map("email_campaign_status")
+}
+
+enum EmailCampaignTrigger {
+  /// Single trigger value in this iteration. New values gated by ADR.
+  abandoned_cart_stage
+
+  @@map("email_campaign_trigger")
+}
+
+enum CouponMode {
+  none
+  /// Operator pre-creates the rule + code in Magento; CDP only injects the
+  /// literal `couponStaticCode` into the recovery URL and the template.
+  static_code @map("static")
+  /// CDP creates a Magento sales-rule per stage on first use, then calls
+  /// `/V1/coupons/generate` for one new code per send.
+  unique_code @map("unique")
+
+  @@map("coupon_mode")
+}
+
+enum EmailSendStatus {
+  pending
+  queued
+  delivered
+  bounced
+  complained
+  failed
+  suppressed
+  cancelled
+
+  @@map("email_send_status")
+}
+
+enum EmailEventType {
+  delivered
+  delivery_delayed
+  bounced
+  complained
+  opened
+  clicked
+  failed
+  unsubscribed
+
+  @@map("email_event_type")
+}
+
+enum SuppressionReason {
+  manual
+  hard_bounce
+  spam_complaint
+  unsubscribed
+  invalid_address
+  /// Outbound blocked because EMAIL_DRY_RUN was on and the recipient was
+  /// not in EMAIL_TEST_RECIPIENT_ALLOWLIST. Logged for forensics.
+  test_allowlist
+
+  @@map("suppression_reason")
+}
+
+/// Operator-authored email template. Multiple campaigns can reference the
+/// same template; each version is identified by `updatedAt` for cache
+/// invalidation in the renderer.
+model EmailTemplate {
+  id        String               @id @default(uuid(7)) @db.Uuid
+  tenantId  String               @map("tenant_id") @db.Uuid
+  channel   EmailTemplateChannel
+  /// URL-friendly slug, unique per tenant.
+  slug      String
+  name      String
+  /// Handlebars template; renders to plain text (no HTML).
+  subject   String
+  /// MJML or raw HTML — see `format`. Handlebars variables wrapped in
+  /// `{{name}}` (escaped). Triple-stash forbidden for user-derived data
+  /// per the renderer policy.
+  bodyHtml  String               @map("body_html")
+  bodyText  String?              @map("body_text")
+  /// JSON-Schema describing the expected variables. Used by the renderer
+  /// to fail-fast on missing data instead of producing a broken email.
+  variables Json                 @default("{}")
+  /// `mjml` (default — runs through MJML compile then Handlebars) or
+  /// `html` (Handlebars only, raw HTML).
+  format    String               @default("mjml")
+  isActive  Boolean              @default(true) @map("is_active")
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stages EmailCampaignStage[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, channel, isActive])
+  @@map("email_template")
+}
+
+/// Logical campaign — a sequence of stages bound to a trigger. Phase 3
+/// vertical: only `abandoned_cart_stage` campaigns are supported.
+model EmailCampaign {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  tenantId     String               @map("tenant_id") @db.Uuid
+  slug         String
+  name         String
+  trigger      EmailCampaignTrigger @default(abandoned_cart_stage)
+  status       EmailCampaignStatus  @default(draft)
+  /// Override `RESEND_FROM_EMAIL`. Null = inherit env default.
+  fromEmail    String?              @map("from_email")
+  replyToEmail String?              @map("reply_to_email")
+  /// Audit metadata (createdBy id, archivedBy id, free-form notes).
+  metadata     Json                 @default("{}")
+  archivedAt   DateTime?            @map("archived_at") @db.Timestamptz(6)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stages EmailCampaignStage[]
+  sends  EmailSend[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@map("email_campaign")
+}
+
+/// One stage of a campaign — a delay (offset from `AbandonedCart.abandonedAt`),
+/// a template, and a coupon configuration.
+model EmailCampaignStage {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  tenantId           String     @map("tenant_id") @db.Uuid
+  campaignId         String     @map("campaign_id") @db.Uuid
+  templateId         String     @map("template_id") @db.Uuid
+  /// 1-based ordering inside the campaign.
+  position           Int
+  /// Hours since `AbandonedCart.abandonedAt` before this stage fires.
+  delayHours         Int        @map("delay_hours")
+  couponMode         CouponMode @default(none) @map("coupon_mode")
+  /// For `static_code` mode: the literal Magento coupon to inject.
+  /// For `unique_code` mode: leave null; codes are generated per send.
+  couponStaticCode   String?    @map("coupon_static_code")
+  /// For `unique_code` mode: the Magento sales-rule id created lazily on
+  /// first use. Reused across sends; cleaned up on campaign archive.
+  magentoSalesRuleId Int?       @map("magento_sales_rule_id")
+  /// Display-only — Magento is the source of truth for the rule.
+  couponDiscount     Decimal?   @map("coupon_discount") @db.Decimal(20, 4)
+  /// `percent` or `fixed`.
+  couponDiscountType String?    @map("coupon_discount_type")
+  /// Hours after issue before the unique coupon expires; null = no expiry.
+  couponTtlHours     Int?       @map("coupon_ttl_hours")
+  isActive           Boolean    @default(true) @map("is_active")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  template EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  sends    EmailSend[]
+
+  @@unique([campaignId, position])
+  @@index([tenantId, isActive, delayHours])
+  @@map("email_campaign_stage")
+}
+
+/// One concrete delivery attempt. Created in `pending` state, transitioned
+/// through `queued`/`delivered`/`bounced`/etc. by the dispatcher and the
+/// Resend webhook. Unique `(tenantId, idempotencyKey)` is the hard guard
+/// against double-sending.
+model EmailSend {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  tenantId           String          @map("tenant_id") @db.Uuid
+  campaignId         String          @map("campaign_id") @db.Uuid
+  stageId            String          @map("stage_id") @db.Uuid
+  /// Source cart. `SetNull` so the audit row survives a cart deletion.
+  abandonedCartId    String?         @map("abandoned_cart_id") @db.Uuid
+  customerProfileId  String?         @map("customer_profile_id") @db.Uuid
+  /// Lower-cased recipient email. `toEmailHash` is the log-safe lookup key.
+  toEmail            String          @map("to_email")
+  toEmailHash        String          @map("to_email_hash") @db.Char(64)
+  fromEmail          String          @map("from_email")
+  subject            String
+  /// `send:{tenantId}:{cartId}:{stageId}`. Also doubles as BullMQ jobId.
+  idempotencyKey     String          @map("idempotency_key")
+  /// Resend API id (after ack). Opaque string, not a uuid.
+  resendMessageId    String?         @map("resend_message_id")
+  status             EmailSendStatus @default(pending)
+  lastEventType      EmailEventType? @map("last_event_type")
+  lastEventAt        DateTime?       @map("last_event_at") @db.Timestamptz(6)
+  /// Coupon emitted with this send (if any).
+  couponCode         String?         @map("coupon_code")
+  couponSource       CouponMode?     @map("coupon_source")
+  /// For `unique_code` mode — links the code back to its sales rule for cleanup.
+  magentoSalesRuleId Int?            @map("magento_sales_rule_id")
+  recoveryUrl        String          @map("recovery_url")
+  /// Render-time variable snapshot, for replay/debug. PII included; access controlled.
+  renderContext      Json            @default("{}") @map("render_context")
+  /// Filled when status is `failed` or `suppressed`.
+  errorMessage       String?         @map("error_message")
+  scheduledFor       DateTime        @map("scheduled_for") @db.Timestamptz(6)
+  sentAt             DateTime?       @map("sent_at") @db.Timestamptz(6)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign EmailCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stage    EmailCampaignStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  cart     AbandonedCart?     @relation(fields: [abandonedCartId], references: [id], onDelete: SetNull)
+  customer CustomerProfile?   @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  events   EmailEvent[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, scheduledFor])
+  @@index([tenantId, abandonedCartId, stageId])
+  @@index([tenantId, toEmailHash, createdAt(sort: Desc)])
+  @@index([tenantId, resendMessageId])
+  @@map("email_send")
+}
+
+/// Webhook event from Resend. `(tenantId, providerEventId)` is unique to
+/// reject replays.
+model EmailEvent {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  emailSendId     String         @map("email_send_id") @db.Uuid
+  /// `resend.com` event id from webhook payload — natural idempotency key.
+  providerEventId String         @map("provider_event_id")
+  eventType       EmailEventType @map("event_type")
+  occurredAt      DateTime       @map("occurred_at") @db.Timestamptz(6)
+  payload         Json           @default("{}")
+  receivedAt      DateTime       @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  send   EmailSend @relation(fields: [emailSendId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, providerEventId])
+  @@index([tenantId, eventType, occurredAt(sort: Desc)])
+  @@index([emailSendId, occurredAt])
+  @@map("email_event")
+}
+
+/// Per-tenant suppression list. Bounces and complaints auto-populate via
+/// the Resend webhook. Operators can add manual entries (e.g. customer
+/// asks via support).
+model EmailSuppression {
+  id        String            @id @default(uuid(7)) @db.Uuid
+  tenantId  String            @map("tenant_id") @db.Uuid
+  emailHash String            @map("email_hash") @db.Char(64)
+  /// Lower-cased plain text. Kept for admin display only — never logged.
+  email     String
+  reason    SuppressionReason
+  /// Free-text origin (`resend.bounced`, `admin.ui`, `self.unsubscribe`, …).
+  source    String?
+  notes     String?
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, emailHash])
+  @@index([tenantId, reason])
+  @@map("email_suppression")
 }

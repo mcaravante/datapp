@@ -4,6 +4,7 @@ import { MagentoOrdersResource } from './orders';
 import { MagentoProductsResource } from './products';
 import { MagentoCategoriesResource } from './categories';
 import { MagentoCartsResource } from './carts';
+import { MagentoSalesRulesResource } from './sales-rules';
 
 export type { HttpOptions } from './http';
 export { MagentoApiError } from './http';
@@ -18,7 +19,12 @@ export type {
   MagentoCategory,
   MagentoCart,
   MagentoSearchResult,
+  MagentoSalesRule,
+  MagentoCouponGenerateInput,
+  MagentoCouponGenerateOutput,
+  MagentoMaskedId,
 } from './schemas';
+export { MagentoSalesRulesResource } from './sales-rules';
 
 export interface MagentoClient {
   readonly customers: MagentoCustomersResource;
@@ -26,6 +32,7 @@ export interface MagentoClient {
   readonly products: MagentoProductsResource;
   readonly categories: MagentoCategoriesResource;
   readonly carts: MagentoCartsResource;
+  readonly salesRules: MagentoSalesRulesResource;
   /** Returns true if the admin token can fetch any customer. */
   ping(): Promise<boolean>;
 }
@@ -39,6 +46,7 @@ export function createMagentoClient(options: HttpOptions): MagentoClient {
     products: new MagentoProductsResource(http),
     categories: new MagentoCategoriesResource(http),
     carts: new MagentoCartsResource(http),
+    salesRules: new MagentoSalesRulesResource(http),
     async ping(): Promise<boolean> {
       // A 0-result search is the cheapest "is the token alive?" call.
       await customers.search({ pageSize: 1, currentPage: 1 });

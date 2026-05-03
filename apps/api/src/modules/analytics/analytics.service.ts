@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
+import { ExcludedEmailsService } from './excluded-emails.service';
 import { resolveRange, type AnalyticsRange, type ResolvedRange } from './dto/range.dto';
 import type { TopProductRow, TopProductsQuery, TopProductsResponse } from './dto/top-products.dto';
 import type { GeoQuery, GeoRegionRow, GeoResponse, GeoUnmatchedRow } from './dto/geo.dto';
@@ -17,6 +18,27 @@ import type {
   ProductAffinityResponse,
 } from './dto/product-affinity.dto';
 import type { CouponRow, CouponsQuery, CouponsResponse } from './dto/coupons.dto';
+import type {
+  RevenueTimePoint,
+  RevenueTimeseriesQuery,
+  RevenueTimeseriesResponse,
+} from './dto/revenue-timeseries.dto';
+import type {
+  AovHistogramBucket,
+  AovHistogramQuery,
+  AovHistogramResponse,
+} from './dto/aov-histogram.dto';
+import type {
+  YearlyMonthPoint,
+  YearlyRevenueResponse,
+  YearlyRevenueYear,
+} from './dto/yearly-revenue.dto';
+import type {
+  BreakdownDimension,
+  BreakdownQuery,
+  BreakdownResponse,
+  BreakdownRow,
+} from './dto/breakdown.dto';
 
 const BA_TZ = 'America/Argentina/Buenos_Aires';
 
@@ -63,7 +85,71 @@ export interface KpisResponse {
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly excludedEmails: ExcludedEmailsService,
+  ) {}
+
+  /**
+   * SQL fragment that picks the rate (or `1`) by which to divide a
+   * peso amount to express it in the requested currency. When
+   * `currency=usd`, joins lateral against `currency_rate` matching
+   * the order's `placed_at::date`, with a backwards walk so missing
+   * days (weekends/holidays) fall back to the previous quote.
+   */
+  private divisorFragment(currency: 'ars' | 'usd', orderAlias = 'o'): {
+    select: Prisma.Sql;
+    join: Prisma.Sql;
+  } {
+    if (currency === 'ars') {
+      return {
+        select: Prisma.sql`1::numeric`,
+        join: Prisma.empty,
+      };
+    }
+    const alias = Prisma.raw(orderAlias);
+    return {
+      select: Prisma.sql`COALESCE(cr.blue_avg, 1)::numeric`,
+      join: Prisma.sql`
+        LEFT JOIN LATERAL (
+          SELECT blue_avg
+          FROM currency_rate
+          WHERE date <= (${alias}.placed_at AT TIME ZONE ${BA_TZ})::date
+          ORDER BY date DESC
+          LIMIT 1
+        ) cr ON TRUE
+      `,
+    };
+  }
+
+  /**
+   * SQL fragment to drop excluded emails from any analytics query.
+   * Two flavours of exclusion entries are supported:
+   *
+   *   - Full email (`name@domain.com`) → dropped via `NOT IN (...)`.
+   *   - Bare domain (`@domain.com`)    → dropped via `NOT LIKE '%@domain.com'`.
+   *
+   * Both are mixed in a single `AND (… AND …)` clause so the analytics
+   * SQL doesn't have to know about the distinction. When the list is
+   * empty the fragment is a no-op (`AND TRUE`).
+   */
+  private async excludedEmailsClause(
+    tenantId: string,
+    column = Prisma.sql`customer_email`,
+  ): Promise<Prisma.Sql> {
+    const entries = await this.excludedEmails.listEmails(tenantId);
+    if (entries.length === 0) return Prisma.sql`AND TRUE`;
+    const exactEmails = entries.filter((e) => !e.startsWith('@'));
+    const domains = entries.filter((e) => e.startsWith('@'));
+    const predicates: Prisma.Sql[] = [];
+    if (exactEmails.length > 0) {
+      predicates.push(Prisma.sql`LOWER(${column}) NOT IN (${Prisma.join(exactEmails)})`);
+    }
+    for (const domain of domains) {
+      predicates.push(Prisma.sql`LOWER(${column}) NOT LIKE ${`%${domain}`}`);
+    }
+    return Prisma.sql`AND (${Prisma.join(predicates, ' AND ')})`;
+  }
 
   async kpis(tenantId: string, range: AnalyticsRange): Promise<KpisResponse> {
     const r = resolveRange(range);
@@ -126,7 +212,24 @@ export class AnalyticsService {
 
   async topProducts(tenantId: string, query: TopProductsQuery): Promise<TopProductsResponse> {
     const r: ResolvedRange = resolveRange(query);
-    const orderColumn = query.order_by === 'units' ? 'units' : 'revenue';
+    // Sort columns are whitelisted by Zod, so `Prisma.raw` here is safe.
+    // The map exists only to translate the API field name to the
+    // identifier the SELECT produces (they happen to coincide today,
+    // but pinning the mapping makes future renames a one-line change).
+    const ORDER_COLUMN: Record<TopProductsQuery['sort'], string> = {
+      revenue: 'revenue',
+      units: 'units',
+      orders: 'orders',
+      sku: 'oi.sku',
+      name: 'name',
+    };
+    const orderColumn = ORDER_COLUMN[query.sort];
+    const direction = query.dir === 'asc' ? 'ASC' : 'DESC';
+    // Build the optional q filter as a fragment so Prisma.sql tags it.
+    const qFilter = query.q
+      ? Prisma.sql`AND (oi.sku ILIKE ${`%${query.q}%`} OR oi.name ILIKE ${`%${query.q}%`})`
+      : Prisma.empty;
+    const exclude = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
     // Aggregate by SKU only — configurable products generate two order_items
     // per purchase (parent shell + child variant) sharing the SKU but with
     // slightly different `name`. The longest name keeps the more descriptive
@@ -146,9 +249,11 @@ export class AnalyticsService {
       WHERE o.tenant_id = ${tenantId}::uuid
         AND o.placed_at >= ${r.from}
         AND o.placed_at <  ${r.to}
+        ${qFilter}
+        ${exclude}
       GROUP BY oi.sku
       HAVING SUM(oi.row_total) > 0
-      ORDER BY ${Prisma.raw(orderColumn)} DESC NULLS LAST, oi.sku ASC
+      ORDER BY ${Prisma.raw(orderColumn)} ${Prisma.raw(direction)} NULLS LAST, oi.sku ASC
       LIMIT ${query.limit}
     `);
 
@@ -162,7 +267,8 @@ export class AnalyticsService {
 
     return {
       range: { from: r.from.toISOString(), to: r.to.toISOString() },
-      order_by: query.order_by,
+      sort: query.sort,
+      dir: query.dir,
       data,
     };
   }
@@ -179,6 +285,7 @@ export class AnalyticsService {
    */
   async geo(tenantId: string, query: GeoQuery): Promise<GeoResponse> {
     const r = resolveRange(query);
+    const exclude = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
 
     // Per-region aggregate. The customer ↔ region link is resolved via
     // the customer's default billing address, falling back to whichever
@@ -231,6 +338,7 @@ export class AnalyticsService {
        AND o.customer_profile_id = pr.customer_profile_id
        AND o.placed_at >= ${r.from}
        AND o.placed_at <  ${r.to}
+       ${exclude}
       WHERE r.country_code = ${query.country}
         AND r.is_active = true
       GROUP BY r.id, r.code, r.name
@@ -291,20 +399,25 @@ export class AnalyticsService {
    */
   async timing(tenantId: string, query: TimingQuery): Promise<TimingResponse> {
     const r = resolveRange(query);
+    const exclude = await this.excludedEmailsClause(tenantId);
+    const excludeO = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
+    const div = this.divisorFragment(query.currency, 'o');
 
     // 1) Heatmap — single GROUP BY on (dow, hour) at BA local time.
     const heatmapRows = await this.prisma.$queryRaw<
       { dow: number; hour: number; orders: bigint; revenue: Prisma.Decimal | null }[]
     >(Prisma.sql`
       SELECT
-        EXTRACT(DOW  FROM placed_at AT TIME ZONE ${BA_TZ})::int AS dow,
-        EXTRACT(HOUR FROM placed_at AT TIME ZONE ${BA_TZ})::int AS hour,
-        COUNT(*)::bigint                                          AS orders,
-        COALESCE(SUM(real_revenue), 0)::numeric(20,4)             AS revenue
-      FROM "order"
-      WHERE tenant_id = ${tenantId}::uuid
-        AND placed_at >= ${r.from}
-        AND placed_at <  ${r.to}
+        EXTRACT(DOW  FROM o.placed_at AT TIME ZONE ${BA_TZ})::int AS dow,
+        EXTRACT(HOUR FROM o.placed_at AT TIME ZONE ${BA_TZ})::int AS hour,
+        COUNT(*)::bigint                                            AS orders,
+        COALESCE(SUM(o.real_revenue / ${div.select}), 0)::numeric(20,4) AS revenue
+      FROM "order" o
+      ${div.join}
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        ${excludeO}
       GROUP BY 1, 2
     `);
 
@@ -347,6 +460,7 @@ export class AnalyticsService {
         FROM "order"
         WHERE tenant_id = ${tenantId}::uuid
           AND customer_profile_id IS NOT NULL
+          ${exclude}
       )
       SELECT
         EXTRACT(EPOCH FROM (placed_at - prev_at)) / 86400.0 AS gap_days
@@ -382,6 +496,7 @@ export class AnalyticsService {
         FROM "order"
         WHERE tenant_id = ${tenantId}::uuid
           AND customer_profile_id IS NOT NULL
+          ${exclude}
         GROUP BY customer_profile_id
         HAVING COUNT(*) > 1
       ) sub
@@ -409,6 +524,8 @@ export class AnalyticsService {
   async cohorts(tenantId: string, query: CohortsQuery): Promise<CohortsResponse> {
     const cohortCount = query.cohorts;
     const horizon = query.horizon;
+    const exclude = await this.excludedEmailsClause(tenantId);
+    const excludeO = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
 
     const rows = await this.prisma.$queryRaw<
       { cohort_month: Date; offset: number; customers: bigint; cohort_size: bigint }[]
@@ -420,6 +537,7 @@ export class AnalyticsService {
         FROM "order"
         WHERE tenant_id = ${tenantId}::uuid
           AND customer_profile_id IS NOT NULL
+          ${exclude}
         GROUP BY customer_profile_id
       ),
       cohort_sizes AS (
@@ -434,6 +552,7 @@ export class AnalyticsService {
         FROM "order" o
         WHERE o.tenant_id = ${tenantId}::uuid
           AND o.customer_profile_id IS NOT NULL
+          ${excludeO}
         GROUP BY o.customer_profile_id, order_month_local
       ),
       retention AS (
@@ -526,49 +645,72 @@ export class AnalyticsService {
    */
   async coupons(tenantId: string, query: CouponsQuery): Promise<CouponsResponse> {
     const r = resolveRange(query);
+    const exclude = await this.excludedEmailsClause(tenantId);
+    const excludeO = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
 
-    const rows = await this.prisma.$queryRaw<
-      {
-        code: string;
-        name: string | null;
-        orders: bigint;
-        customers: bigint;
-        gross_revenue: Prisma.Decimal | null;
-        discount_total: Prisma.Decimal | null;
-        net_revenue: Prisma.Decimal | null;
-        first_used_at: Date;
-        last_used_at: Date;
-      }[]
-    >(Prisma.sql`
-      WITH best_name AS (
-        SELECT DISTINCT ON (coupon_code)
-          coupon_code,
-          discount_description AS name
+    // The two queries hit the same indexed slice of `order` (tenant +
+    // placed_at range) but partition rows by `coupon_code IS NOT NULL`,
+    // so they are fully independent. Run concurrently.
+    const [rows, autoPromoRows] = await Promise.all([
+      this.prisma.$queryRaw<
+        {
+          code: string;
+          name: string | null;
+          orders: bigint;
+          customers: bigint;
+          gross_revenue: Prisma.Decimal | null;
+          discount_total: Prisma.Decimal | null;
+          net_revenue: Prisma.Decimal | null;
+          first_used_at: Date;
+          last_used_at: Date;
+        }[]
+      >(Prisma.sql`
+        WITH best_name AS (
+          SELECT DISTINCT ON (coupon_code)
+            coupon_code,
+            discount_description AS name
+          FROM "order"
+          WHERE tenant_id = ${tenantId}::uuid
+            AND coupon_code IS NOT NULL
+            AND discount_description IS NOT NULL
+            ${exclude}
+          ORDER BY coupon_code, placed_at DESC
+        )
+        SELECT
+          o.coupon_code                                              AS code,
+          bn.name                                                    AS name,
+          COUNT(*)::bigint                                           AS orders,
+          COUNT(DISTINCT customer_profile_id)::bigint                AS customers,
+          COALESCE(SUM(grand_total), 0)::numeric(20,4)               AS gross_revenue,
+          COALESCE(SUM(ABS(discount_amount)), 0)::numeric(20,4)      AS discount_total,
+          COALESCE(SUM(real_revenue), 0)::numeric(20,4)              AS net_revenue,
+          MIN(placed_at)                                             AS first_used_at,
+          MAX(placed_at)                                             AS last_used_at
+        FROM "order" o
+        LEFT JOIN best_name bn ON bn.coupon_code = o.coupon_code
+        WHERE o.tenant_id = ${tenantId}::uuid
+          AND o.coupon_code IS NOT NULL
+          AND o.placed_at >= ${r.from}
+          AND o.placed_at <  ${r.to}
+          ${excludeO}
+        GROUP BY o.coupon_code, bn.name
+        ORDER BY gross_revenue DESC, orders DESC, o.coupon_code ASC
+      `),
+      this.prisma.$queryRaw<
+        { orders: bigint; discount: Prisma.Decimal | null }[]
+      >(Prisma.sql`
+        SELECT
+          COUNT(*)::bigint                                       AS orders,
+          COALESCE(SUM(ABS(discount_amount)), 0)::numeric(20,4)  AS discount
         FROM "order"
         WHERE tenant_id = ${tenantId}::uuid
-          AND coupon_code IS NOT NULL
-          AND discount_description IS NOT NULL
-        ORDER BY coupon_code, placed_at DESC
-      )
-      SELECT
-        o.coupon_code                                              AS code,
-        bn.name                                                    AS name,
-        COUNT(*)::bigint                                           AS orders,
-        COUNT(DISTINCT customer_profile_id)::bigint                AS customers,
-        COALESCE(SUM(grand_total), 0)::numeric(20,4)               AS gross_revenue,
-        COALESCE(SUM(ABS(discount_amount)), 0)::numeric(20,4)      AS discount_total,
-        COALESCE(SUM(real_revenue), 0)::numeric(20,4)              AS net_revenue,
-        MIN(placed_at)                                             AS first_used_at,
-        MAX(placed_at)                                             AS last_used_at
-      FROM "order" o
-      LEFT JOIN best_name bn ON bn.coupon_code = o.coupon_code
-      WHERE o.tenant_id = ${tenantId}::uuid
-        AND o.coupon_code IS NOT NULL
-        AND o.placed_at >= ${r.from}
-        AND o.placed_at <  ${r.to}
-      GROUP BY o.coupon_code, bn.name
-      ORDER BY gross_revenue DESC, orders DESC, o.coupon_code ASC
-    `);
+          AND coupon_code IS NULL
+          AND discount_amount <> 0
+          AND placed_at >= ${r.from}
+          AND placed_at <  ${r.to}
+          ${exclude}
+      `),
+    ]);
 
     const data: CouponRow[] = rows.map((row) => ({
       code: row.code,
@@ -595,19 +737,7 @@ export class AnalyticsService {
       },
     );
 
-    const [autoPromoRow] = await this.prisma.$queryRaw<
-      { orders: bigint; discount: Prisma.Decimal | null }[]
-    >(Prisma.sql`
-      SELECT
-        COUNT(*)::bigint                                       AS orders,
-        COALESCE(SUM(ABS(discount_amount)), 0)::numeric(20,4)  AS discount
-      FROM "order"
-      WHERE tenant_id = ${tenantId}::uuid
-        AND coupon_code IS NULL
-        AND discount_amount <> 0
-        AND placed_at >= ${r.from}
-        AND placed_at <  ${r.to}
-    `);
+    const autoPromoRow = autoPromoRows[0];
 
     return {
       range: { from: r.from.toISOString(), to: r.to.toISOString() },
@@ -636,6 +766,7 @@ export class AnalyticsService {
     tenantId: string,
     query: ProductAffinityQuery,
   ): Promise<ProductAffinityResponse> {
+    const exclude = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
     const totalsRow = await this.prisma.$queryRaw<
       { focus_orders: bigint; total_orders: bigint; focus_name: string | null }[]
     >(Prisma.sql`
@@ -689,6 +820,7 @@ export class AnalyticsService {
         WHERE o.tenant_id = ${tenantId}::uuid
           AND oi.sku = ${query.sku}
           AND oi.row_total > 0
+          ${exclude}
       ),
       co_items AS (
         SELECT
@@ -700,12 +832,17 @@ export class AnalyticsService {
         WHERE oi.sku <> ${query.sku}
           AND oi.row_total > 0
       ),
+      co_skus AS (
+        SELECT DISTINCT sku FROM co_items
+      ),
       sku_totals AS (
         SELECT oi.sku, COUNT(DISTINCT oi.order_id)::bigint AS total_orders
         FROM order_item oi
         JOIN "order" o ON o.id = oi.order_id
         WHERE o.tenant_id = ${tenantId}::uuid
           AND oi.row_total > 0
+          AND oi.sku IN (SELECT sku FROM co_skus)
+          ${exclude}
         GROUP BY oi.sku
       )
       SELECT
@@ -746,7 +883,357 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Bucketed revenue + orders for the dashboard chart. Returns the
+   * current window plus the immediately-preceding equivalent window so
+   * the UI can overlay them without a second round-trip.
+   *
+   * Granularity: `day` for windows ≤ 90 days, `week` otherwise. Buckets
+   * with zero orders are emitted as zero rows so the chart's x-axis
+   * stays continuous (no gaps).
+   */
+  async revenueTimeseries(
+    tenantId: string,
+    query: RevenueTimeseriesQuery,
+  ): Promise<RevenueTimeseriesResponse> {
+    const r = resolveRange(query);
+    const lengthMs = r.to.getTime() - r.from.getTime();
+    const lengthDays = lengthMs / (1000 * 60 * 60 * 24);
+    const granularity: 'day' | 'week' | 'month' =
+      query.granularity === 'auto'
+        ? lengthDays > 365
+          ? 'month'
+          : lengthDays > 90
+            ? 'week'
+            : 'day'
+        : query.granularity;
+
+    const [current, previous] = await Promise.all([
+      this.fetchRevenueBuckets(tenantId, r.from, r.to, granularity),
+      this.fetchRevenueBuckets(tenantId, r.previousFrom, r.previousTo, granularity),
+    ]);
+
+    return {
+      range: { from: r.from.toISOString(), to: r.to.toISOString() },
+      previous_range: { from: r.previousFrom.toISOString(), to: r.previousTo.toISOString() },
+      granularity,
+      current,
+      previous,
+    };
+  }
+
+  private async fetchRevenueBuckets(
+    tenantId: string,
+    from: Date,
+    to: Date,
+    granularity: 'day' | 'week' | 'month',
+  ): Promise<RevenueTimePoint[]> {
+    // `generate_series` is the no-data filler — every bucket exists in
+    // the result whether or not an order landed in it. Bucketing is in
+    // Buenos Aires time so the dashboard matches what the operator
+    // sees on their wall clock.
+    const TRUNCS: Record<typeof granularity, ReturnType<typeof Prisma.raw>> = {
+      day: Prisma.raw("'day'"),
+      week: Prisma.raw("'week'"),
+      month: Prisma.raw("'month'"),
+    };
+    const STEPS: Record<typeof granularity, ReturnType<typeof Prisma.raw>> = {
+      day: Prisma.raw("'1 day'"),
+      week: Prisma.raw("'1 week'"),
+      month: Prisma.raw("'1 month'"),
+    };
+    const trunc = TRUNCS[granularity];
+    const step = STEPS[granularity];
+    const exclude = await this.excludedEmailsClause(tenantId);
+    const rows = await this.prisma.$queryRaw<
+      { bucket: Date; revenue: Prisma.Decimal | null; orders: bigint }[]
+    >(Prisma.sql`
+      WITH series AS (
+        SELECT generate_series(
+          date_trunc(${trunc}, ${from} AT TIME ZONE ${BA_TZ}),
+          date_trunc(${trunc}, (${to} - INTERVAL '1 microsecond') AT TIME ZONE ${BA_TZ}),
+          INTERVAL ${step}
+        ) AS bucket
+      ),
+      placed AS (
+        SELECT
+          date_trunc(${trunc}, placed_at AT TIME ZONE ${BA_TZ}) AS bucket,
+          SUM(real_revenue) AS revenue,
+          COUNT(*)::bigint AS orders
+        FROM "order"
+        WHERE tenant_id = ${tenantId}::uuid
+          AND placed_at >= ${from}
+          AND placed_at <  ${to}
+          ${exclude}
+        GROUP BY 1
+      )
+      SELECT
+        s.bucket,
+        COALESCE(p.revenue, 0)::numeric(20,4) AS revenue,
+        COALESCE(p.orders, 0)                  AS orders
+      FROM series s
+      LEFT JOIN placed p USING (bucket)
+      ORDER BY s.bucket ASC
+    `);
+
+    return rows.map((row) => ({
+      bucket: row.bucket.toISOString(),
+      revenue: (row.revenue ?? new Prisma.Decimal(0)).toString(),
+      orders: Number(row.orders),
+    }));
+  }
+
+  /**
+   * Equal-width histogram of `grand_total` for orders in the range.
+   * Uses `width_bucket` so the entire computation stays in Postgres —
+   * 34k orders are bucketed in a single index scan. Returns the median
+   * alongside so the chart can mark it.
+   */
+  async aovHistogram(
+    tenantId: string,
+    query: AovHistogramQuery,
+  ): Promise<AovHistogramResponse> {
+    const r = resolveRange(query);
+    const excludeO = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
+    const div = this.divisorFragment(query.currency, 'o');
+    const converted = Prisma.sql`(o.grand_total / ${div.select})`;
+
+    const [bounds] = await this.prisma.$queryRaw<
+      {
+        min: Prisma.Decimal | null;
+        max: Prisma.Decimal | null;
+        median: Prisma.Decimal | null;
+        total: bigint;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        MIN(${converted})::numeric(20,4) AS min,
+        MAX(${converted})::numeric(20,4) AS max,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${converted})::numeric(20,4) AS median,
+        COUNT(*)::bigint AS total
+      FROM "order" o
+      ${div.join}
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        AND o.grand_total > 0
+        ${excludeO}
+    `);
+
+    const total = Number(bounds?.total ?? 0n);
+    if (total === 0 || !bounds?.min || !bounds.max) {
+      return {
+        range: { from: r.from.toISOString(), to: r.to.toISOString() },
+        total_orders: 0,
+        median: '0',
+        buckets: [],
+      };
+    }
+
+    const minNum = Number(bounds.min);
+    const maxNum = Number(bounds.max);
+    const buckets = query.buckets;
+
+    // Edge case: all orders share the same grand_total — width_bucket
+    // would crash without a positive width. Synthesize one bucket.
+    if (minNum >= maxNum) {
+      return {
+        range: { from: r.from.toISOString(), to: r.to.toISOString() },
+        total_orders: total,
+        median: bounds.median?.toString() ?? '0',
+        buckets: [{ min: bounds.min.toString(), max: bounds.max.toString(), orders: total }],
+      };
+    }
+
+    // The casts are mandatory: without them Prisma binds the JS numbers
+    // as `bigint` and `width_bucket(numeric, bigint, bigint, bigint)`
+    // does not exist — Postgres requires `(numeric, numeric, numeric, integer)`.
+    const rows = await this.prisma.$queryRaw<{ bucket: number; count: bigint }[]>(Prisma.sql`
+      SELECT
+        width_bucket(${converted}, ${minNum}::numeric, ${maxNum}::numeric, ${buckets}::integer) AS bucket,
+        COUNT(*)::bigint AS count
+      FROM "order" o
+      ${div.join}
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        AND o.grand_total > 0
+        ${excludeO}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
+
+    const counts = new Map<number, number>();
+    for (const row of rows) {
+      const idx = row.bucket;
+      // `width_bucket` returns `buckets + 1` for the maximum value; fold
+      // it into the last bucket so the histogram closes cleanly.
+      const normalized = idx > buckets ? buckets : idx < 1 ? 1 : idx;
+      counts.set(normalized, (counts.get(normalized) ?? 0) + Number(row.count));
+    }
+
+    const width = (maxNum - minNum) / buckets;
+    const out: AovHistogramBucket[] = [];
+    for (let i = 1; i <= buckets; i += 1) {
+      const min = minNum + (i - 1) * width;
+      const max = i === buckets ? maxNum : minNum + i * width;
+      out.push({
+        min: min.toFixed(4),
+        max: max.toFixed(4),
+        orders: counts.get(i) ?? 0,
+      });
+    }
+
+    return {
+      range: { from: r.from.toISOString(), to: r.to.toISOString() },
+      total_orders: total,
+      median: bounds.median?.toString() ?? '0',
+      buckets: out,
+    };
+  }
+
+  /**
+   * Monthly revenue grouped by calendar year, for every year with at
+   * least one order. Backs the dashboard's all-years YoY chart so the
+   * operator can compare any year against the rest at a glance.
+   * Bucketed in Buenos Aires time so January = January in the operator's
+   * timezone.
+   */
+  async yearlyRevenue(
+    tenantId: string,
+    currency: 'ars' | 'usd' = 'ars',
+  ): Promise<YearlyRevenueResponse> {
+    const excludeO = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
+    const div = this.divisorFragment(currency, 'o');
+    const rows = await this.prisma.$queryRaw<
+      {
+        year: number;
+        month: number;
+        revenue: Prisma.Decimal | null;
+        orders: bigint;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        EXTRACT(YEAR  FROM o.placed_at AT TIME ZONE ${BA_TZ})::int AS year,
+        EXTRACT(MONTH FROM o.placed_at AT TIME ZONE ${BA_TZ})::int AS month,
+        COALESCE(SUM(o.real_revenue / ${div.select}), 0)::numeric(20,4) AS revenue,
+        COUNT(*)::bigint                                                 AS orders
+      FROM "order" o
+      ${div.join}
+      WHERE o.tenant_id = ${tenantId}::uuid
+        ${excludeO}
+      GROUP BY 1, 2
+      ORDER BY 1 ASC, 2 ASC
+    `);
+
+    const byYear = new Map<number, YearlyMonthPoint[]>();
+    for (const row of rows) {
+      const list = byYear.get(row.year) ?? [];
+      list.push({
+        month: row.month,
+        revenue: (row.revenue ?? new Prisma.Decimal(0)).toString(),
+        orders: Number(row.orders),
+      });
+      byYear.set(row.year, list);
+    }
+
+    // Densify each year to a 12-element array — gives the chart a stable
+    // x-axis even when a year is missing some months.
+    const years: YearlyRevenueYear[] = [...byYear.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([year, months]) => {
+        const dense: YearlyMonthPoint[] = [];
+        const byMonth = new Map(months.map((m) => [m.month, m]));
+        let totalRevenue = new Prisma.Decimal(0);
+        let totalOrders = 0;
+        for (let m = 1; m <= 12; m += 1) {
+          const point = byMonth.get(m) ?? { month: m, revenue: '0', orders: 0 };
+          dense.push(point);
+          totalRevenue = totalRevenue.plus(point.revenue);
+          totalOrders += point.orders;
+        }
+        return {
+          year,
+          total_revenue: totalRevenue.toString(),
+          total_orders: totalOrders,
+          months: dense,
+        };
+      });
+
+    return { years };
+  }
+
+  /**
+   * Distribution of orders + revenue grouped by a categorical column
+   * (`payment_method`, `shipping_method`). Rows ordered by order count
+   * descending; the caller decides whether to fold the long tail.
+   *
+   * `analytics_method_label.merge_into_code` lets the operator collapse
+   * a legacy code into the canonical one (e.g. `mercadopago_basic` →
+   * `mercadopago_adbpayment_checkout_pro`) so renamed Magento modules
+   * appear as a single line instead of two.
+   */
+  async breakdown(tenantId: string, query: BreakdownQuery): Promise<BreakdownResponse> {
+    const r = resolveRange(query);
+    const excludeO = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
+    const div = this.divisorFragment(query.currency, 'o');
+
+    // The Zod enum guards `dimension`, so injecting it via Prisma.raw
+    // is safe — it can only be one of two whitelisted column names.
+    const column = Prisma.raw(query.dimension);
+    const labelKind: 'payment' | 'shipping' =
+      query.dimension === 'payment_method' ? 'payment' : 'shipping';
+
+    const rows = await this.prisma.$queryRaw<
+      { key: string | null; orders: bigint; revenue: Prisma.Decimal | null }[]
+    >(Prisma.sql`
+      SELECT
+        COALESCE(aml.merge_into_code, o.${column})                      AS key,
+        COUNT(*)::bigint                                                AS orders,
+        COALESCE(SUM(o.real_revenue / ${div.select}), 0)::numeric(20,4) AS revenue
+      FROM "order" o
+      ${div.join}
+      LEFT JOIN analytics_method_label aml
+        ON aml.tenant_id = ${tenantId}::uuid
+       AND aml.kind = ${labelKind}
+       AND aml.code = o.${column}
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        ${excludeO}
+      GROUP BY 1
+      ORDER BY orders DESC, key ASC NULLS LAST
+    `);
+
+    const totalOrders = rows.reduce((sum, row) => sum + Number(row.orders), 0);
+    const totalRevenue = rows.reduce(
+      (sum, row) => sum.plus(row.revenue ?? new Prisma.Decimal(0)),
+      new Prisma.Decimal(0),
+    );
+
+    const data: BreakdownRow[] = rows.map((row) => {
+      const orders = Number(row.orders);
+      const revenue = row.revenue ?? new Prisma.Decimal(0);
+      return {
+        key: row.key ?? '(none)',
+        orders,
+        revenue: revenue.toString(),
+        share_orders: totalOrders > 0 ? orders / totalOrders : 0,
+        share_revenue: totalRevenue.gt(0) ? revenue.div(totalRevenue).toNumber() : 0,
+      };
+    });
+
+    return {
+      range: { from: r.from.toISOString(), to: r.to.toISOString() },
+      dimension: query.dimension,
+      total_orders: totalOrders,
+      total_revenue: totalRevenue.toString(),
+      data,
+    };
+  }
+
   private async computeKpiBlock(tenantId: string, from: Date, to: Date): Promise<KpiBlock> {
+    const exclude = await this.excludedEmailsClause(tenantId);
     // One pass for headline numbers.
     const [headline] = await this.prisma.$queryRaw<
       {
@@ -763,6 +1250,7 @@ export class AnalyticsService {
       WHERE tenant_id = ${tenantId}::uuid
         AND placed_at >= ${from}
         AND placed_at <  ${to}
+        ${exclude}
     `);
 
     const ordersInt = Number(headline?.orders ?? 0n);
@@ -781,12 +1269,14 @@ export class AnalyticsService {
           AND placed_at >= ${from}
           AND placed_at <  ${to}
           AND customer_profile_id IS NOT NULL
+          ${exclude}
       ),
       first_orders AS (
         SELECT customer_profile_id, MIN(placed_at) AS first_at
         FROM "order"
         WHERE tenant_id = ${tenantId}::uuid
           AND customer_profile_id IS NOT NULL
+          ${exclude}
         GROUP BY customer_profile_id
       )
       SELECT

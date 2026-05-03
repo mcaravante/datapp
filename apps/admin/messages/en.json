@@ -4,6 +4,7 @@
     "tagline": "Customer Data Platform",
     "tenant": "Tenant",
     "signOut": "Sign out",
+    "myAccount": "My account",
     "version": "v0.1 · Phase 1"
   },
   "nav": {
@@ -12,15 +13,20 @@
     "segments": "Segments",
     "orders": "Orders",
     "carts": "Abandoned carts",
+    "campaigns": "Email campaigns",
+    "templates": "Email templates",
     "products": "Top products",
     "coupons": "Coupons",
     "regions": "Regions",
     "insights": "Insights",
+    "reports": "Reports",
     "sync": "Sync",
     "users": "Users",
     "permissions": "Permissions",
     "security": "Security",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "account": "My account",
+    "system": "System"
   },
   "common": {
     "search": "Search",
@@ -41,7 +47,12 @@
     "all": "All",
     "switchToLight": "Switch to light theme",
     "switchToDark": "Switch to dark theme",
-    "language": "Language"
+    "language": "Language",
+    "currencyToggle": {
+      "label": "Currency",
+      "ars": "ARS",
+      "usd": "USD"
+    }
   },
   "presets": {
     "7d": "7 days",
@@ -142,6 +153,26 @@
     },
     "delta": {
       "vs": "vs"
+    },
+    "chart": {
+      "title": "Revenue over time",
+      "subtitle": "Current vs previous period · bucketed by {granularity}.",
+      "yUnit": "ARS",
+      "legendCurrent": "Current period",
+      "legendPrevious": "Previous period",
+      "bucket": {
+        "day": "day",
+        "week": "week"
+      }
+    },
+    "top": {
+      "products": "Top products",
+      "regions": "Top provinces",
+      "coupons": "Top coupons"
+    },
+    "miniMap": {
+      "title": "Revenue by province",
+      "open": "View all"
     }
   },
   "customers": {
@@ -149,6 +180,8 @@
     "onThisPage": "{count} on this page.",
     "onThisPageOf": "{count} on this page of {total} total.",
     "searchPlaceholder": "Search email, first name, last name…",
+    "groupLabel": "Group:",
+    "rfmLabel": "RFM segment:",
     "saveAsSegment": "Save as segment",
     "table": {
       "email": "Email",
@@ -163,6 +196,13 @@
   "customerDetail": {
     "back": "← Customers",
     "subhead": "{fullName} · Magento #{magentoId} · group {group}",
+    "charts": {
+      "spend": "Spend over time",
+      "spendSubtitle": "Sum of orders per month (real revenue when available).",
+      "skuMix": "SKU mix",
+      "skuMixSubtitle": "Top 5 SKUs by revenue · the rest grouped together.",
+      "other": "Other"
+    },
     "identity": "Identity",
     "rfm": "RFM segment",
     "rfmCalculated": "calculated {when}",
@@ -234,6 +274,7 @@
     },
     "title": "Segments",
     "subtitle": "Static customer segments. Membership snapshots at create time and refreshes on demand.",
+    "searchPlaceholder": "Search segment…",
     "newSegment": "New segment",
     "table": {
       "name": "Name",
@@ -299,6 +340,7 @@
     "onThisPage": "{count} on this page · sorted by placed_at desc.",
     "onThisPageOf": "{count} on this page of {total} total.",
     "searchPlaceholder": "Search order # or customer email…",
+    "regionLabel": "Province:",
     "statusLabel": "Status:",
     "statusFilters": {
       "all": "All",
@@ -377,9 +419,7 @@
   "products": {
     "title": "Top products",
     "subtitle": "Aggregated by SKU. Configurable parents are filtered out automatically.",
-    "sortBy": "Sort by:",
-    "sortRevenue": "Revenue",
-    "sortUnits": "Units",
+    "searchPlaceholder": "Search SKU or name…",
     "table": {
       "rank": "#",
       "product": "Product",
@@ -417,6 +457,9 @@
   "regions": {
     "title": "Regions · Argentina",
     "subtitle": "Customers + orders + revenue per INDEC province. Customer counts are snapshot (independent of date range); buyers / orders / revenue are window-bound.",
+    "searchPlaceholder": "Search province…",
+    "hideInactive": "Hide inactive",
+    "showing": "Showing {shown} of {total}",
     "tiles": {
       "customers": "Customers",
       "buyers": "Buyers in window",
@@ -503,6 +546,7 @@
   "coupons": {
     "title": "Coupons",
     "subtitle": "Coupon code usage in the period. Auto cart-rule promotions (no code) reported separately at the bottom.",
+    "searchPlaceholder": "Search code or rule…",
     "tiles": {
       "couponOrders": "Coupon orders",
       "couponRevenue": "Coupon revenue",
@@ -531,36 +575,59 @@
   },
   "carts": {
     "title": "Abandoned carts",
-    "subtitle": "Active carts with at least one item, idle for ≥ {threshold}. Last sync: {when}.",
-    "presets": {
-      "1h": "1 hour",
-      "3h": "3 hours",
-      "12h": "12 hours",
-      "1d": "1 day",
-      "7d": "7 days"
+    "subtitle": "A cart is considered abandoned after 24 h of inactivity. Last sync: {when}.",
+    "tabs": {
+      "open": "Open",
+      "recovered": "Recovered",
+      "expired": "Expired"
     },
-    "tiles": {
-      "carts": "Carts",
-      "items": "Items in carts",
-      "itemsSub": "sum across all carts",
-      "atRisk": "At-risk revenue",
-      "atRiskSub": "grand_total of pending carts",
-      "recoverable": "Recoverable",
-      "recoverableSub": "known customers (not guest)"
+    "ranges": {
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days",
+      "all": "All time"
     },
-    "tableHeading": "Carts ({count})",
-    "tableSubtitle": "Sorted by most recently touched. Customer column links to the Datapp profile when the shopper is registered.",
+    "kpis": {
+      "openNow": "Open",
+      "openNowSub": "carts in this window",
+      "openAtRisk": "At risk",
+      "openAtRiskSub": "total of open carts",
+      "recovered": "Recovered",
+      "recoveredSub": "last {days} days",
+      "recoveredRevenue": "Recovered revenue",
+      "recoveredRevenueSub": "last {days} days",
+      "recoveryRate": "Recovery rate",
+      "recoveryRateSub": "recovered / (recovered + expired)",
+      "expired": "Expired",
+      "expiredSub": "last {days} days"
+    },
+    "tableHeading": {
+      "open": "Open carts ({count})",
+      "recovered": "Recovered carts ({count})",
+      "expired": "Expired carts ({count})"
+    },
+    "tableSubtitle": {
+      "open": "Sorted by abandonment time. Customer column links to the Datapp profile when the shopper is registered.",
+      "recovered": "Sorted by recovery time. Amount reflects real revenue (invoiced − refunded) when available.",
+      "expired": "Carts that hit 30 days without recovery. Kept as history for analytics."
+    },
     "table": {
       "cart": "Cart",
       "customer": "Customer",
       "items": "Items",
       "total": "Total",
-      "lastActivity": "Last activity",
-      "idle": "Idle",
+      "abandonedAt": "Abandoned at",
+      "recoveredAt": "Recovered at",
+      "expiredAt": "Expired at",
+      "recoveredAmount": "Recovered amount",
+      "ageOpen": "Age",
+      "ageRecovered": "Time to recovery",
       "noEmail": "(no email)",
       "guest": "guest",
       "registered": "registered",
-      "empty": "No abandoned carts in this window."
+      "emptyOpen": "No abandoned carts in this window.",
+      "emptyRecovered": "No recoveries recorded in this window yet.",
+      "emptyExpired": "No expired carts recorded in this window yet."
     }
   },
   "sync": {
@@ -591,6 +658,9 @@
   "users": {
     "title": "Users",
     "subtitle": "Accounts with access to the Datapp admin. Only the {adminRole} and {superAdminRole} roles can manage users.",
+    "searchPlaceholder": "Search name or email…",
+    "roleFilterLabel": "Role:",
+    "roleFilterAll": "All",
     "newUser": "New user",
     "roles": {
       "super_admin": "Super admin",
@@ -705,11 +775,127 @@
       "regenSuccess": "New codes generated. Make sure to save them before closing the page."
     }
   },
+  "account": {
+    "title": "My account",
+    "subtitle": "Your personal information and interface preferences.",
+    "identity": {
+      "title": "Identity",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "security": "Security",
+      "manageSecurity": "Manage 2FA and sessions"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "body": "These options are personal and stored locally in your browser.",
+      "theme": "Theme",
+      "themeHint": "Light or dark.",
+      "language": "Language",
+      "languageHint": "Interface language."
+    }
+  },
+  "system": {
+    "title": "System",
+    "subtitle": "Tenant-wide operations. Cache refresh affects every page that depends on aggregated data.",
+    "cache": {
+      "title": "Cache",
+      "body": "After a manual sync, or when data feels stale, refresh to regenerate the expensive reports (insights, regions, top products, coupons) on the next visit."
+    },
+    "refreshButton": {
+      "idle": "Refresh cache",
+      "pending": "Refreshing…",
+      "done": "Done · {ms}ms · {at}"
+    },
+    "methodLabels": {
+      "title": "Payment and shipping method labels",
+      "body": "Magento uses technical codes (mercadopago_basic, banktransfer). Map them to friendly names so your client recognizes them in reports. The code is visible in any order detail page.",
+      "kindLabel": "Kind",
+      "kinds": { "payment": "Payment", "shipping": "Shipping" },
+      "codeLabel": "Code",
+      "codePlaceholder": "mercadopago_basic",
+      "titleLabel": "Friendly title",
+      "titlePlaceholder": "Mercado Pago (Debit | Credit | Account balance)",
+      "mergeIntoLabel": "Merge into (optional)",
+      "mergeIntoPlaceholder": "mercadopago_adbpayment_checkout_pro",
+      "mergeIntoHint": "Leave empty for normal labels. Set to fold a legacy code into the canonical one.",
+      "save": "Save",
+      "saving": "Saving…",
+      "clear": "Clear",
+      "table": {
+        "kind": "Kind",
+        "code": "Code",
+        "title": "Title",
+        "mergeInto": "Merges into",
+        "edit": "Edit",
+        "remove": "Remove",
+        "empty": "No labels configured yet."
+      }
+    },
+    "excluded": {
+      "title": "Emails excluded from reports",
+      "body": "Orders whose customer email matches this list are dropped from every report and metric (KPIs, regions, top products, cohorts, AOV, etc.). Useful to keep test orders from polluting the numbers.",
+      "emailLabel": "Email or domain",
+      "emailPlaceholder": "your-email@domain.com  or  @domain.com",
+      "emailHint": "Start with @ to exclude an entire domain (e.g. @pupemoda.com.ar).",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g. test account",
+      "add": "Add",
+      "adding": "Adding…",
+      "table": {
+        "email": "Email",
+        "reason": "Reason",
+        "addedBy": "Added by",
+        "remove": "Remove",
+        "empty": "No excluded emails yet."
+      }
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Year-over-year comparison and order-value distribution.",
+    "yoy": {
+      "title": "Monthly revenue by year",
+      "subtitle": "One line per year, aligned month-to-month. The most recent year takes the primary color.",
+      "empty": "No synced orders yet.",
+      "yearLabel": "Year",
+      "totalLabel": "Total"
+    },
+    "yoyOrders": {
+      "title": "Monthly order count by year",
+      "subtitle": "Same time axis and same color assignment per year. The legend shows the annual total."
+    },
+    "histogram": {
+      "title": "Order value distribution",
+      "subtitle": "{total} orders this year. The median ({median}) is marked with the orange line."
+    },
+    "breakdown": {
+      "payment": {
+        "title": "Orders by payment method",
+        "subtitle": "Current-year distribution."
+      },
+      "shipping": {
+        "title": "Orders by shipping method",
+        "subtitle": "Current-year distribution."
+      },
+      "other": "Other",
+      "noData": "No data available for this dimension in the synced orders. Run a re-sync from Magento to refresh.",
+      "table": {
+        "method": "Method",
+        "orders": "Orders",
+        "revenue": "Revenue",
+        "share": "%"
+      }
+    }
+  },
   "audit": {
     "title": "Audit log",
     "subtitle": "Security-sensitive events — sign-ins, lockouts, password resets, 2FA changes, session revocations. Retain this for forensics.",
     "filter": "Filter by event",
     "allActions": "All",
+    "allEntities": "All entities",
+    "searchPlaceholder": "Search email, IP or ID…",
+    "shownOnPage": "{shown} of {total} on this page",
     "next": "Next",
     "table": {
       "when": "When",

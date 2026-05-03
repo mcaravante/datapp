@@ -47,6 +47,13 @@ export class CustomersController {
     return this.customers.list(this.tenantOrThrow(user), query);
   }
 
+  @Get('facets')
+  async facets(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ customer_groups: string[] }> {
+    return this.customers.facets(this.tenantOrThrow(user));
+  }
+
   @Get('export.csv')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   async exportCsv(

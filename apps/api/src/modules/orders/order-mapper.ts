@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { MagentoAddress, MagentoOrder, MagentoOrderItem } from '@datapp/magento-client';
+import type { RegionResolverService } from '../geo/region-resolver.service';
 
 export interface MappedOrderItem {
   magentoOrderItemId: string;
@@ -26,6 +27,8 @@ export interface MappedStatusHistory {
 export interface MappedOrder {
   magentoOrderId: string;
   magentoOrderNumber: string;
+  magentoQuoteId: string | null; // links the order back to the originating cart for recovery analytics
+  regionId: number | null; // resolved CDP region for the shipping address (fallback billing)
   magentoCustomerId: string | null; // Magento customer ID; resolved to FK by the caller
   customerEmail: string;
   customerEmailHash: string;
@@ -67,12 +70,17 @@ export interface MappedOrder {
  * NOTE: `real_revenue` is a Postgres GENERATED column. The output here
  * intentionally OMITS it — writing it from application code would error.
  */
-export function mapOrder(raw: MagentoOrder): MappedOrder {
+export function mapOrder(
+  raw: MagentoOrder,
+  regionResolver: RegionResolverService,
+  defaultCountry: string,
+): MappedOrder {
   const customerEmail = raw.customer_email.toLowerCase();
   const customerEmailHash = createHash('sha256').update(customerEmail).digest('hex');
 
   const billing = raw.billing_address ?? {};
   const shipping = raw.extension_attributes?.shipping_assignments?.[0]?.shipping?.address ?? null;
+  const regionId = resolveRegionId(regionResolver, defaultCountry, shipping, billing);
 
   const items = (raw.items ?? []).map(mapItem);
   const statusHistory = (raw.status_histories ?? []).map(mapHistory);
@@ -88,6 +96,7 @@ export function mapOrder(raw: MagentoOrder): MappedOrder {
   const known = new Set([
     'entity_id',
     'increment_id',
+    'quote_id',
     'customer_id',
     'customer_email',
     'status',
@@ -125,6 +134,8 @@ export function mapOrder(raw: MagentoOrder): MappedOrder {
   return {
     magentoOrderId: String(raw.entity_id),
     magentoOrderNumber: raw.increment_id,
+    magentoQuoteId: extractQuoteId(raw),
+    regionId,
     magentoCustomerId: typeof raw.customer_id === 'number' ? String(raw.customer_id) : null,
     customerEmail,
     customerEmailHash,
@@ -143,7 +154,11 @@ export function mapOrder(raw: MagentoOrder): MappedOrder {
     billingAddress: addressToJson(billing),
     shippingAddress: shipping ? addressToJson(shipping) : {},
     paymentMethod: raw.payment?.method ?? null,
-    shippingMethod: raw.shipping_method ?? null,
+    // Magento exposes the shipping method in two places: the top-level
+    // `shipping_method` (set by some carriers) and inside the shipping
+    // assignment under `extension_attributes`. Pick whichever has a
+    // non-empty value — Pupemoda's catalog leaves the top-level blank.
+    shippingMethod: pickShippingMethod(raw),
     couponCode: emptyToNull(getStringField(raw, 'coupon_code')),
     discountDescription: emptyToNull(getStringField(raw, 'discount_description')),
     appliedRuleIds: emptyToNull(getStringField(raw, 'applied_rule_ids')),
@@ -245,4 +260,51 @@ function emptyToNull(v: string | null): string | null {
   if (v === null) return null;
   const trimmed = v.trim();
   return trimmed.length === 0 ? null : trimmed;
+}
+
+function pickShippingMethod(raw: MagentoOrder): string | null {
+  const top = typeof raw.shipping_method === 'string' ? raw.shipping_method.trim() : '';
+  if (top.length > 0) return top;
+  const fromAssignment =
+    raw.extension_attributes?.shipping_assignments?.[0]?.shipping?.method;
+  if (typeof fromAssignment === 'string' && fromAssignment.trim().length > 0) {
+    return fromAssignment.trim();
+  }
+  return null;
+}
+
+function extractQuoteId(raw: MagentoOrder): string | null {
+  const v = (raw as unknown as Record<string, unknown>).quote_id;
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  if (typeof v === 'string' && v.trim().length > 0) return v.trim();
+  return null;
+}
+
+/**
+ * Resolve the order's province by walking shipping address first,
+ * then billing as a fallback (some Magento configs only fill billing
+ * for store-pickup or digital orders). Country comes from the address
+ * itself when present; otherwise we use the store's default.
+ */
+function resolveRegionId(
+  resolver: RegionResolverService,
+  defaultCountry: string,
+  shipping: MagentoAddress | null,
+  billing: MagentoAddress | Record<string, unknown>,
+): number | null {
+  const candidates: (MagentoAddress | Record<string, unknown> | null)[] = [shipping, billing];
+  for (const addr of candidates) {
+    if (!addr) continue;
+    const country = pickCountry(addr) ?? defaultCountry;
+    const region = (addr as Record<string, unknown>).region;
+    if (!region) continue;
+    const { regionId } = resolver.resolve(country, region);
+    if (regionId !== null) return regionId;
+  }
+  return null;
+}
+
+function pickCountry(addr: MagentoAddress | Record<string, unknown>): string | null {
+  const v = (addr as Record<string, unknown>).country_id;
+  return typeof v === 'string' && v.trim().length > 0 ? v : null;
 }

@@ -29,7 +29,7 @@ export async function runSyncCartsAbandoned(
   logger.log(`Starting abandoned cart sweep for tenant=${tenant.slug}`);
   const result = await sync.sweepStore(tenant.id, storeName);
   logger.log(
-    `Done. fetched=${result.fetched} upserted=${result.upserted} removed=${result.removed} elapsedMs=${result.durationMs}`,
+    `Done. fetched=${result.fetched} inserted=${result.inserted} updated=${result.updated} recovered=${result.recovered} expired=${result.expired} purged=${result.purged} elapsedMs=${result.durationMs}`,
   );
   return 0;
 }

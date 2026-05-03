@@ -1,17 +1,21 @@
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { apiFetch } from '@/lib/api-client';
+import { cachedApiFetch } from '@/lib/cached-api-fetch';
 import { ExportButton } from '@/components/export-button';
+import { SortableHeader } from '@/components/sortable-header';
+import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
-import type { TopProductsResponse } from '@/lib/types';
+import type { TopProductsResponse, TopProductsSortField } from '@/lib/types';
 
 export const metadata = { title: 'Datapp · Top products' };
 
 interface PageProps {
   searchParams: Promise<{
     window?: string;
-    order_by?: 'units' | 'revenue';
+    q?: string;
+    sort?: string;
+    dir?: string;
     limit?: string;
   }>;
 }
@@ -20,10 +24,14 @@ const PRESETS = [
   { id: '7d', days: 7 },
   { id: '30d', days: 30 },
   { id: '90d', days: 90 },
+  { id: '365d', days: 365 },
   { id: 'all', days: null },
 ] as const;
 
 type PresetId = (typeof PRESETS)[number]['id'];
+
+const SORT_FIELDS: readonly TopProductsSortField[] = ['revenue', 'units', 'orders', 'sku', 'name'];
+const DEFAULT_SORT: SortState<TopProductsSortField> = { field: 'revenue', dir: 'desc' };
 
 function rangeFromPreset(presetId: string): { from: string; to: string } {
   const to = new Date();
@@ -38,32 +46,53 @@ function rangeFromPreset(presetId: string): { from: string; to: string } {
 export default async function TopProductsPage({
   searchParams,
 }: PageProps): Promise<React.ReactElement> {
-  const {
-    window: windowParam = '7d',
-    order_by: orderBy = 'revenue',
-    limit = '50',
-  } = await searchParams;
+  const sp = await searchParams;
+  const windowParam = sp.window ?? '7d';
+  const limit = sp.limit ?? '50';
+  const q = sp.q ?? '';
+  const sort = parseSort<TopProductsSortField>(sp, SORT_FIELDS, DEFAULT_SORT);
   const range = rangeFromPreset(windowParam);
 
-  const params = new URLSearchParams({
+  const apiParams = new URLSearchParams({
     from: range.from,
     to: range.to,
-    order_by: orderBy,
+    sort: sort.field,
+    dir: sort.dir,
     limit,
   });
+  if (q) apiParams.set('q', q);
 
-  const result = await apiFetch<TopProductsResponse>(
-    `/v1/admin/analytics/top-products?${params.toString()}`,
+  const result = await cachedApiFetch<TopProductsResponse>(
+    `/v1/admin/analytics/top-products?${apiParams.toString()}`,
   );
 
-  const buildHref = (overrides: Record<string, string>) => {
-    const next = new URLSearchParams({ window: windowParam, order_by: orderBy, limit });
-    for (const [k, v] of Object.entries(overrides)) next.set(k, v);
-    return `/products?${next.toString()}`;
+  const currentParams: Record<string, string | string[] | undefined> = {
+    window: windowParam,
+    limit,
+    q,
+    sort: sort.field === DEFAULT_SORT.field ? undefined : sort.field,
+    dir: sort.field === DEFAULT_SORT.field && sort.dir === DEFAULT_SORT.dir ? undefined : sort.dir,
   };
 
-  const maxRevenue = result.data.reduce((max, row) => Math.max(max, Number(row.revenue)), 0);
-  const maxUnits = result.data.reduce((max, row) => Math.max(max, row.units), 0);
+  const buildFilterHref = (overrides: Record<string, string | undefined>): string =>
+    buildListHref('/products', currentParams, overrides);
+
+  // Bars compare by the active sort metric — when sorting by sku/name, fall
+  // back to revenue so the visualization stays meaningful.
+  const barMetric: 'revenue' | 'units' = sort.field === 'units' ? 'units' : 'revenue';
+  const maxBar = result.data.reduce(
+    (max, row) => Math.max(max, barMetric === 'units' ? row.units : Number(row.revenue)),
+    0,
+  );
+
+  const exportQs = new URLSearchParams({
+    from: range.from,
+    to: range.to,
+    sort: sort.field,
+    dir: sort.dir,
+    limit: '50000',
+  });
+  if (q) exportQs.set('q', q);
 
   const t = await getTranslations('products');
   const tCommon = await getTranslations('common');
@@ -79,7 +108,7 @@ export default async function TopProductsPage({
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
-            href={`/api/export/products?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&order_by=${orderBy}&limit=50000`}
+            href={`/api/export/products?${exportQs.toString()}`}
             label={tCommon('exportCsv')}
           />
           <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
@@ -88,7 +117,7 @@ export default async function TopProductsPage({
               return (
                 <Link
                   key={p.id}
-                  href={buildHref({ window: p.id })}
+                  href={buildFilterHref({ window: p.id })}
                   className={
                     active
                       ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
@@ -103,40 +132,100 @@ export default async function TopProductsPage({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">{t('sortBy')}</span>
-        <Link
-          href={buildHref({ order_by: 'revenue' })}
-          className={
-            orderBy === 'revenue'
-              ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
-              : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
-          }
+      <form className="flex flex-wrap items-center gap-2" action="/products">
+        <input type="hidden" name="window" value={windowParam} />
+        {sort.field !== DEFAULT_SORT.field && <input type="hidden" name="sort" value={sort.field} />}
+        {!(sort.field === DEFAULT_SORT.field && sort.dir === DEFAULT_SORT.dir) && (
+          <input type="hidden" name="dir" value={sort.dir} />
+        )}
+        <div className="relative w-full max-w-sm">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder={t('searchPlaceholder')}
+            className="block w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-soft transition hover:bg-primary/90"
         >
-          {t('sortRevenue')}
-        </Link>
-        <Link
-          href={buildHref({ order_by: 'units' })}
-          className={
-            orderBy === 'units'
-              ? 'rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground'
-              : 'rounded-md border border-border bg-card px-3 py-1 text-xs text-foreground transition hover:bg-muted'
-          }
-        >
-          {t('sortUnits')}
-        </Link>
-      </div>
+          {tCommon('search')}
+        </button>
+        {q && (
+          <Link
+            href={buildFilterHref({ q: undefined })}
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm text-foreground transition hover:bg-muted"
+          >
+            {tCommon('clear')}
+          </Link>
+        )}
+      </form>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+          <thead className="border-b border-border bg-muted/50">
             <tr>
-              <th className="w-12 px-4 py-3 text-right font-semibold">{t('table.rank')}</th>
-              <th className="px-4 py-3 font-semibold">{t('table.product')}</th>
-              <th className="px-4 py-3 font-semibold">{t('table.sku')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('table.units')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('table.revenue')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('table.orders')}</th>
+              <th className="w-12 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('table.rank')}
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="name"
+                  current={sort}
+                  defaultDir="asc"
+                  basePath="/products"
+                  currentParams={currentParams}
+                >
+                  {t('table.product')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="sku"
+                  current={sort}
+                  defaultDir="asc"
+                  basePath="/products"
+                  currentParams={currentParams}
+                >
+                  {t('table.sku')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="units"
+                  current={sort}
+                  align="right"
+                  basePath="/products"
+                  currentParams={currentParams}
+                >
+                  {t('table.units')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="revenue"
+                  current={sort}
+                  align="right"
+                  basePath="/products"
+                  currentParams={currentParams}
+                >
+                  {t('table.revenue')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="orders"
+                  current={sort}
+                  align="right"
+                  basePath="/products"
+                  currentParams={currentParams}
+                >
+                  {t('table.orders')}
+                </SortableHeader>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -148,9 +237,8 @@ export default async function TopProductsPage({
               </tr>
             )}
             {result.data.map((row, i) => {
-              const max = orderBy === 'revenue' ? maxRevenue : maxUnits;
-              const value = orderBy === 'revenue' ? Number(row.revenue) : row.units;
-              const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+              const value = barMetric === 'units' ? row.units : Number(row.revenue);
+              const pct = maxBar > 0 ? Math.min(100, (value / maxBar) * 100) : 0;
               return (
                 <tr
                   key={row.sku}
@@ -200,5 +288,23 @@ export default async function TopProductsPage({
         </table>
       </div>
     </div>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
   );
 }

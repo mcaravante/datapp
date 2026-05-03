@@ -34,7 +34,10 @@ export default async function AuthedLayout({
     <div className="flex min-h-screen bg-background">
       <Sidebar role={role} access={access} />
       <div className="flex min-h-screen flex-1 flex-col">
-        <Topbar user={{ name: session.user?.name, email: session.user?.email }} />
+        <Topbar
+          user={{ name: session.user?.name, email: session.user?.email }}
+          role={role}
+        />
         <main className="flex-1 overflow-auto bg-background">{children}</main>
       </div>
     </div>

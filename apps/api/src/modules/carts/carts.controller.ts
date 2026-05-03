@@ -1,11 +1,19 @@
-import { Controller, ForbiddenException, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtGuard } from '../auth/jwt.guard';
 import type { AuthenticatedUser } from '../auth/types';
 import { CartsService } from './carts.service';
-import type { AbandonedCartsResponse } from './carts.service';
+import type { AbandonedCartRow, AbandonedCartsResponse } from './carts.service';
 import { AbandonedCartsQuerySchema } from './dto/abandoned-carts.query';
 import type { AbandonedCartsQuery } from './dto/abandoned-carts.query';
 
@@ -22,6 +30,14 @@ export class CartsController {
     @Query(new ZodValidationPipe(AbandonedCartsQuerySchema)) query: AbandonedCartsQuery,
   ): Promise<AbandonedCartsResponse> {
     return this.carts.listAbandoned(this.tenantOrThrow(user), query);
+  }
+
+  @Get('abandoned/:id')
+  async abandonedDetail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<AbandonedCartRow> {
+    return this.carts.findById(this.tenantOrThrow(user), id);
   }
 
   private tenantOrThrow(user: AuthenticatedUser): string {

@@ -147,7 +147,14 @@ export class IngestProcessor extends WorkerHost {
     const store = await this.stores.findById(ctx.storeId);
     const client = this.clients.forStore(store);
     const raw = await client.orders.get(id);
-    await this.orders.upsert({ tenantId: ctx.tenantId, magentoStoreId: ctx.storeId }, raw);
+    await this.orders.upsert(
+      {
+        tenantId: ctx.tenantId,
+        magentoStoreId: ctx.storeId,
+        defaultCountry: store.defaultCountry,
+      },
+      raw,
+    );
   }
 
   private async handleNewsletter(ctx: JobData['ctx'], envelope: IngestEnvelope): Promise<void> {

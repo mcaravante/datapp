@@ -23,6 +23,40 @@ export function formatCurrencyArs(value: string | number, locale: Locale = 'es')
   return formatCurrency(value, 'ARS', locale);
 }
 
+export function formatCurrencyUsd(value: string | number, locale: Locale = 'es'): string {
+  return formatCurrency(value, 'USD', locale);
+}
+
+/** Pick the right formatter based on the active currency toggle. */
+export function formatRevenue(
+  value: string | number,
+  currency: 'ars' | 'usd',
+  locale: Locale = 'es',
+): string {
+  return currency === 'usd' ? formatCurrencyUsd(value, locale) : formatCurrencyArs(value, locale);
+}
+
+/**
+ * Compact currency for chart axis labels — `$1.2M`, `$50K`. Falls back
+ * to plain integers below 1K so small ranges don't lose precision.
+ * Symbol is `US$` for USD and `$` for ARS so the locale defaults are
+ * respected without taking up the room of the full ISO code.
+ */
+export function formatCompactRevenue(
+  value: string | number,
+  currency: 'ars' | 'usd',
+): string {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(n)) return '—';
+  const symbol = currency === 'usd' ? 'US$' : '$';
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1_000_000_000) return `${sign}${symbol}${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `${sign}${symbol}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${symbol}${Math.round(abs / 1_000)}K`;
+  return `${sign}${symbol}${Math.round(abs)}`;
+}
+
 export function formatCurrency(
   value: string | number,
   currencyCode: string,

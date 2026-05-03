@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { auth } from '@/auth';
 import { apiFetch } from '@/lib/api-client';
+import { buildListHref } from '@/lib/list-state';
 import { formatBuenosAires } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { AdminRole, AuditActionId, AuditLogPage, AuditLogRow } from '@/lib/types';
@@ -32,7 +33,29 @@ const ACTIONS_FILTER: readonly AuditActionId[] = [
 ];
 
 interface PageProps {
-  searchParams: Promise<{ cursor?: string; action?: string }>;
+  searchParams: Promise<{
+    cursor?: string;
+    action?: string;
+    entity?: string;
+    q?: string;
+  }>;
+}
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function applyAuditFilters(rows: AuditLogRow[], entity: string, q: string): AuditLogRow[] {
+  const needle = normalize(q.trim());
+  return rows.filter((r) => {
+    if (entity && r.entity !== entity) return false;
+    if (!needle) return true;
+    if (r.user && normalize(r.user.email).includes(needle)) return true;
+    if (r.user && normalize(r.user.name).includes(needle)) return true;
+    if (r.ip && r.ip.toLowerCase().includes(needle)) return true;
+    if (r.entity_id && r.entity_id.toLowerCase().includes(needle)) return true;
+    return false;
+  });
 }
 
 export default async function AuditLogPage({
@@ -44,22 +67,41 @@ export default async function AuditLogPage({
   if (!ALLOWED.includes(role)) redirect('/');
 
   const sp = await searchParams;
+  const action = sp.action ?? '';
+  const entity = sp.entity ?? '';
+  const q = sp.q ?? '';
+
+  // Backend supports `action` server-side; entity + q are page-local
+  // because the API doesn't filter on them yet and adding them would
+  // need a DTO + index — out of scope for the URL-state pass.
   const params = new URLSearchParams();
   if (sp.cursor) params.set('cursor', sp.cursor);
-  if (sp.action) params.set('action', sp.action);
+  if (action) params.set('action', action);
   const qs = params.toString();
   const path = qs ? `/v1/admin/audit?${qs}` : '/v1/admin/audit';
   const page = await apiFetch<AuditLogPage>(path);
 
+  const filteredData = applyAuditFilters(page.data, entity, q);
+  const entityOptions = Array.from(new Set(page.data.map((r) => r.entity))).sort();
+
   const t = await getTranslations('audit');
+  const tCommon = await getTranslations('common');
   const tActions = await getTranslations('audit.actions');
   const locale = (await getLocale()) as Locale;
 
-  const baseFilterUrl = (action: string | null): string => {
-    const u = new URLSearchParams();
-    if (action) u.set('action', action);
-    return `/audit${u.toString() ? `?${u.toString()}` : ''}`;
+  const currentParams: Record<string, string | string[] | undefined> = {
+    action: action || undefined,
+    entity: entity || undefined,
+    q: q || undefined,
   };
+
+  // Filter / search changes drop the cursor — paging into a different
+  // filter doesn't make sense.
+  const baseFilterUrl = (act: string | null): string =>
+    buildListHref('/audit', currentParams, {
+      action: act ?? undefined,
+      cursor: undefined,
+    });
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-8">
@@ -73,27 +115,76 @@ export default async function AuditLogPage({
         <Link
           href={baseFilterUrl(null)}
           className={
-            !sp.action
+            !action
               ? 'rounded-full bg-primary/15 px-2 py-0.5 font-medium text-primary'
               : 'rounded-full px-2 py-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
           }
         >
           {t('allActions')}
         </Link>
-        {ACTIONS_FILTER.map((action) => (
+        {ACTIONS_FILTER.map((a) => (
           <Link
-            key={action}
-            href={baseFilterUrl(action)}
+            key={a}
+            href={baseFilterUrl(a)}
             className={
-              sp.action === action
+              action === a
                 ? 'rounded-full bg-primary/15 px-2 py-0.5 font-medium text-primary'
                 : 'rounded-full px-2 py-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
             }
           >
-            {tActions(action)}
+            {tActions(a)}
           </Link>
         ))}
       </div>
+
+      <form className="flex flex-wrap items-center gap-2" action="/audit">
+        {action && <input type="hidden" name="action" value={action} />}
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder={t('searchPlaceholder')}
+          className="block w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+        />
+        {entityOptions.length > 0 && (
+          <select
+            name="entity"
+            defaultValue={entity}
+            className="rounded-md border border-input bg-background px-2 py-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          >
+            <option value="">{t('allEntities')}</option>
+            {entityOptions.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-soft transition hover:bg-primary/90"
+        >
+          {tCommon('search')}
+        </button>
+        {(q || entity) && (
+          <Link
+            href={buildListHref('/audit', currentParams, {
+              q: undefined,
+              entity: undefined,
+              cursor: undefined,
+            })}
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:bg-muted"
+          >
+            {tCommon('clear')}
+          </Link>
+        )}
+        <span className="text-xs text-muted-foreground">
+          {t('shownOnPage', {
+            shown: String(filteredData.length),
+            total: String(page.data.length),
+          })}
+        </span>
+      </form>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <table className="w-full text-left text-sm">
@@ -108,14 +199,14 @@ export default async function AuditLogPage({
             </tr>
           </thead>
           <tbody>
-            {page.data.length === 0 && (
+            {filteredData.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                   {t('table.empty')}
                 </td>
               </tr>
             )}
-            {page.data.map((row) => (
+            {filteredData.map((row) => (
               <AuditRow key={row.id} row={row} locale={locale} />
             ))}
           </tbody>
@@ -125,10 +216,7 @@ export default async function AuditLogPage({
       {page.next_cursor && (
         <div className="flex justify-end">
           <Link
-            href={`/audit?${new URLSearchParams({
-              ...(sp.action ? { action: sp.action } : {}),
-              cursor: page.next_cursor,
-            }).toString()}`}
+            href={buildListHref('/audit', currentParams, { cursor: page.next_cursor })}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground transition hover:bg-muted"
           >
             {t('next')} →

@@ -1,15 +1,21 @@
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { useTranslations } from 'next-intl';
-import { apiFetch } from '@/lib/api-client';
-import { formatCurrencyArs, formatNumber, formatPercent01 } from '@/lib/format';
+import { CurrencyToggle, pickCurrency } from '@/components/currency-toggle';
+import { cachedApiFetch } from '@/lib/cached-api-fetch';
+import { buildListHref } from '@/lib/list-state';
+import { formatNumber, formatPercent01, formatRevenue } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { CohortsResponse, TimingResponse } from '@/lib/types';
 
 export const metadata = { title: 'Datapp · Insights' };
 
 interface PageProps {
-  searchParams: Promise<{ window?: string; metric?: 'orders' | 'revenue' }>;
+  searchParams: Promise<{
+    window?: string;
+    metric?: 'orders' | 'revenue';
+    currency?: string;
+  }>;
 }
 
 const PRESETS = [
@@ -40,20 +46,26 @@ export default async function InsightsPage({
   const sp = await searchParams;
   const windowParam = sp.window ?? '90d';
   const metric = sp.metric === 'revenue' ? 'revenue' : 'orders';
+  const currency = pickCurrency(sp.currency);
   const range = rangeFromPreset(windowParam);
 
-  const timingParams = new URLSearchParams();
+  const timingParams = new URLSearchParams({ currency });
   if (range.from) timingParams.set('from', range.from);
   if (range.to) timingParams.set('to', range.to);
 
   const [timing, cohorts] = await Promise.all([
-    apiFetch<TimingResponse>(`/v1/admin/analytics/timing?${timingParams.toString()}`),
-    apiFetch<CohortsResponse>(`/v1/admin/analytics/cohorts?cohorts=12&horizon=12`),
+    cachedApiFetch<TimingResponse>(`/v1/admin/analytics/timing?${timingParams.toString()}`),
+    cachedApiFetch<CohortsResponse>(`/v1/admin/analytics/cohorts?cohorts=12&horizon=12`),
   ]);
 
   const t = await getTranslations('insights');
   const tPresets = await getTranslations('presets');
   const locale = (await getLocale()) as Locale;
+  const currentParams: Record<string, string | string[] | undefined> = {
+    window: windowParam === '90d' ? undefined : windowParam,
+    metric: metric === 'orders' ? undefined : metric,
+    currency: currency === 'ars' ? undefined : currency,
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-8">
@@ -65,27 +77,36 @@ export default async function InsightsPage({
             <span className="font-mono text-xs">{timing.timezone}</span>.
           </p>
         </div>
-        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-          {PRESETS.map((p) => {
-            const active = windowParam === p.id;
-            return (
-              <Link
-                key={p.id}
-                href={`/insights?window=${p.id}&metric=${metric}`}
-                className={
-                  active
-                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                }
-              >
-                {tPresets(p.id as PresetId)}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="flex items-center gap-2">
+          <CurrencyToggle current={currency} basePath="/insights" currentParams={currentParams} />
+          <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
+            {PRESETS.map((p) => {
+              const active = windowParam === p.id;
+              return (
+                <Link
+                  key={p.id}
+                  href={buildListHref('/insights', currentParams, { window: p.id })}
+                  className={
+                    active
+                      ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
+                      : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                  }
+                >
+                  {tPresets(p.id as PresetId)}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
-      <HeatmapSection timing={timing} window={windowParam} metric={metric} locale={locale} />
+      <HeatmapSection
+        timing={timing}
+        window={windowParam}
+        metric={metric}
+        currency={currency}
+        locale={locale}
+      />
       <CadenceSection timing={timing} locale={locale} />
       <CohortSection cohorts={cohorts} locale={locale} />
     </div>
@@ -98,11 +119,13 @@ function HeatmapSection({
   timing,
   window,
   metric,
+  currency,
   locale,
 }: {
   timing: TimingResponse;
   window: string;
   metric: 'orders' | 'revenue';
+  currency: 'ars' | 'usd';
   locale: Locale;
 }): React.ReactElement {
   const t = useTranslations('insights.heatmap');
@@ -134,7 +157,7 @@ function HeatmapSection({
           <p className="mt-1 text-sm text-muted-foreground">
             {t('summary', {
               orders: formatNumber(totalOrders, locale),
-              revenue: formatCurrencyArs(totalRevenue, locale),
+              revenue: formatRevenue(totalRevenue, currency, locale),
             })}
           </p>
         </div>
@@ -189,6 +212,7 @@ function HeatmapSection({
                   values={matrix[dow] ?? []}
                   max={max}
                   metric={metric}
+                  currency={currency}
                   locale={locale}
                 />
               ))}
@@ -226,7 +250,7 @@ function HeatmapSection({
               </span>
               <span className="text-muted-foreground">
                 {metric === 'revenue'
-                  ? formatCurrencyArs(c.value, locale)
+                  ? formatRevenue(c.value, currency, locale)
                   : t('topChipOrders', { value: formatNumber(c.value, locale) })}
               </span>
             </span>
@@ -242,12 +266,14 @@ function DowRow({
   values,
   max,
   metric,
+  currency,
   locale,
 }: {
   dayLabel: string;
   values: number[];
   max: number;
   metric: 'orders' | 'revenue';
+  currency: 'ars' | 'usd';
   locale: Locale;
 }): React.ReactElement {
   const t = useTranslations('insights.heatmap');
@@ -267,7 +293,7 @@ function DowRow({
               ? t('tooltipRevenue', {
                   day: dayLabel,
                   hour: hourStr,
-                  value: formatCurrencyArs(value, locale),
+                  value: formatRevenue(value, currency, locale),
                 })
               : t('tooltipOrders', {
                   day: dayLabel,

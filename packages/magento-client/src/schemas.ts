@@ -113,6 +113,7 @@ export const MagentoOrderSchema = z
   .object({
     entity_id: z.number(),
     increment_id: z.string(),
+    quote_id: z.number().nullable().optional(),
     customer_id: z.number().nullable().optional(),
     customer_email: z.string(),
     customer_is_guest: z.number().optional(),
@@ -298,3 +299,69 @@ export type MagentoSearchResult<T> = {
   items: T[];
   total_count: number;
 };
+
+// =====================================================================
+//  Sales rules + coupons (Phase 3 — abandoned-cart recovery)
+//  Schemas land in iteration 1; the SalesRulesResource implementation
+//  arrives in iteration 2.
+// =====================================================================
+
+/**
+ * `coupon_type` per Magento's `Magento\SalesRule\Api\Data\RuleInterface`:
+ * 1 = no coupon, 2 = specific coupon, 3 = auto-generated.
+ */
+export const MagentoSalesRuleSchema = z
+  .object({
+    rule_id: z.number().int(),
+    name: z.string(),
+    is_active: z.boolean(),
+    coupon_type: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    use_auto_generation: z.boolean().optional(),
+    uses_per_coupon: z.number().int().nullable().optional(),
+    uses_per_customer: z.number().int().nullable().optional(),
+    from_date: z.string().nullable().optional(),
+    to_date: z.string().nullable().optional(),
+    simple_action: z.enum(['by_percent', 'by_fixed', 'cart_fixed', 'buy_x_get_y']),
+    discount_amount: z.coerce.number(),
+    website_ids: z.array(z.number().int()).default([]),
+    customer_group_ids: z.array(z.number().int()).default([]),
+    stop_rules_processing: z.boolean().default(true),
+    condition: z.unknown().optional(),
+    action_condition: z.unknown().optional(),
+  })
+  .passthrough();
+export type MagentoSalesRule = z.infer<typeof MagentoSalesRuleSchema>;
+
+export const MagentoCouponGenerateInputSchema = z.object({
+  couponSpec: z.object({
+    rule_id: z.number().int(),
+    quantity: z.number().int().min(1).max(2500),
+    length: z.number().int().min(8).max(32).default(12),
+    format: z
+      .enum(['alphanumeric', 'alphanumeric_lowercase', 'numeric', 'alphabetical'])
+      .default('alphanumeric'),
+    prefix: z.string().max(8).optional(),
+    suffix: z.string().max(8).optional(),
+    dash: z.number().int().min(0).max(8).optional(),
+  }),
+});
+export type MagentoCouponGenerateInput = z.infer<typeof MagentoCouponGenerateInputSchema>;
+
+export const MagentoCouponGenerateOutputSchema = z.array(z.string().min(1));
+export type MagentoCouponGenerateOutput = z.infer<typeof MagentoCouponGenerateOutputSchema>;
+
+/**
+ * Response of the Pupe_AbandonedCart REST endpoint
+ * `GET /rest/V1/pupe-abandoned/masked-id/:quoteId`. The CDP uses this to
+ * build recovery URLs without depending on a privileged native cart
+ * extension. 32-char alphanumeric matches Magento's native
+ * `quote_id_mask` format.
+ *
+ * Magento serializes a PHP `string` return as a JSON string literal —
+ * e.g. `"aBcD1234..."`. We do NOT wrap the value in an envelope object
+ * because Magento's webapi serializer strips keys from `string[]`-typed
+ * responses (the natural workaround), so a bare string is the cleanest
+ * shape both sides can agree on.
+ */
+export const MagentoMaskedIdSchema = z.string().regex(/^[a-zA-Z0-9]{32}$/);
+export type MagentoMaskedId = z.infer<typeof MagentoMaskedIdSchema>;

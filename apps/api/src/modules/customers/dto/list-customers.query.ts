@@ -1,5 +1,29 @@
 import { z } from 'zod';
 
+export const CustomerSortField = z.enum([
+  'email',
+  'magento_updated_at',
+  'magento_created_at',
+  'customer_group',
+]);
+export type CustomerSortField = z.infer<typeof CustomerSortField>;
+
+const RFM_SEGMENTS = [
+  'champions',
+  'loyal',
+  'potential_loyalists',
+  'new_customers',
+  'promising',
+  'needing_attention',
+  'about_to_sleep',
+  'at_risk',
+  'cannot_lose_them',
+  'hibernating',
+  'lost',
+] as const;
+export const RfmSegmentSchema = z.enum(RFM_SEGMENTS);
+export type RfmSegment = z.infer<typeof RfmSegmentSchema>;
+
 export const ListCustomersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -11,6 +35,13 @@ export const ListCustomersQuerySchema = z.object({
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   customer_group: z.string().min(1).max(100).optional(),
+  /** Repeatable: `?rfm_segment=champions&rfm_segment=loyal`. */
+  rfm_segment: z
+    .union([RfmSegmentSchema, z.array(RfmSegmentSchema)])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
+  sort: CustomerSortField.default('magento_updated_at'),
+  dir: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export type ListCustomersQuery = z.infer<typeof ListCustomersQuerySchema>;
