@@ -39,6 +39,28 @@ x-api-env: &api-env
   OWNER_EMAIL: ${OWNER_EMAIL:-}
 
 services:
+  # One-shot migration job. Runs `prisma migrate deploy` and exits 0 when
+  # the schema is up to date. api/worker/admin all wait on this so they
+  # never start against an out-of-date schema. Dokploy + docker-compose
+  # honor `service_completed_successfully` and won't re-run this on
+  # restart of dependents.
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+      target: api
+    image: datapp-api:latest
+    restart: 'no'
+    environment:
+      <<: *api-env
+      MIGRATE_ON_BOOT: 'true'
+    # Override the entrypoint to run migrations and exit instead of
+    # exec'ing the API server.
+    entrypoint: ['/usr/local/bin/entrypoint-api.sh']
+    command: ['true']
+    depends_on:
+      postgres: { condition: service_healthy }
+
   api:
     build:
       context: ../..
@@ -49,10 +71,13 @@ services:
     environment:
       <<: *api-env
       PORT: '3000'
-      # Only the API container runs migrations on boot. The worker
-      # leaves MIGRATE_ON_BOOT unset to avoid concurrent migrate runs.
+      # Belt-and-suspenders: the migrate job already ran, so this is a
+      # no-op (`prisma migrate deploy` is idempotent + advisory-locked).
+      # Kept on so a single-service redeploy without `migrate` still
+      # converges the schema.
       MIGRATE_ON_BOOT: 'true'
     depends_on:
+      migrate: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     expose: ['3000']
@@ -80,9 +105,9 @@ services:
     environment:
       <<: *api-env
     depends_on:
+      migrate: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-      api: { condition: service_healthy } # ensures migrations are done first
     stop_grace_period: 30s
 
   admin:
@@ -108,6 +133,7 @@ services:
       SENTRY_ENVIRONMENT: production
       DEFAULT_TIMEZONE: America/Argentina/Buenos_Aires
     depends_on:
+      migrate: { condition: service_completed_successfully }
       api: { condition: service_healthy }
     expose: ['3001']
     stop_grace_period: 30s
