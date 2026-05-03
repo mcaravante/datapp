@@ -1,13 +1,22 @@
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 import type { EmailTemplateSummary } from '@/lib/types';
 
 export const metadata = { title: 'Datapp · Templates de email' };
 
 export default async function TemplatesListPage(): Promise<React.ReactElement> {
-  const { data: templates } = await apiFetch<{ data: EmailTemplateSummary[] }>(
-    '/v1/admin/email-templates',
-  );
+  let templates: EmailTemplateSummary[];
+  try {
+    const resp = await apiFetch<{ data: EmailTemplateSummary[] }>(
+      '/v1/admin/email-templates',
+    );
+    templates = resp.data;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      return <EngineDisabledNotice surface="templates" />;
+    }
+    throw err;
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-8">
@@ -91,6 +100,34 @@ export default async function TemplatesListPage(): Promise<React.ReactElement> {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function EngineDisabledNotice({ surface }: { surface: 'templates' | 'campaigns' }): React.ReactElement {
+  const surfaceLabel = surface === 'templates' ? 'Templates' : 'Campañas';
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 p-8">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{surfaceLabel} de email</h1>
+      <div className="rounded-lg border border-warning/40 bg-warning/10 p-5 text-sm">
+        <p className="font-semibold text-warning">El motor de email está apagado.</p>
+        <p className="mt-2 text-foreground">
+          Para habilitar <code>/templates</code> y <code>/campaigns</code> seteá estas variables
+          de entorno en Dokploy (servicios <code>api</code> + <code>worker</code>) y redeployá:
+        </p>
+        <pre className="mt-3 overflow-auto rounded-md border border-border bg-background p-3 font-mono text-[11px] text-foreground">{`EMAIL_ENGINE_ENABLED=true
+EMAIL_DRY_RUN=true
+EMAIL_TEST_RECIPIENT_ALLOWLIST=matias.caravante@gmail.com
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=CDP <no-reply@datapp.com.ar>
+RESEND_WEBHOOK_SECRET=<min 16 chars>
+MAGENTO_STOREFRONT_URL=https://<storefront prod>`}</pre>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Mientras <code>EMAIL_DRY_RUN=true</code> + el allowlist solo te incluya a vos, ningún
+          cliente real recibe emails (los sends quedan registrados como{' '}
+          <code>suppressed</code>).
+        </p>
       </div>
     </div>
   );
