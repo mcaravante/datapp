@@ -30,6 +30,7 @@ import { EmailSuppressionModule } from './modules/email-suppression/email-suppre
 import { CouponStrategyModule } from './modules/coupon-strategy/coupon-strategy.module';
 import { AbandonedCartRecoveryModule } from './modules/abandoned-cart-recovery/abandoned-cart-recovery.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { MediaModule } from './modules/media/media.module';
 
 // Phase 3 — abandoned-cart recovery vertical. Loaded only when the
 // engine is opted in (default off). See docs/adr/0007.
@@ -100,6 +101,7 @@ function emailEngineModules(): (DynamicModule | typeof EmailModule)[] {
     RfmModule,
     HealthModule,
     SyncModule,
+    MediaModule,
     ...emailEngineModules(),
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

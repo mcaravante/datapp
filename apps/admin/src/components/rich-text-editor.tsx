@@ -99,6 +99,10 @@ export function RichTextEditor({
 }: RichTextEditorProps): React.ReactElement {
   const [showSource, setShowSource] = useState(false);
   const [showVariables, setShowVariables] = useState(false);
+  const [showImageMenu, setShowImageMenu] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isInternalUpdate = useRef(false);
 
   const editor = useEditor({
@@ -166,11 +170,22 @@ export function RichTextEditor({
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   }
 
-  function insertImage(): void {
-    if (!editor) return;
-    const url = window.prompt('URL de la imagen (debe ser pública, https://…)');
-    if (!url) return;
-    editor.chain().focus().setImage({ src: url }).run();
+  async function uploadImageFile(file: File): Promise<string> {
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('La imagen supera el límite de 5 MB.');
+    }
+    if (!file.type.startsWith('image/')) {
+      throw new Error('El archivo no es una imagen.');
+    }
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/admin/media', { method: 'POST', body: form });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Error al subir la imagen (${res.status.toString()}): ${text.slice(0, 200)}`);
+    }
+    const json = (await res.json()) as { url: string };
+    return json.url;
   }
 
   if (!editor) {
@@ -260,9 +275,82 @@ export function RichTextEditor({
         >
           🔗
         </ToolbarButton>
-        <ToolbarButton onClick={insertImage} title="Insertar imagen por URL">
-          🖼
-        </ToolbarButton>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowImageMenu((v) => !v);
+              setUploadError(null);
+            }}
+            disabled={uploading}
+            className="flex h-7 min-w-[28px] items-center justify-center rounded-md px-1.5 text-xs text-foreground transition hover:bg-muted disabled:opacity-40"
+            title="Insertar imagen"
+          >
+            {uploading ? '…' : '🖼'}
+          </button>
+          {showImageMenu && (
+            <>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={() => setShowImageMenu(false)}
+                className="fixed inset-0 z-30 cursor-default"
+              />
+              <div className="absolute left-0 top-full z-40 mt-1 w-64 rounded-md border border-border bg-popover p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImageMenu(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="block w-full rounded-md px-3 py-2 text-left text-xs hover:bg-muted"
+                >
+                  <div className="font-medium text-foreground">Subir desde mi computadora</div>
+                  <div className="mt-0.5 text-[10px] text-muted-foreground">
+                    PNG / JPG / WEBP / GIF, máx 5 MB
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImageMenu(false);
+                    const url = window.prompt('URL pública de la imagen (https://…)');
+                    if (url && editor) {
+                      editor.chain().focus().setImage({ src: url }).run();
+                    }
+                  }}
+                  className="block w-full rounded-md px-3 py-2 text-left text-xs hover:bg-muted"
+                >
+                  <div className="font-medium text-foreground">Pegar URL existente</div>
+                  <div className="mt-0.5 text-[10px] text-muted-foreground">
+                    Útil si ya hosteas la imagen en otro lado
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ''; // reset so same filename can be re-picked
+              if (!file || !editor) return;
+              setUploading(true);
+              setUploadError(null);
+              try {
+                const url = await uploadImageFile(file);
+                editor.chain().focus().setImage({ src: url }).run();
+              } catch (err) {
+                setUploadError((err as Error).message);
+              } finally {
+                setUploading(false);
+              }
+            }}
+          />
+        </div>
         <Divider />
         <div className="relative">
           <button
@@ -331,6 +419,19 @@ export function RichTextEditor({
           </button>
         </div>
       </div>
+
+      {uploadError && (
+        <div className="border-b border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {uploadError}{' '}
+          <button
+            type="button"
+            onClick={() => setUploadError(null)}
+            className="underline"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {showSource ? (
         <textarea

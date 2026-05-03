@@ -176,6 +176,7 @@ model Tenant {
   emailSends          EmailSend[]
   emailEvents         EmailEvent[]
   emailSuppressions   EmailSuppression[]
+  mediaAssets         MediaAsset[]
 
   @@map("tenant")
 }
@@ -251,6 +252,7 @@ model User {
   auditLogs           AuditLog[]
   segments            CustomerSegment[]
   excludedEmails      ReportExcludedEmail[]
+  mediaUploads        MediaAsset[]
 
   @@index([tenantId, role])
   @@map("user")
@@ -1299,4 +1301,34 @@ model EmailSuppression {
   @@unique([tenantId, emailHash])
   @@index([tenantId, reason])
   @@map("email_suppression")
+}
+
+/// Operator-uploaded image assets (logos, hero images, product photos)
+/// referenced by email templates. The bytes live in the row itself —
+/// fine for the email-recovery use case where assets are small (≤ a few
+/// MB each) and we want zero new infra. A future iteration may move
+/// large/many assets to S3-compatible storage; the current shape is
+/// designed to be replaceable via a `storageKey` field if so.
+///
+/// Served publicly at `/media/:id/:filename` (no auth — the uuid v7 id
+/// is the security boundary, like S3 pre-signed URLs). The `:filename`
+/// path segment is informational, kept so email clients show a sane
+/// download name and so referrers / logs are debuggable.
+model MediaAsset {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  /// Original filename at upload time, sanitized to a safe charset.
+  filename     String
+  /// IANA mime, e.g. `image/png`, `image/jpeg`, `image/webp`, `image/gif`.
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  bytes        Bytes
+  uploadedById String?  @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy User?  @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("media_asset")
 }
