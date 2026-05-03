@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@datapp/db';
 import type { MagentoCart } from '@datapp/magento-client';
 import { PrismaService } from '../../db/prisma.service';
 import { MagentoClientFactory } from '../magento/magento-client.factory';
 import { MagentoStoreService } from '../magento/magento-store.service';
+import {
+  CART_RECOVERED_EVENT,
+  type CartRecoveredEvent,
+} from '../abandoned-cart-recovery/cart-recovery.events';
 
 /**
  * A cart is considered abandoned once Magento hasn't touched it for
@@ -54,6 +59,7 @@ export class AbandonedCartSyncService {
     private readonly prisma: PrismaService,
     private readonly stores: MagentoStoreService,
     private readonly factory: MagentoClientFactory,
+    private readonly events: EventEmitter2,
   ) {}
 
   async sweepStore(tenantId: string, storeName?: string): Promise<AbandonedCartSyncResult> {
@@ -185,6 +191,15 @@ export class AbandonedCartSyncService {
             },
           });
           recovered += 1;
+          // Phase 3 — fire-and-forget. The recovery listener cancels
+          // any pending EmailSends for this cart.
+          this.events.emit(CART_RECOVERED_EVENT, {
+            tenantId,
+            abandonedCartId: row.id,
+            magentoCartId: row.magentoCartId,
+            recoveredByOrderId: order.id,
+            recoveredAt: order.placedAt,
+          } satisfies CartRecoveredEvent);
           continue;
         }
 

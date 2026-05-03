@@ -1,5 +1,6 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
@@ -50,6 +51,7 @@ function emailEngineModules(): (DynamicModule | typeof EmailModule)[] {
       isGlobal: true,
       validate: (config) => loadEnv(config as NodeJS.ProcessEnv),
     }),
+    EventEmitterModule.forRoot({ wildcard: false, maxListeners: 20 }),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env['LOG_LEVEL'] ?? 'info',
