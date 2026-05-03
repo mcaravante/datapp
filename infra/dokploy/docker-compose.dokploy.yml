@@ -37,6 +37,20 @@ x-api-env: &api-env
   FEATURE_2FA_ENFORCED: ${FEATURE_2FA_ENFORCED:-true}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   OWNER_EMAIL: ${OWNER_EMAIL:-}
+  # Phase 3 — abandoned-cart recovery vertical (ADR 0007).
+  # Engine off-by-default; turn on by setting EMAIL_ENGINE_ENABLED=true
+  # in Dokploy's env store. The other vars are required at runtime; the
+  # boot validation in apps/api/src/config/env.ts only enforces
+  # MAGENTO_STOREFRONT_URL when the engine is enabled.
+  EMAIL_ENGINE_ENABLED: ${EMAIL_ENGINE_ENABLED:-false}
+  EMAIL_DRY_RUN: ${EMAIL_DRY_RUN:-true}
+  EMAIL_TEST_RECIPIENT_ALLOWLIST: ${EMAIL_TEST_RECIPIENT_ALLOWLIST:-matias.caravante@gmail.com}
+  EMAIL_FREQUENCY_CAP_24H: ${EMAIL_FREQUENCY_CAP_24H:-3}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-CDP <no-reply@datapp.com.ar>}
+  RESEND_REPLY_TO: ${RESEND_REPLY_TO:-}
+  RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
+  MAGENTO_STOREFRONT_URL: ${MAGENTO_STOREFRONT_URL:-}
 
 services:
   # One-shot migration job. Runs `prisma migrate deploy` and exits 0 when
