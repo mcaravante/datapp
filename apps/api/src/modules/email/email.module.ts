@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { EmailSuppressionModule } from '../email-suppression/email-suppression.module';
+import { BrandingModule } from '../branding/branding.module';
 import { QUEUES } from '../queue/queue.constants';
 import { EmailService } from './email.service';
 import { EmailSendProcessor } from './email-send.processor';
@@ -16,6 +17,7 @@ import { ResendWebhookController } from './resend-webhook.controller';
 @Module({
   imports: [
     EmailSuppressionModule,
+    BrandingModule,
     BullModule.registerQueue(
       { name: QUEUES.emailSend },
       { name: QUEUES.emailEventsResend },

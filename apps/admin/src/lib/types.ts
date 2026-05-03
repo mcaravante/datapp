@@ -721,3 +721,17 @@ export interface SendRecoveryResponse {
   error_message: string | null;
 }
 
+
+export interface BrandingDto {
+  tenant_id: string;
+  logo_media_asset_id: string | null;
+  logo_url: string | null;
+  logo_max_width_px: number;
+  primary_color: string | null;
+  footer_html: string | null;
+  sender_name: string | null;
+  sender_address: string | null;
+  unsubscribe_text: string;
+  updated_at: string;
+}
+

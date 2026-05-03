@@ -177,6 +177,7 @@ model Tenant {
   emailEvents         EmailEvent[]
   emailSuppressions   EmailSuppression[]
   mediaAssets         MediaAsset[]
+  emailBranding       TenantEmailBranding?
 
   @@map("tenant")
 }
@@ -1326,9 +1327,50 @@ model MediaAsset {
   uploadedById String?  @map("uploaded_by_id") @db.Uuid
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  uploadedBy User?  @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy     User?                 @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  brandingLogos  TenantEmailBranding[] @relation("BrandingLogo")
 
   @@index([tenantId, createdAt(sort: Desc)])
   @@map("media_asset")
+}
+
+/// Tenant-level email branding shell that wraps every send: header
+/// (logo image), footer (operator-authored HTML), sender info shown in
+/// the footer for CAN-SPAM-style transparency. 1:1 with `Tenant`.
+///
+/// Each field is independently optional. When a tenant has no branding
+/// row, sends still go out, just without the wrapper — only the
+/// unsubscribe link is appended (mandatory).
+model TenantEmailBranding {
+  tenantId         String  @id @map("tenant_id") @db.Uuid
+  /// Logo shown at the top of every email. FK to a MediaAsset uploaded
+  /// via the existing /v1/admin/media surface.
+  logoMediaAssetId String? @map("logo_media_asset_id") @db.Uuid
+  /// Max display width of the logo in pixels. Default 180 fits common
+  /// email column widths (Gmail / Outlook ~580 px usable).
+  logoMaxWidthPx   Int     @default(180) @map("logo_max_width_px")
+  /// Hex string e.g. `#111111`. Used for the wrapper background and
+  /// (eventually) accent buttons in default templates.
+  primaryColor     String? @map("primary_color")
+  /// Free HTML rendered inside the email footer (under the body).
+  /// Sanitized at render time — only safe inline tags allowed.
+  footerHtml       String? @map("footer_html")
+  /// Sender display name shown in the footer + used as the friendly
+  /// part of the From header when set.
+  senderName       String? @map("sender_name")
+  /// Physical address (street, city, country). Mostly relevant for
+  /// CAN-SPAM (US); kept here so jurisdictions that require it can
+  /// surface it consistently.
+  senderAddress    String? @map("sender_address")
+  /// Override of the default unsubscribe phrase. The token-bearing
+  /// link is appended automatically.
+  unsubscribeText  String  @default("Si no querés recibir más estos emails, podés desuscribirte acá.") @map("unsubscribe_text")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logoAsset  MediaAsset? @relation("BrandingLogo", fields: [logoMediaAssetId], references: [id], onDelete: SetNull)
+
+  @@map("tenant_email_branding")
 }

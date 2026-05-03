@@ -13,6 +13,7 @@ type NavLabelKey =
   | 'carts'
   | 'campaigns'
   | 'templates'
+  | 'emailBranding'
   | 'products'
   | 'coupons'
   | 'regions'
@@ -90,6 +91,12 @@ const NAV: readonly NavItem[] = [
     labelKey: 'templates',
     icon: FileTextIcon,
     match: (p) => p.startsWith('/templates'),
+  },
+  {
+    href: '/settings/email-branding',
+    labelKey: 'emailBranding',
+    icon: PaletteIcon,
+    match: (p) => p.startsWith('/settings/email-branding'),
   },
   {
     href: '/products',
@@ -540,6 +547,27 @@ function FileTextIcon({ className }: { className?: string }): React.ReactElement
       <path d="M9 13h6" />
       <path d="M9 17h6" />
       <path d="M9 9h2" />
+    </svg>
+  );
+}
+
+function PaletteIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="13.5" cy="6.5" r="0.5" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r="0.5" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r="0.5" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r="0.5" fill="currentColor" />
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5h1.77c2.76 0 5-2.24 5-5C21 6.69 16.97 2 12 2z" />
     </svg>
   );
 }

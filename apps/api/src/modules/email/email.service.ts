@@ -4,6 +4,9 @@ import { PrismaService } from '../../db/prisma.service';
 import { TemplateRendererService, TemplateRenderError } from './template-renderer.service';
 import { ResendClient, ResendDeliveryError } from './resend.client';
 import { EmailSuppressionService } from '../email-suppression/suppression.service';
+import { BrandingService } from '../branding/branding.service';
+import { composeEmailShell } from '../branding/email-shell';
+import { buildUnsubscribeToken } from '../branding/unsubscribe-token';
 import type { Env } from '../../config/env';
 
 /**
@@ -29,16 +32,21 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly defaultFrom: string;
   private readonly defaultReplyTo: string | undefined;
+  private readonly publicApiUrl: string;
+  private readonly encryptionKey: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly renderer: TemplateRendererService,
     private readonly resend: ResendClient,
     private readonly suppression: EmailSuppressionService,
+    private readonly branding: BrandingService,
     config: ConfigService<Env, true>,
   ) {
     this.defaultFrom = config.get('RESEND_FROM_EMAIL', { infer: true });
     this.defaultReplyTo = config.get('RESEND_REPLY_TO', { infer: true });
+    this.publicApiUrl = config.get('APP_URL_API', { infer: true }).replace(/\/+$/, '');
+    this.encryptionKey = config.get('ENCRYPTION_MASTER_KEY', { infer: true });
   }
 
   async dispatchSend(emailSendId: string): Promise<void> {
@@ -109,15 +117,31 @@ export class EmailService {
     const fromEmail = send.fromEmail || send.campaign.fromEmail || this.defaultFrom;
     const replyTo = send.campaign.replyToEmail || this.defaultReplyTo;
 
+    // Wrap the rendered body in the brand shell + unsubscribe footer.
+    // The token bundles the recipient identity (tenant + email hash) so
+    // the public unsubscribe endpoint can act statelessly.
+    const branding = await this.branding.resolveForCompose(send.tenantId);
+    const unsubscribeToken = buildUnsubscribeToken(
+      { tenantId: send.tenantId, emailHash: send.toEmailHash },
+      this.encryptionKey,
+    );
+    const unsubscribeUrl = `${this.publicApiUrl}/unsubscribe/${unsubscribeToken}`;
+    const wrappedHtml = composeEmailShell({
+      bodyHtml: rendered.html,
+      branding,
+      unsubscribeUrl,
+    });
+
     try {
       const result = await this.resend.send({
         from: fromEmail,
         to: send.toEmail,
         ...(replyTo ? { replyTo } : {}),
         subject: rendered.subject,
-        html: rendered.html,
-        ...(rendered.text ? { text: rendered.text } : {}),
+        html: wrappedHtml,
+        ...(rendered.text ? { text: `${rendered.text}\n\n---\nPara desuscribirte: ${unsubscribeUrl}` } : {}),
         idempotencyKey: send.idempotencyKey,
+        unsubscribeUrl,
         tags: [
           { name: 'tenant_id', value: send.tenantId },
           { name: 'campaign_id', value: send.campaignId },

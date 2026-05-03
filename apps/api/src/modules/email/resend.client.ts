@@ -31,6 +31,13 @@ export interface ResendSendInput {
    */
   idempotencyKey: string;
   /**
+   * Public unsubscribe URL. When set, populates RFC 8058's
+   * `List-Unsubscribe` + `List-Unsubscribe-Post` headers so Gmail /
+   * Outlook show their native one-click unsubscribe button at the top
+   * of the inbox view.
+   */
+  unsubscribeUrl?: string;
+  /**
    * Tags for Resend dashboard filtering: tenant, campaign, stage, send.
    * Resend allows up to 10 tags, name+value ≤ 256 chars each.
    */
@@ -78,6 +85,16 @@ export class ResendClient {
       );
     }
 
+    const headers: Record<string, string> = {
+      'X-Entity-Ref-ID': input.idempotencyKey,
+    };
+    if (input.unsubscribeUrl) {
+      headers['List-Unsubscribe'] = `<${input.unsubscribeUrl}>`;
+      // RFC 8058: signals that the URL above accepts a one-click POST
+      // from Gmail / Apple Mail / Outlook for native unsubscribe UI.
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
+
     return await pRetry(
       async () => {
         const { data, error } = await this.client!.emails.send({
@@ -87,7 +104,7 @@ export class ResendClient {
           subject: input.subject,
           html: input.html,
           ...(input.text ? { text: input.text } : {}),
-          headers: { 'X-Entity-Ref-ID': input.idempotencyKey },
+          headers,
           ...(input.tags && input.tags.length > 0 ? { tags: input.tags } : {}),
         });
 
