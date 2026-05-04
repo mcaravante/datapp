@@ -9,9 +9,10 @@ FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/usr/local/share/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates tini \
-  && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates tini
 WORKDIR /app
 
 # ---- deps: install workspace dependencies ----

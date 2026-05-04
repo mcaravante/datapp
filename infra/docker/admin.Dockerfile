@@ -41,7 +41,10 @@ COPY . .
 RUN find . -name '*.tsbuildinfo' -not -path './node_modules/*' -delete || true
 RUN pnpm --filter @datapp/shared build
 # Next reads NODE_ENV at build time; it must be `production` for the prerender.
-RUN cd apps/admin && NODE_ENV=production pnpm exec next build
+# Cache `.next/cache` between builds so incremental TS compilation +
+# bundling reuses prior work — saves 1–3 min on a small-change deploy.
+RUN --mount=type=cache,id=next-cache,target=/app/apps/admin/.next/cache \
+    cd apps/admin && NODE_ENV=production pnpm exec next build
 
 # ---- runtime ----
 # Non-root for blast-radius reduction.
@@ -49,9 +52,10 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends tini ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends tini ca-certificates
 RUN groupadd --system --gid 1001 datapp \
   && useradd --system --uid 1001 --gid datapp --shell /usr/sbin/nologin datapp
 WORKDIR /app

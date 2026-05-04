@@ -85,11 +85,10 @@ services:
     environment:
       <<: *api-env
       PORT: '3000'
-      # Belt-and-suspenders: the migrate job already ran, so this is a
-      # no-op (`prisma migrate deploy` is idempotent + advisory-locked).
-      # Kept on so a single-service redeploy without `migrate` still
-      # converges the schema.
-      MIGRATE_ON_BOOT: 'true'
+      # The `migrate` job already ran (depends_on gate), and
+      # `prisma migrate deploy` is idempotent + advisory-locked. Skip
+      # the boot-time check to shave a couple of seconds off cold start.
+      MIGRATE_ON_BOOT: 'false'
     depends_on:
       migrate: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
@@ -103,25 +102,33 @@ services:
           '-e',
           "require('node:http').get('http://localhost:3000/v1/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
         ]
-      interval: 10s
+      interval: 5s
       timeout: 3s
       retries: 3
-      start_period: 30s
+      start_period: 15s
     stop_grace_period: 30s
 
+  # Worker shares the api image — only the CMD changes. Targeting the
+  # same `api` stage means BuildKit deduplicates 100% of the layers with
+  # the api/migrate builds (full cache hit), so the second `build:`
+  # entry is effectively free but keeps a lone `worker` redeploy safe.
   worker:
     build:
       context: ../..
       dockerfile: infra/docker/api.Dockerfile
-      target: worker
-    image: datapp-api-worker:latest
+      target: api
+    image: datapp-api:latest
     restart: unless-stopped
     environment:
       <<: *api-env
+      MIGRATE_ON_BOOT: 'false'
     depends_on:
       migrate: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+    entrypoint: ['/usr/bin/tini', '--']
+    command: ['node', 'dist/worker.js']
+    working_dir: /app/apps/api
     stop_grace_period: 30s
 
   admin:
