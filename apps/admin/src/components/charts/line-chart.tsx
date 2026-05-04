@@ -24,7 +24,10 @@ interface Props {
   formatX?: (date: string) => string;
 }
 
-const PADDING = { top: 14, right: 16, bottom: 28, left: 80 };
+// `top` has to leave room for both the unit label (ARS / USD) and the
+// first tick value below it without overlap. 28px ≈ two 10px text rows
+// stacked with breathing room.
+const PADDING = { top: 28, right: 16, bottom: 28, left: 80 };
 
 /**
  * Pure-SVG line chart with an optional second series overlay (typically
@@ -80,9 +83,9 @@ export function LineChart({
       {yUnit && (
         <text
           x={PADDING.left - 8}
-          y={PADDING.top - 2}
+          y={10}
           textAnchor="end"
-          className="fill-muted-foreground text-[10px]"
+          className="fill-muted-foreground text-[9px] uppercase tracking-wider"
         >
           {yUnit}
         </text>
