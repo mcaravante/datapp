@@ -1258,7 +1258,19 @@ export class AnalyticsService {
     const customersInt = Number(headline?.customers ?? 0n);
     const aovDec = ordersInt > 0 ? revenueDec.div(ordersInt) : new Prisma.Decimal(0);
 
-    // Second pass: split distinct customers in range into new vs returning.
+    // Second pass: split distinct customers in range into new vs
+    // returning. The previous shape had a `first_orders` CTE without a
+    // date filter — a full table scan computing MIN(placed_at) per
+    // customer for the WHOLE tenant on every dashboard load. On
+    // 1y / "all-time" with a real-volume tenant that was tens of
+    // seconds.
+    //
+    // The rewrite below restricts the heavy work to customers who
+    // actually bought in the range, then asks Postgres for their
+    // first-ever placed_at via a correlated subquery. With the
+    // (tenant_id, customer_profile_id, placed_at) index added in
+    // 20260504151238_analytics_first_order_index, each MIN call is an
+    // index-only seek (a few µs) instead of a heap scan.
     const [splitRow] = await this.prisma.$queryRaw<
       { new_customers: bigint; returning_customers: bigint }[]
     >(Prisma.sql`
@@ -1270,20 +1282,21 @@ export class AnalyticsService {
           AND placed_at <  ${to}
           AND customer_profile_id IS NOT NULL
           ${exclude}
-      ),
-      first_orders AS (
-        SELECT customer_profile_id, MIN(placed_at) AS first_at
-        FROM "order"
-        WHERE tenant_id = ${tenantId}::uuid
-          AND customer_profile_id IS NOT NULL
-          ${exclude}
-        GROUP BY customer_profile_id
       )
       SELECT
         COUNT(*) FILTER (WHERE first_at >= ${from})::bigint AS new_customers,
         COUNT(*) FILTER (WHERE first_at <  ${from})::bigint AS returning_customers
-      FROM range_customers rc
-      JOIN first_orders fo USING (customer_profile_id)
+      FROM (
+        SELECT
+          rc.customer_profile_id,
+          (
+            SELECT MIN(o2.placed_at)
+            FROM "order" o2
+            WHERE o2.tenant_id = ${tenantId}::uuid
+              AND o2.customer_profile_id = rc.customer_profile_id
+          ) AS first_at
+        FROM range_customers rc
+      ) sub
     `);
 
     const newCustomers = Number(splitRow?.new_customers ?? 0n);

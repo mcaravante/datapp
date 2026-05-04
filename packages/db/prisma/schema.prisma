@@ -654,6 +654,12 @@ model Order {
   @@index([tenantId, couponCode])
   @@index([tenantId, magentoStoreId, magentoQuoteId])
   @@index([tenantId, regionId, placedAt(sort: Desc)])
+  /// Covering index for the analytics "is this customer new or
+  /// returning" query. A correlated subquery `MIN(placed_at) GROUP BY
+  /// customer_profile_id` per range-customer becomes an index-only
+  /// scan with this in place. Without it, /insights for a 1y / "all"
+  /// window does a full-table scan twice (current + previous).
+  @@index([tenantId, customerProfileId, placedAt])
   @@map("order")
 }
 
