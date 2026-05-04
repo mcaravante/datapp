@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EmailSuppressionService } from './suppression.service';
+import { EmailSuppressionsController } from './suppression.controller';
 
 /**
  * Phase 3 — Centralized suppression / send-eligibility checks. Every send
@@ -8,6 +9,7 @@ import { EmailSuppressionService } from './suppression.service';
  * bypassed.
  */
 @Module({
+  controllers: [EmailSuppressionsController],
   providers: [EmailSuppressionService],
   exports: [EmailSuppressionService],
 })

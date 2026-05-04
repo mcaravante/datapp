@@ -14,6 +14,7 @@ type NavLabelKey =
   | 'campaigns'
   | 'templates'
   | 'emailBranding'
+  | 'emailSuppression'
   | 'products'
   | 'coupons'
   | 'regions'
@@ -97,6 +98,12 @@ const NAV: readonly NavItem[] = [
     labelKey: 'emailBranding',
     icon: PaletteIcon,
     match: (p) => p.startsWith('/settings/email-branding'),
+  },
+  {
+    href: '/settings/email-suppression',
+    labelKey: 'emailSuppression',
+    icon: ShieldXIcon,
+    match: (p) => p.startsWith('/settings/email-suppression'),
   },
   {
     href: '/products',
@@ -547,6 +554,25 @@ function FileTextIcon({ className }: { className?: string }): React.ReactElement
       <path d="M9 13h6" />
       <path d="M9 17h6" />
       <path d="M9 9h2" />
+    </svg>
+  );
+}
+
+function ShieldXIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 2 4 5v7c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V5z" />
+      <path d="m9 9 6 6" />
+      <path d="m15 9-6 6" />
     </svg>
   );
 }

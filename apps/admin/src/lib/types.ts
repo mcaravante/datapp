@@ -735,3 +735,20 @@ export interface BrandingDto {
   updated_at: string;
 }
 
+
+export type SuppressionReason = 'manual' | 'hard_bounce' | 'spam_complaint' | 'unsubscribed' | 'invalid_address' | 'test_allowlist';
+
+export interface SuppressionRow {
+  id: string;
+  email: string;
+  reason: SuppressionReason;
+  source: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface SuppressionsListResponse {
+  data: SuppressionRow[];
+  total: number;
+}
+
