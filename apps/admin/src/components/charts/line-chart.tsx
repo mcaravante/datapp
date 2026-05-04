@@ -24,7 +24,7 @@ interface Props {
   formatX?: (date: string) => string;
 }
 
-const PADDING = { top: 10, right: 12, bottom: 24, left: 56 };
+const PADDING = { top: 14, right: 16, bottom: 28, left: 80 };
 
 /**
  * Pure-SVG line chart with an optional second series overlay (typically
@@ -46,7 +46,14 @@ export function LineChart({
   const filtered = series.filter((s) => s.values.length > 0);
   if (filtered.length === 0) return null;
 
-  const longest = filtered.reduce((a, b) => (a.values.length >= b.values.length ? a : b));
+  // Pick the series that drives the x-axis labels: prefer one that
+  // carries `dates`, regardless of length. Falling back to the longest
+  // series purely on length used to silently drop x-labels when current
+  // + previous had equal length and `previous` (no dates) was first in
+  // the array.
+  const labelSeries =
+    filtered.find((s) => s.dates && s.dates.length > 0) ??
+    filtered.reduce((a, b) => (a.values.length >= b.values.length ? a : b));
   const width = 720;
   const innerW = width - PADDING.left - PADDING.right;
   const innerH = height - PADDING.top - PADDING.bottom;
@@ -66,7 +73,7 @@ export function LineChart({
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => (niceMax * i) / yTicks);
 
   // Sample x labels: at most 8 to avoid overlapping
-  const labelStep = Math.max(1, Math.ceil(longest.values.length / 8));
+  const labelStep = Math.max(1, Math.ceil(labelSeries.values.length / 8));
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img">
@@ -106,12 +113,12 @@ export function LineChart({
         );
       })}
       {/* X labels */}
-      {longest.dates?.map((iso, i) => {
+      {labelSeries.dates?.map((iso, i) => {
         if (i % labelStep !== 0) return null;
         return (
           <text
             key={`x-${i}`}
-            x={xFor(i, longest.values.length)}
+            x={xFor(i, labelSeries.values.length)}
             y={height - 6}
             textAnchor="middle"
             className="fill-muted-foreground text-[10px]"

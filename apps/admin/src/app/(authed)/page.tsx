@@ -4,7 +4,9 @@ import { ArgentinaChoropleth } from '@/components/argentina-choropleth';
 import { LineChart } from '@/components/charts/line-chart';
 import { Sparkline } from '@/components/charts/sparkline';
 import { cachedApiFetch } from '@/lib/cached-api-fetch';
+import { RangeSelector } from './range-selector';
 import {
+  formatCompactRevenue,
   formatCurrencyArs,
   formatDeltaPct,
   formatNumber,
@@ -73,7 +75,6 @@ export default async function OverviewPage({
 
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('overview');
-  const tPresets = await getTranslations('presets');
 
   // Sparkline values derived from the timeseries — one per KPI tile.
   const revenueSpark = timeseries.current.map((p) => Number(p.revenue));
@@ -95,30 +96,13 @@ export default async function OverviewPage({
     .slice(0, 5);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-8">
+    <div className="mx-auto max-w-7xl space-y-6 p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-          {PRESETS.map((p) => {
-            const active = !fromParam && !toParam && windowParam === p.id;
-            return (
-              <Link
-                key={p.id}
-                href={`/?window=${p.id}`}
-                className={
-                  active
-                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                }
-              >
-                {tPresets(p.id as PresetId)}
-              </Link>
-            );
-          })}
-        </nav>
+        <RangeSelector />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -200,7 +184,8 @@ export default async function OverviewPage({
                 tone: 'primary',
               },
             ]}
-            formatY={(v) => formatCurrencyArs(v, locale)}
+            formatY={(v) => formatCompactRevenue(v, 'ars')}
+            formatX={(iso) => formatBucketLabel(iso, timeseries.granularity, locale)}
           />
         </div>
       </section>
@@ -464,4 +449,33 @@ function TrendDownIcon({ className }: { className?: string }): React.ReactElemen
       <path d="M16 17h6v-6" />
     </svg>
   );
+}
+
+/**
+ * Format a timeseries bucket label for the line chart x-axis,
+ * adapting to the granularity returned by the API:
+ *   - day:   "12 may"
+ *   - week:  "Sem 12 may"
+ *   - month: "may '26"
+ */
+function formatBucketLabel(
+  iso: string,
+  granularity: 'day' | 'week' | 'month',
+  locale: Locale,
+): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const tz = 'America/Argentina/Buenos_Aires';
+  const lang = locale === 'en' ? 'en-AR' : 'es-AR';
+  if (granularity === 'month') {
+    return d
+      .toLocaleDateString(lang, { timeZone: tz, month: 'short', year: '2-digit' })
+      .replace(/\.$/, '');
+  }
+  if (granularity === 'week') {
+    return `Sem ${d.toLocaleDateString(lang, { timeZone: tz, day: '2-digit', month: 'short' }).replace(/\.$/, '')}`;
+  }
+  return d
+    .toLocaleDateString(lang, { timeZone: tz, day: '2-digit', month: 'short' })
+    .replace(/\.$/, '');
 }
