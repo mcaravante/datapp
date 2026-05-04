@@ -196,6 +196,8 @@
       "email": "Email",
       "name": "Name",
       "group": "Group",
+      "totalOrders": "Orders",
+      "totalSpent": "Total spent",
       "magentoId": "Magento ID",
       "updated": "Updated",
       "empty": "No customers match."

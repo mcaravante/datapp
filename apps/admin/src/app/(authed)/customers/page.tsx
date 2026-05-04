@@ -5,7 +5,7 @@ import { ExportButton } from '@/components/export-button';
 import { Pagination } from '@/components/pagination';
 import { SortableHeader } from '@/components/sortable-header';
 import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
-import { formatBuenosAires, formatNumber } from '@/lib/format';
+import { formatBuenosAires, formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { CustomerListPage, RfmSegmentLabel } from '@/lib/types';
 
@@ -16,6 +16,8 @@ const SORT_FIELDS = [
   'magento_updated_at',
   'magento_created_at',
   'customer_group',
+  'total_orders',
+  'total_spent',
 ] as const;
 
 type SortField = (typeof SORT_FIELDS)[number];
@@ -232,6 +234,28 @@ export default async function CustomersListPage({
                   {t('table.group')}
                 </SortableHeader>
               </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="total_orders"
+                  current={sort}
+                  align="right"
+                  basePath="/customers"
+                  currentParams={currentParams}
+                >
+                  {t('table.totalOrders')}
+                </SortableHeader>
+              </th>
+              <th className="px-4 py-3">
+                <SortableHeader
+                  field="total_spent"
+                  current={sort}
+                  align="right"
+                  basePath="/customers"
+                  currentParams={currentParams}
+                >
+                  {t('table.totalSpent')}
+                </SortableHeader>
+              </th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t('table.magentoId')}
               </th>
@@ -250,7 +274,7 @@ export default async function CustomersListPage({
           <tbody>
             {result.data.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   {t('table.empty')}
                 </td>
               </tr>
@@ -272,6 +296,20 @@ export default async function CustomersListPage({
                   {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{c.customer_group ?? '—'}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-foreground">
+                  {c.total_orders === null ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    formatNumber(c.total_orders, locale)
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">
+                  {c.total_spent === null ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    formatCurrencyArs(c.total_spent, locale)
+                  )}
+                </td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                   {c.magento_customer_id}
                 </td>

@@ -13,6 +13,10 @@ export interface CustomerListItem {
   customer_group: string | null;
   magento_created_at: string | null;
   magento_updated_at: string | null;
+  /** Total orders ever placed. Sourced from RFM (≤24h stale). */
+  total_orders: number | null;
+  /** Lifetime spend (sum of real_revenue) — Decimal as string. */
+  total_spent: string | null;
 }
 
 export interface CustomerListPage {

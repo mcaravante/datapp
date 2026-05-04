@@ -4,9 +4,9 @@ import { PrismaService } from '../../db/prisma.service';
 import { RfmService } from '../rfm/rfm.service';
 import type { CustomerSortField, ListCustomersQuery } from './dto/list-customers.query';
 
-/** Maps DTO sort fields to Prisma columns. The Zod enum guards the input. */
+/** Maps direct CustomerProfile column sort fields to Prisma keys. */
 const CUSTOMER_SORT_COLUMN: Record<
-  CustomerSortField,
+  'email' | 'magento_updated_at' | 'magento_created_at' | 'customer_group',
   keyof Prisma.CustomerProfileOrderByWithRelationInput
 > = {
   email: 'email',
@@ -19,6 +19,17 @@ function buildCustomerOrderBy(
   sort: CustomerSortField,
   dir: 'asc' | 'desc',
 ): Prisma.CustomerProfileOrderByWithRelationInput[] {
+  // Sorting by RFM-sourced metrics (total orders / total spent) goes
+  // through the `rfmScore` relation. Customers without an RFM row
+  // (very new customers, never had a nightly run) sort to the bottom
+  // of `desc` queries because Postgres orders NULLS LAST by default
+  // for DESC.
+  if (sort === 'total_orders') {
+    return [{ rfmScore: { frequency: dir } }, { id: 'desc' }];
+  }
+  if (sort === 'total_spent') {
+    return [{ rfmScore: { monetary: dir } }, { id: 'desc' }];
+  }
   const column = CUSTOMER_SORT_COLUMN[sort];
   return [
     { [column]: dir } as Prisma.CustomerProfileOrderByWithRelationInput,
@@ -59,6 +70,13 @@ export interface CustomerListItem {
   customer_group: string | null;
   magento_created_at: string | null;
   magento_updated_at: string | null;
+  /// Total orders ever placed. Sourced from RFM (`frequency`) — at
+  /// most ~24h stale. Null when the nightly RFM job hasn't covered
+  /// this customer yet (very new account).
+  total_orders: number | null;
+  /// Lifetime spend (sum of `real_revenue`). Sourced from RFM
+  /// (`monetary`). Decimal-safe string; null when no RFM row.
+  total_spent: string | null;
 }
 
 export interface CustomerListPage {
@@ -239,6 +257,7 @@ export class CustomersService {
           customerGroup: true,
           magentoCreatedAt: true,
           magentoUpdatedAt: true,
+          rfmScore: { select: { frequency: true, monetary: true } },
         },
       }),
       this.prisma.customerProfile.count({ where }),
@@ -256,6 +275,8 @@ export class CustomersService {
         customer_group: r.customerGroup,
         magento_created_at: r.magentoCreatedAt?.toISOString() ?? null,
         magento_updated_at: r.magentoUpdatedAt?.toISOString() ?? null,
+        total_orders: r.rfmScore?.frequency ?? null,
+        total_spent: r.rfmScore?.monetary?.toString() ?? null,
       })),
       page: query.page,
       limit: query.limit,
@@ -328,7 +349,10 @@ export class CustomersService {
   async get(tenantId: string, id: string): Promise<CustomerDetail> {
     const profile = await this.prisma.customerProfile.findFirst({
       where: { id, tenantId },
-      include: { addresses: { include: { region: true } } },
+      include: {
+        addresses: { include: { region: true } },
+        rfmScore: { select: { frequency: true, monetary: true } },
+      },
     });
     if (!profile) throw new NotFoundException(`Customer ${id} not found`);
 
@@ -365,6 +389,12 @@ export class CustomersService {
       attributes: (profile.attributes as Record<string, unknown>) ?? {},
       magento_created_at: profile.magentoCreatedAt?.toISOString() ?? null,
       magento_updated_at: profile.magentoUpdatedAt?.toISOString() ?? null,
+      // Detail page already shows aggregated metrics computed live
+      // (`metrics` block below), but the list-item shape expects RFM-
+      // sourced totals — pass them through too so the type stays
+      // consistent.
+      total_orders: profile.rfmScore?.frequency ?? null,
+      total_spent: profile.rfmScore?.monetary?.toString() ?? null,
       addresses: profile.addresses.map((a) => ({
         id: a.id,
         type: a.type,

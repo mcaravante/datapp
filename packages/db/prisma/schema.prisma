@@ -553,6 +553,12 @@ model RfmScore {
 
   @@index([tenantId, segment])
   @@index([tenantId, calculatedAt(sort: Desc)])
+  /// Indexes that back "top customers by orders / spend" sorting on
+  /// the /customers list. Without them, a paginated sort over hundreds
+  /// of thousands of customers materializes the whole table to a sort
+  /// buffer. With them it's an index range scan + LIMIT.
+  @@index([tenantId, frequency(sort: Desc)])
+  @@index([tenantId, monetary(sort: Desc)])
   @@map("rfm_score")
 }
 

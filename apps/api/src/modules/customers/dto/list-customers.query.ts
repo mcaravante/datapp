@@ -5,6 +5,12 @@ export const CustomerSortField = z.enum([
   'magento_updated_at',
   'magento_created_at',
   'customer_group',
+  /// Total orders ever placed by the customer. Sourced from the nightly
+  /// RFM job's `frequency` column, so values are at most ~24h stale.
+  'total_orders',
+  /// Lifetime spend (sum of `real_revenue`). Sourced from RFM's
+  /// `monetary` column for the same reason.
+  'total_spent',
 ]);
 export type CustomerSortField = z.infer<typeof CustomerSortField>;
 
