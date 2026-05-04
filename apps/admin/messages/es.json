@@ -28,7 +28,14 @@
     "security": "Seguridad",
     "audit": "Auditoría",
     "account": "Mi cuenta",
-    "system": "Sistema"
+    "system": "Sistema",
+    "groups": {
+      "analytics": "Análisis",
+      "data": "Datos",
+      "sales": "Ventas",
+      "email": "Email marketing",
+      "admin": "Administración"
+    }
   },
   "common": {
     "search": "Buscar",

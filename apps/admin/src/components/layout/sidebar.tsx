@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState } from 'react';
 import type { AdminRole, AdminSection } from '@/lib/types';
 
 type NavLabelKey =
@@ -43,147 +44,196 @@ interface NavItem {
   section?: AdminSection;
 }
 
+type NavGroupKey =
+  | 'analytics'
+  | 'data'
+  | 'sales'
+  | 'email'
+  | 'admin';
+
+interface NavGroup {
+  key: NavGroupKey;
+  /** i18n key under `nav.groups`. */
+  labelKey: NavGroupKey;
+  items: readonly NavItem[];
+}
+
 const ADMIN_ROLES: readonly AdminRole[] = ['super_admin', 'admin'];
 
-const NAV: readonly NavItem[] = [
+// Pinned at the top, outside any group — the home overview is the
+// default landing and shouldn't hide behind a collapsed group header.
+const HOME_ITEM: NavItem = {
+  href: '/',
+  labelKey: 'overview',
+  icon: HomeIcon,
+  match: (p) => p === '/',
+  section: 'overview',
+};
+
+// Pinned at the bottom, outside any group — personal account.
+const ACCOUNT_ITEM: NavItem = {
+  href: '/account',
+  labelKey: 'account',
+  icon: UserCircleIcon,
+  match: (p) => p.startsWith('/account'),
+};
+
+const NAV_GROUPS: readonly NavGroup[] = [
   {
-    href: '/',
-    labelKey: 'overview',
-    icon: HomeIcon,
-    match: (p) => p === '/',
-    section: 'overview',
+    key: 'analytics',
+    labelKey: 'analytics',
+    items: [
+      {
+        href: '/insights',
+        labelKey: 'insights',
+        icon: ActivityIcon,
+        match: (p) => p.startsWith('/insights'),
+        section: 'insights',
+      },
+      {
+        href: '/reports',
+        labelKey: 'reports',
+        icon: BarChartIcon,
+        match: (p) => p.startsWith('/reports'),
+      },
+    ],
   },
   {
-    href: '/customers',
-    labelKey: 'customers',
-    icon: UsersIcon,
-    match: (p) => p.startsWith('/customers'),
-    section: 'customers',
+    key: 'data',
+    labelKey: 'data',
+    items: [
+      {
+        href: '/customers',
+        labelKey: 'customers',
+        icon: UsersIcon,
+        match: (p) => p.startsWith('/customers'),
+        section: 'customers',
+      },
+      {
+        href: '/segments',
+        labelKey: 'segments',
+        icon: TagIcon,
+        match: (p) => p.startsWith('/segments'),
+        section: 'segments',
+      },
+      {
+        href: '/regions',
+        labelKey: 'regions',
+        icon: MapIcon,
+        match: (p) => p.startsWith('/regions'),
+        section: 'regions',
+      },
+    ],
   },
   {
-    href: '/segments',
-    labelKey: 'segments',
-    icon: TagIcon,
-    match: (p) => p.startsWith('/segments'),
-    section: 'segments',
+    key: 'sales',
+    labelKey: 'sales',
+    items: [
+      {
+        href: '/orders',
+        labelKey: 'orders',
+        icon: ReceiptIcon,
+        match: (p) => p.startsWith('/orders'),
+        section: 'orders',
+      },
+      {
+        href: '/products',
+        labelKey: 'products',
+        icon: BoxIcon,
+        match: (p) => p.startsWith('/products'),
+        section: 'products',
+      },
+      {
+        href: '/coupons',
+        labelKey: 'coupons',
+        icon: TicketIcon,
+        match: (p) => p.startsWith('/coupons'),
+        section: 'coupons',
+      },
+      {
+        href: '/carts',
+        labelKey: 'carts',
+        icon: CartIcon,
+        match: (p) => p.startsWith('/carts'),
+        section: 'carts',
+      },
+    ],
   },
   {
-    href: '/orders',
-    labelKey: 'orders',
-    icon: ReceiptIcon,
-    match: (p) => p.startsWith('/orders'),
-    section: 'orders',
+    key: 'email',
+    labelKey: 'email',
+    items: [
+      {
+        href: '/campaigns',
+        labelKey: 'campaigns',
+        icon: MailIcon,
+        match: (p) => p.startsWith('/campaigns'),
+      },
+      {
+        href: '/templates',
+        labelKey: 'templates',
+        icon: FileTextIcon,
+        match: (p) => p.startsWith('/templates'),
+      },
+      {
+        href: '/settings/email-branding',
+        labelKey: 'emailBranding',
+        icon: PaletteIcon,
+        match: (p) => p.startsWith('/settings/email-branding'),
+      },
+      {
+        href: '/settings/email-suppression',
+        labelKey: 'emailSuppression',
+        icon: ShieldXIcon,
+        match: (p) => p.startsWith('/settings/email-suppression'),
+      },
+    ],
   },
   {
-    href: '/carts',
-    labelKey: 'carts',
-    icon: CartIcon,
-    match: (p) => p.startsWith('/carts'),
-    section: 'carts',
-  },
-  {
-    href: '/campaigns',
-    labelKey: 'campaigns',
-    icon: MailIcon,
-    match: (p) => p.startsWith('/campaigns'),
-  },
-  {
-    href: '/templates',
-    labelKey: 'templates',
-    icon: FileTextIcon,
-    match: (p) => p.startsWith('/templates'),
-  },
-  {
-    href: '/settings/email-branding',
-    labelKey: 'emailBranding',
-    icon: PaletteIcon,
-    match: (p) => p.startsWith('/settings/email-branding'),
-  },
-  {
-    href: '/settings/email-suppression',
-    labelKey: 'emailSuppression',
-    icon: ShieldXIcon,
-    match: (p) => p.startsWith('/settings/email-suppression'),
-  },
-  {
-    href: '/products',
-    labelKey: 'products',
-    icon: BoxIcon,
-    match: (p) => p.startsWith('/products'),
-    section: 'products',
-  },
-  {
-    href: '/coupons',
-    labelKey: 'coupons',
-    icon: TicketIcon,
-    match: (p) => p.startsWith('/coupons'),
-    section: 'coupons',
-  },
-  {
-    href: '/regions',
-    labelKey: 'regions',
-    icon: MapIcon,
-    match: (p) => p.startsWith('/regions'),
-    section: 'regions',
-  },
-  {
-    href: '/insights',
-    labelKey: 'insights',
-    icon: ActivityIcon,
-    match: (p) => p.startsWith('/insights'),
-    section: 'insights',
-  },
-  {
-    href: '/reports',
-    labelKey: 'reports',
-    icon: BarChartIcon,
-    match: (p) => p.startsWith('/reports'),
-  },
-  {
-    href: '/sync',
-    labelKey: 'sync',
-    icon: RefreshIcon,
-    match: (p) => p.startsWith('/sync'),
-    section: 'sync',
-  },
-  {
-    href: '/users',
-    labelKey: 'users',
-    icon: ShieldIcon,
-    match: (p) => p.startsWith('/users'),
-    roles: ADMIN_ROLES,
-  },
-  {
-    href: '/permissions',
-    labelKey: 'permissions',
-    icon: KeyIcon,
-    match: (p) => p.startsWith('/permissions'),
-    roles: ADMIN_ROLES,
-  },
-  {
-    href: '/security',
-    labelKey: 'security',
-    icon: LockIcon,
-    match: (p) => p.startsWith('/security'),
-  },
-  {
-    href: '/audit',
-    labelKey: 'audit',
-    icon: ClipboardIcon,
-    match: (p) => p.startsWith('/audit'),
-    roles: ADMIN_ROLES,
-  },
-  {
-    href: '/account',
-    labelKey: 'account',
-    icon: UserCircleIcon,
-    match: (p) => p.startsWith('/account'),
-  },
-  {
-    href: '/system',
-    labelKey: 'system',
-    icon: SettingsIcon,
-    match: (p) => p.startsWith('/system'),
+    key: 'admin',
+    labelKey: 'admin',
+    items: [
+      {
+        href: '/sync',
+        labelKey: 'sync',
+        icon: RefreshIcon,
+        match: (p) => p.startsWith('/sync'),
+        section: 'sync',
+      },
+      {
+        href: '/users',
+        labelKey: 'users',
+        icon: ShieldIcon,
+        match: (p) => p.startsWith('/users'),
+        roles: ADMIN_ROLES,
+      },
+      {
+        href: '/permissions',
+        labelKey: 'permissions',
+        icon: KeyIcon,
+        match: (p) => p.startsWith('/permissions'),
+        roles: ADMIN_ROLES,
+      },
+      {
+        href: '/security',
+        labelKey: 'security',
+        icon: LockIcon,
+        match: (p) => p.startsWith('/security'),
+      },
+      {
+        href: '/audit',
+        labelKey: 'audit',
+        icon: ClipboardIcon,
+        match: (p) => p.startsWith('/audit'),
+        roles: ADMIN_ROLES,
+      },
+      {
+        href: '/system',
+        labelKey: 'system',
+        icon: SettingsIcon,
+        match: (p) => p.startsWith('/system'),
+      },
+    ],
   },
 ];
 
@@ -193,15 +243,80 @@ interface SidebarProps {
   access: Record<AdminSection, boolean>;
 }
 
+function isItemVisible(
+  item: NavItem,
+  role: AdminRole,
+  access: Record<AdminSection, boolean>,
+): boolean {
+  if (item.roles && !item.roles.includes(role)) return false;
+  if (item.section && access[item.section] !== true) return false;
+  return true;
+}
+
+const COLLAPSED_KEY = 'datapp.sidebar.collapsedGroups';
+
 export function Sidebar({ role, access }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const tNav = useTranslations('nav');
+  const tNavGroups = useTranslations('nav.groups');
   const tApp = useTranslations('app');
-  const visibleNav = NAV.filter((item) => {
-    if (item.roles && !item.roles.includes(role)) return false;
-    if (item.section && access[item.section] !== true) return false;
-    return true;
-  });
+
+  // Filter once: each group keeps only the items the active user can see.
+  const groups = useMemo(
+    () =>
+      NAV_GROUPS.map((g) => ({
+        ...g,
+        items: g.items.filter((item) => isItemVisible(item, role, access)),
+      })).filter((g) => g.items.length > 0),
+    [role, access],
+  );
+
+  // Which group does the active route belong to? That one starts open
+  // even if the user's localStorage prefers it collapsed.
+  const activeGroupKey = useMemo(() => {
+    for (const g of groups) {
+      if (g.items.some((i) => (i.match ? i.match(pathname) : pathname === i.href))) {
+        return g.key;
+      }
+    }
+    return null;
+  }, [groups, pathname]);
+
+  // User's persisted collapse preference. We can't read localStorage on
+  // the server, so initial render shows all groups expanded; the
+  // useEffect below restores the saved set after hydration.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<NavGroupKey>>(new Set());
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSED_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          setCollapsed(new Set(parsed.filter((k): k is NavGroupKey => typeof k === 'string') as NavGroupKey[]));
+        }
+      }
+    } catch {
+      // ignore — corrupted entry just means default expanded
+    }
+  }, []);
+
+  function toggleGroup(key: NavGroupKey): void {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+      } catch {
+        // ignore storage failures (private mode, quota, etc.)
+      }
+      return next;
+    });
+  }
+
+  const isHomeActive = pathname === '/';
+  const isAccountActive = pathname.startsWith('/account');
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
@@ -221,34 +336,121 @@ export function Sidebar({ role, access }: SidebarProps): React.ReactElement {
           </span>
         </div>
       </Link>
-      <nav className="flex-1 space-y-0.5 px-2 py-3 text-sm">
-        {visibleNav.map((item) => {
-          const active = item.match ? item.match(pathname) : pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? 'page' : undefined}
+
+      <nav className="flex-1 overflow-y-auto px-2 py-3 text-sm">
+        {/* Pinned home link */}
+        {isItemVisible(HOME_ITEM, role, access) && (
+          <Link
+            href={HOME_ITEM.href}
+            aria-current={isHomeActive ? 'page' : undefined}
+            className={
+              isHomeActive
+                ? 'mb-3 flex items-center gap-2.5 rounded-md bg-primary/10 px-3 py-2 font-medium text-primary'
+                : 'mb-3 flex items-center gap-2.5 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+            }
+          >
+            <HOME_ITEM.icon
               className={
-                active
+                isHomeActive ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'
+              }
+            />
+            <span>{tNav(HOME_ITEM.labelKey)}</span>
+          </Link>
+        )}
+
+        {groups.map((group) => {
+          const isCollapsed = collapsed.has(group.key) && activeGroupKey !== group.key;
+          return (
+            <div key={group.key} className="mb-2">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition hover:text-foreground"
+                aria-expanded={!isCollapsed}
+              >
+                <span>{tNavGroups(group.labelKey)}</span>
+                <ChevronIcon
+                  className={`h-3 w-3 transition-transform ${
+                    isCollapsed ? '-rotate-90' : ''
+                  }`}
+                />
+              </button>
+              {!isCollapsed && (
+                <div className="mt-0.5 space-y-0.5">
+                  {group.items.map((item) => {
+                    const active = item.match
+                      ? item.match(pathname)
+                      : pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={
+                          active
+                            ? 'flex items-center gap-2.5 rounded-md bg-primary/10 px-3 py-2 font-medium text-primary'
+                            : 'flex items-center gap-2.5 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                        }
+                      >
+                        <item.icon
+                          className={
+                            active ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'
+                          }
+                        />
+                        <span>{tNav(item.labelKey)}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Pinned account link at the bottom */}
+        {isItemVisible(ACCOUNT_ITEM, role, access) && (
+          <div className="mt-4 border-t border-border pt-3">
+            <Link
+              href={ACCOUNT_ITEM.href}
+              aria-current={isAccountActive ? 'page' : undefined}
+              className={
+                isAccountActive
                   ? 'flex items-center gap-2.5 rounded-md bg-primary/10 px-3 py-2 font-medium text-primary'
                   : 'flex items-center gap-2.5 rounded-md px-3 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground'
               }
             >
-              <item.icon
+              <ACCOUNT_ITEM.icon
                 className={
-                  active ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'
+                  isAccountActive ? 'h-4 w-4 text-primary' : 'h-4 w-4 text-muted-foreground'
                 }
               />
-              <span>{tNav(item.labelKey)}</span>
+              <span>{tNav(ACCOUNT_ITEM.labelKey)}</span>
             </Link>
-          );
-        })}
+          </div>
+        )}
       </nav>
+
       <div className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
         <span className="font-mono">{tApp('version')}</span>
       </div>
     </aside>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }
 
