@@ -332,6 +332,10 @@ export interface AbandonedCartsResponse {
   range: AbandonedCartRange;
   /** When the cron last touched any row for this tenant (null if never synced). */
   last_synced_at: string | null;
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
   totals: {
     carts: number;
     items_qty: number;

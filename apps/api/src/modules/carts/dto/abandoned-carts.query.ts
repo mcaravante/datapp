@@ -14,8 +14,10 @@ export const AbandonedCartsQuerySchema = z.object({
    * (recovered). `all` returns the full history.
    */
   range: AbandonedCartRangeFilter.default('30d'),
-  /** Cap on how many carts to return. Default 100, max 500. */
-  limit: z.coerce.number().int().min(1).max(500).default(100),
+  /** 1-based page number. */
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  /** Cap on how many carts to return per page. */
+  limit: z.coerce.number().int().min(1).max(500).default(20),
 });
 
 export type AbandonedCartsQuery = z.infer<typeof AbandonedCartsQuerySchema>;

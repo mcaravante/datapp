@@ -58,7 +58,7 @@ export default async function CustomersListPage({
   const sp = await searchParams;
   const q = sp.q ?? '';
   const pageParam = sp.page ?? '1';
-  const limit = sp.limit ?? '50';
+  const limit = sp.limit ?? '20';
   const customerGroup = sp.customer_group;
   const rfmFilter = parseRfmFilter(sp.rfm_segment);
   const sort = parseSort<SortField>(sp, SORT_FIELDS, DEFAULT_SORT);

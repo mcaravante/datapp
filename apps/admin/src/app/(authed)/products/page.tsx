@@ -47,7 +47,7 @@ export default async function TopProductsPage({
 }: PageProps): Promise<React.ReactElement> {
   const sp = await searchParams;
   const windowParam = sp.window ?? '7d';
-  const limit = sp.limit ?? '50';
+  const limit = sp.limit ?? '20';
   const q = sp.q ?? '';
   const sort = parseSort<TopProductsSortField>(sp, SORT_FIELDS, DEFAULT_SORT);
   const range = rangeFromPreset(windowParam);

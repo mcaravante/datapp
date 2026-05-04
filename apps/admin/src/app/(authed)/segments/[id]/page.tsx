@@ -28,7 +28,7 @@ export default async function SegmentDetailPage({
   }
 
   const members = await apiFetch<SegmentMembersPage>(
-    `/v1/admin/segments/${id}/members?limit=50`,
+    `/v1/admin/segments/${id}/members?limit=20`,
   );
 
   const t = await getTranslations('segments.detail');

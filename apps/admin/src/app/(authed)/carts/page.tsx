@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api-client';
+import { Pagination } from '@/components/pagination';
 import { SortableHeader } from '@/components/sortable-header';
 import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
@@ -20,7 +21,14 @@ interface PageProps {
     range?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
+}
+
+function clampPage(raw: string | undefined): number {
+  const parsed = Number(raw ?? '1');
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.min(Math.floor(parsed), 10_000);
 }
 
 const STATUS_TABS = ['open', 'recovered', 'expired'] as const satisfies readonly AbandonedCartStatus[];
@@ -90,15 +98,17 @@ export default async function AbandonedCartsPage({
   const range = pickRange(sp.range);
   const defaultSort = defaultSortFor(status);
   const sort = parseSort<SortField>(sp, SORT_FIELDS, defaultSort);
+  const page = clampPage(sp.page);
+  const limit = '20';
 
-  const params = new URLSearchParams({ status, range, limit: '200' });
+  const params = new URLSearchParams({ status, range, page: page.toString(), limit });
   const result = await apiFetch<AbandonedCartsResponse>(
     `/v1/admin/carts/abandoned?${params.toString()}`,
   );
 
-  // Sort the visible page in memory — the API already does it server-side
-  // for the default order; this lets the user re-pivot without paying a
-  // round-trip and keeps the cap at limit=200 honest.
+  // Sort the VISIBLE page in memory — pure UX, lets the user re-pivot
+  // the current page without a round-trip. Real ordering across pages
+  // is whatever the API returned (status-driven default).
   const sorted = [...result.data].sort((a, b) => {
     const cmp = compareCarts(a, b, sort.field, status);
     return sort.dir === 'asc' ? cmp : -cmp;
@@ -110,6 +120,7 @@ export default async function AbandonedCartsPage({
   const currentParams: Record<string, string | string[] | undefined> = {
     status,
     range,
+    page: page === 1 ? undefined : page.toString(),
     sort: sort.field === defaultSort.field ? undefined : sort.field,
     dir: sort.field === defaultSort.field && sort.dir === defaultSort.dir ? undefined : sort.dir,
   };
@@ -139,7 +150,7 @@ export default async function AbandonedCartsPage({
             return (
               <Link
                 key={r}
-                href={buildListHref('/carts', currentParams, { range: r })}
+                href={buildListHref('/carts', currentParams, { range: r, page: undefined })}
                 className={
                   active
                     ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
@@ -188,7 +199,7 @@ export default async function AbandonedCartsPage({
           return (
             <Link
               key={s}
-              href={buildListHref('/carts', { range }, { status: s })}
+              href={buildListHref('/carts', { range }, { status: s, page: undefined })}
               className={
                 active
                   ? 'border-b-2 border-primary px-4 py-2 font-medium text-foreground'
@@ -378,6 +389,19 @@ export default async function AbandonedCartsPage({
           </tbody>
         </table>
       </section>
+
+      <Pagination
+        page={result.page}
+        totalPages={result.total_pages}
+        totalCount={result.total_count}
+        limit={result.limit}
+        buildHref={(overrides) =>
+          buildListHref('/carts', currentParams, {
+            page: overrides.page !== undefined ? String(overrides.page) : String(result.page),
+            limit: overrides.limit !== undefined ? String(overrides.limit) : undefined,
+          })
+        }
+      />
     </div>
   );
 }

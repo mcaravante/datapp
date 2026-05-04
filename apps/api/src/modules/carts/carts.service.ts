@@ -54,6 +54,10 @@ export interface AbandonedCartsResponse {
   range: AbandonedCartRangeFilter;
   /** Wall-clock of the last sweep that touched this tenant. */
   last_synced_at: string | null;
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
   totals: {
     carts: number;
     items_qty: number;
@@ -130,11 +134,16 @@ export class CartsService {
         ? { recoveredAt: 'desc' }
         : { abandonedAt: 'desc' };
 
-    const rows = await this.prisma.abandonedCart.findMany({
-      where,
-      orderBy,
-      take: query.limit,
-    });
+    const [rows, totalCount] = await Promise.all([
+      this.prisma.abandonedCart.findMany({
+        where,
+        orderBy,
+        take: query.limit,
+        skip: (query.page - 1) * query.limit,
+      }),
+      this.prisma.abandonedCart.count({ where }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalCount / query.limit));
 
     const totalGrand = rows.reduce(
       (acc, c) => acc.plus(c.grandTotal),
@@ -160,6 +169,10 @@ export class CartsService {
       status: query.status,
       range: query.range,
       last_synced_at: lastSynced?.syncedAt.toISOString() ?? null,
+      page: query.page,
+      limit: query.limit,
+      total_count: totalCount,
+      total_pages: totalPages,
       totals: {
         carts: rows.length,
         items_qty: totalQty,

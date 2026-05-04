@@ -89,7 +89,7 @@ export default async function OrdersListPage({
   const sp = await searchParams;
   const q = sp.q ?? '';
   const pageParam = sp.page ?? '1';
-  const limit = sp.limit ?? '50';
+  const limit = sp.limit ?? '20';
   const windowParam = sp.window ?? '30d';
   const statusFilter = sp.status === 'all' || sp.status === undefined ? null : sp.status;
   const region = sp.region;
