@@ -159,7 +159,10 @@ export function mapOrder(
     // assignment under `extension_attributes`. Pick whichever has a
     // non-empty value — Pupemoda's catalog leaves the top-level blank.
     shippingMethod: pickShippingMethod(raw),
-    couponCode: emptyToNull(getStringField(raw, 'coupon_code')),
+    // Uppercase at ingest so "CAR800" and "Car800" don't show up as
+    // two different coupons in the analytics. Magento lets operators
+    // type whatever case but treats them as the same code at checkout.
+    couponCode: emptyToNull(getStringField(raw, 'coupon_code'))?.toUpperCase() ?? null,
     discountDescription: emptyToNull(getStringField(raw, 'discount_description')),
     appliedRuleIds: emptyToNull(getStringField(raw, 'applied_rule_ids')),
     itemCount,
