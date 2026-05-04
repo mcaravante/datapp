@@ -45,6 +45,12 @@ export interface SearchCriteria {
   pageSize?: number;
   currentPage?: number;
   sortOrders?: SortOrder[];
+  /**
+   * REST projection — Magento honours `fields=items[a,b[c]],total_count`
+   * to trim the response. Cuts payload 50–100x on big lists when you
+   * only need a few columns.
+   */
+  fields?: string;
 }
 
 /**
@@ -77,5 +83,8 @@ export function buildSearchCriteriaParams(criteria: SearchCriteria): URLSearchPa
     params.append(`searchCriteria[sortOrders][${i.toString()}][field]`, o.field);
     params.append(`searchCriteria[sortOrders][${i.toString()}][direction]`, o.direction);
   });
+  if (criteria.fields !== undefined && criteria.fields.length > 0) {
+    params.append('fields', criteria.fields);
+  }
   return params;
 }

@@ -51,6 +51,21 @@ export async function runDiagnoseCounts(
   logger.log(`customer_profile        : ${customerTotal.toString()}`);
   logger.log(`"user"                  : ${userTotal.toString()}`);
 
+  const [shippingNull, shippingFilled, regionNull, regionFilled] = await Promise.all([
+    prisma.order.count({ where: { shippingMethod: null } }),
+    prisma.order.count({ where: { shippingMethod: { not: null } } }),
+    prisma.order.count({ where: { regionId: null } }),
+    prisma.order.count({ where: { regionId: { not: null } } }),
+  ]);
+
+  logger.log('--- Backfill progress ---');
+  logger.log(
+    `order.shipping_method   null=${shippingNull.toString().padStart(6)} filled=${shippingFilled.toString().padStart(6)}`,
+  );
+  logger.log(
+    `order.region_id         null=${regionNull.toString().padStart(6)} filled=${regionFilled.toString().padStart(6)}`,
+  );
+
   if (tenants.length > 1 || excludedTotal > 0 || methodLabelTotal > 0) {
     logger.log('--- Per-tenant breakdown ---');
     for (const t of tenants) {

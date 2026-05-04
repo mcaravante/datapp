@@ -4,7 +4,7 @@ import { RegionResolverService } from '../geo/region-resolver.service';
 import { MagentoStoreService } from '../magento/magento-store.service';
 import { MagentoClientFactory } from '../magento/magento-client.factory';
 
-const SHIPPING_BATCH = 50;
+const SHIPPING_CHUNK = 100;
 const REGION_BATCH = 500;
 
 export interface BackfillReport {
@@ -53,59 +53,71 @@ export class OrderBackfillService {
       : await this.stores.findFirstByTenant(tenantId);
     const client = this.factory.forStore(store);
 
-    const pending = await this.prisma.order.count({
+    const pendingRows = await this.prisma.order.findMany({
       where: { tenantId, magentoStoreId: store.id, shippingMethod: null },
+      select: { id: true, magentoOrderId: true },
+      orderBy: { placedAt: 'desc' },
     });
+    const pending = pendingRows.length;
     if (pending === 0) {
       return { pending: 0, updated: 0, stillNull: 0, durationMs: 0 };
     }
 
+    // Index by magento_order_id (string) so we can resolve the CDP row
+    // from the Magento response without re-querying the DB.
+    const idxByMagentoId = new Map(pendingRows.map((r) => [r.magentoOrderId, r.id]));
+
     let updated = 0;
     let stillNull = 0;
-    let processed = 0;
 
-    while (processed < pending) {
-      const batch = await this.prisma.order.findMany({
-        where: { tenantId, magentoStoreId: store.id, shippingMethod: null },
-        select: { id: true, magentoOrderId: true },
-        orderBy: { placedAt: 'asc' },
-        take: SHIPPING_BATCH,
-      });
-      if (batch.length === 0) break;
+    // Bulk-fetch shipping in chunks via `/V1/orders?searchCriteria…` with
+    // `fields=` projection — one HTTP call per ~100 orders instead of one
+    // per order. On large tenants this is the difference between minutes
+    // and hours.
+    for (let i = 0; i < pendingRows.length; i += SHIPPING_CHUNK) {
+      const chunk = pendingRows.slice(i, i + SHIPPING_CHUNK);
+      const ids = chunk.map((r) => Number(r.magentoOrderId));
+      let projection: Awaited<ReturnType<typeof client.orders.searchShippingByIds>> = [];
+      try {
+        projection = await client.orders.searchShippingByIds(ids);
+      } catch (err) {
+        // Whole-chunk failures (network, 401, 5xx) — log and move on.
+        this.logger.warn(
+          `shipping backfill chunk failed ids=${ids.length} firstId=${ids[0]?.toString() ?? '?'}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        stillNull += chunk.length;
+        continue;
+      }
 
-      for (const row of batch) {
-        try {
-          const raw = await client.orders.get(Number(row.magentoOrderId));
-          const top =
-            typeof raw.shipping_method === 'string' ? raw.shipping_method.trim() : '';
-          const fromAssignment =
-            raw.extension_attributes?.shipping_assignments?.[0]?.shipping?.method;
-          const method =
-            top.length > 0
-              ? top
-              : typeof fromAssignment === 'string' && fromAssignment.trim().length > 0
-                ? fromAssignment.trim()
-                : null;
-          if (method !== null) {
-            await this.prisma.order.update({
-              where: { id: row.id },
-              data: { shippingMethod: method },
-              select: { id: true },
-            });
-            updated += 1;
-          } else {
-            stillNull += 1;
-          }
-        } catch (err) {
-          // Single-row failures are logged but don't stop the run.
-          // Magento 401 (bad ACL) or 404 (deleted order) are both
-          // possible — operator can re-run after fixing the cause.
-          this.logger.warn(
-            `shipping backfill failed magento_order_id=${row.magentoOrderId}: ${err instanceof Error ? err.message : String(err)}`,
-          );
+      const methodByMagentoId = new Map<string, string>();
+      for (const row of projection) {
+        if (row.method !== null) {
+          methodByMagentoId.set(String(row.entityId), row.method);
+        }
+      }
+
+      const updates: { id: string; method: string }[] = [];
+      for (const row of chunk) {
+        const method = methodByMagentoId.get(row.magentoOrderId);
+        const cdpId = idxByMagentoId.get(row.magentoOrderId);
+        if (method && cdpId) {
+          updates.push({ id: cdpId, method });
+        } else {
           stillNull += 1;
         }
-        processed += 1;
+      }
+
+      if (updates.length > 0) {
+        await this.prisma.$transaction(
+          updates.map((u) =>
+            this.prisma.order.update({
+              where: { id: u.id },
+              data: { shippingMethod: u.method },
+              select: { id: true },
+            }),
+          ),
+        );
+        updated += updates.length;
       }
     }
 
