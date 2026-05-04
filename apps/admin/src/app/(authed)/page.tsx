@@ -113,43 +113,63 @@ export default async function OverviewPage({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile
-          label={t('tiles.revenue')}
-          value={formatCurrencyArs(kpis.current.revenue, locale)}
-          delta={kpis.delta.revenue_pct}
-          sub={`${t('delta.vs')} ${formatCurrencyArs(kpis.previous.revenue, locale)}`}
-          spark={revenueSpark}
-          sparkTone="text-success"
-        />
-        <Tile
-          label={t('tiles.orders')}
-          value={formatNumber(kpis.current.orders, locale)}
-          delta={kpis.delta.orders_pct}
-          sub={`${t('delta.vs')} ${formatNumber(kpis.previous.orders, locale)}`}
-          spark={ordersSpark}
-          sparkTone="text-primary"
-        />
-        <Tile
-          label={t('tiles.aov')}
-          value={formatCurrencyArs(kpis.current.aov, locale)}
-          delta={kpis.delta.aov_pct}
-          sub={`${t('delta.vs')} ${formatCurrencyArs(kpis.previous.aov, locale)}`}
-          spark={aovSpark}
-          sparkTone="text-accent"
-        />
-        <Tile
-          label={t('tiles.customers')}
-          value={formatNumber(kpis.current.customers, locale)}
-          delta={kpis.delta.customers_pct}
-          sub={t('tiles.customerMixCount', {
-            newCount: formatNumber(kpis.current.new_customers, locale),
-            returningCount: formatNumber(kpis.current.returning_customers, locale),
-          })}
-          spark={customersSpark}
-          sparkTone="text-info"
-        />
-      </div>
+      {/* Histórico has no comparable previous period — its "previous"
+          window is empty by construction, so showing `vs $0 / vs 0` is
+          noise that confuses operators. */}
+      {(() => {
+        const isAllTime = windowParam === 'all' && !fromParam && !toParam;
+        return (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Tile
+              label={t('tiles.revenue')}
+              value={formatCurrencyArs(kpis.current.revenue, locale)}
+              delta={isAllTime ? null : kpis.delta.revenue_pct}
+              sub={
+                isAllTime
+                  ? undefined
+                  : `${t('delta.vs')} ${formatCurrencyArs(kpis.previous.revenue, locale)}`
+              }
+              spark={revenueSpark}
+              sparkTone="text-success"
+            />
+            <Tile
+              label={t('tiles.orders')}
+              value={formatNumber(kpis.current.orders, locale)}
+              delta={isAllTime ? null : kpis.delta.orders_pct}
+              sub={
+                isAllTime
+                  ? undefined
+                  : `${t('delta.vs')} ${formatNumber(kpis.previous.orders, locale)}`
+              }
+              spark={ordersSpark}
+              sparkTone="text-primary"
+            />
+            <Tile
+              label={t('tiles.aov')}
+              value={formatCurrencyArs(kpis.current.aov, locale)}
+              delta={isAllTime ? null : kpis.delta.aov_pct}
+              sub={
+                isAllTime
+                  ? undefined
+                  : `${t('delta.vs')} ${formatCurrencyArs(kpis.previous.aov, locale)}`
+              }
+              spark={aovSpark}
+              sparkTone="text-accent"
+            />
+            <Tile
+              label={t('tiles.customers')}
+              value={formatNumber(kpis.current.customers, locale)}
+              delta={isAllTime ? null : kpis.delta.customers_pct}
+              sub={t('tiles.customerMixCount', {
+                newCount: formatNumber(kpis.current.new_customers, locale),
+                returningCount: formatNumber(kpis.current.returning_customers, locale),
+              })}
+              spark={customersSpark}
+              sparkTone="text-info"
+            />
+          </div>
+        );
+      })()}
 
       <section className="rounded-lg border border-border bg-card p-5 shadow-card">
         <div className="flex flex-wrap items-baseline justify-between gap-4">
