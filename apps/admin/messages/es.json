@@ -598,6 +598,7 @@
       "90d": "Últimos 90 días",
       "all": "Histórico"
     },
+    "hideGuests": "Ocultar invitados",
     "kpis": {
       "openNow": "Abiertos",
       "openNowSub": "carritos vigentes en esta ventana",

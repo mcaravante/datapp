@@ -598,6 +598,7 @@
       "90d": "Last 90 days",
       "all": "All time"
     },
+    "hideGuests": "Hide guests",
     "kpis": {
       "openNow": "Open",
       "openNowSub": "carts in this window",

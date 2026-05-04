@@ -18,6 +18,12 @@ export const AbandonedCartsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   /** Cap on how many carts to return per page. */
   limit: z.coerce.number().int().min(1).max(500).default(20),
+  /**
+   * When true, drop carts placed as guest (no Magento customer linked).
+   * Operators usually focus on signed-in customers because there's no
+   * way to email a guest abandonment.
+   */
+  hide_guests: z.coerce.boolean().default(false),
 });
 
 export type AbandonedCartsQuery = z.infer<typeof AbandonedCartsQuerySchema>;

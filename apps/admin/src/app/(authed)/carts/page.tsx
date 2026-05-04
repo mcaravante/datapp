@@ -22,6 +22,7 @@ interface PageProps {
     sort?: string;
     dir?: string;
     page?: string;
+    hide_guests?: string;
   }>;
 }
 
@@ -100,8 +101,10 @@ export default async function AbandonedCartsPage({
   const sort = parseSort<SortField>(sp, SORT_FIELDS, defaultSort);
   const page = clampPage(sp.page);
   const limit = '20';
+  const hideGuests = sp.hide_guests === '1';
 
   const params = new URLSearchParams({ status, range, page: page.toString(), limit });
+  if (hideGuests) params.set('hide_guests', 'true');
   const result = await apiFetch<AbandonedCartsResponse>(
     `/v1/admin/carts/abandoned?${params.toString()}`,
   );
@@ -123,6 +126,7 @@ export default async function AbandonedCartsPage({
     page: page === 1 ? undefined : page.toString(),
     sort: sort.field === defaultSort.field ? undefined : sort.field,
     dir: sort.field === defaultSort.field && sort.dir === defaultSort.dir ? undefined : sort.dir,
+    hide_guests: hideGuests ? '1' : undefined,
   };
 
   const totalsCurrency = pickTotalsCurrency(result.data) ?? 'ARS';
@@ -144,24 +148,41 @@ export default async function AbandonedCartsPage({
             })}
           </p>
         </div>
-        <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-          {RANGES.map((r) => {
-            const active = range === r;
-            return (
-              <Link
-                key={r}
-                href={buildListHref('/carts', currentParams, { range: r, page: undefined })}
-                className={
-                  active
-                    ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                    : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                }
-              >
-                {t(`ranges.${r}`)}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={buildListHref('/carts', currentParams, {
+              hide_guests: hideGuests ? undefined : '1',
+              page: undefined,
+            })}
+            className={
+              hideGuests
+                ? 'inline-flex items-center gap-1.5 rounded-md border border-primary bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/15'
+                : 'inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground'
+            }
+            aria-pressed={hideGuests}
+          >
+            <span aria-hidden="true">{hideGuests ? '✓' : '○'}</span>
+            {t('hideGuests')}
+          </Link>
+          <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
+            {RANGES.map((r) => {
+              const active = range === r;
+              return (
+                <Link
+                  key={r}
+                  href={buildListHref('/carts', currentParams, { range: r, page: undefined })}
+                  className={
+                    active
+                      ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
+                      : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                  }
+                >
+                  {t(`ranges.${r}`)}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">

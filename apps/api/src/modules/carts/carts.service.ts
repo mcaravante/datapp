@@ -127,6 +127,7 @@ export class CartsService {
       tenantId,
       status: query.status,
       ...(rangeStart ? { [dateColumn]: { gte: rangeStart } } : {}),
+      ...(query.hide_guests ? { isGuest: false } : {}),
     };
 
     const orderBy: Prisma.AbandonedCartOrderByWithRelationInput =
