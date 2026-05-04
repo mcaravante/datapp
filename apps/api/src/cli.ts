@@ -14,6 +14,7 @@ import { runBackfillShippingMethod } from './cli/backfill-shipping-method';
 import { runCreateAdmin } from './cli/create-admin';
 import { runRfmCompute } from './cli/rfm-compute';
 import { runEmailRecoveryE2e } from './cli/email-recovery-e2e';
+import { runDiagnoseCounts } from './cli/diagnose-counts';
 
 type CliCommand = (app: INestApplicationContext, argv: string[]) => Promise<number>;
 
@@ -29,6 +30,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   'rfm:compute': runRfmCompute,
   'create-admin': runCreateAdmin,
   'email:e2e': runEmailRecoveryE2e,
+  'diag:counts': runDiagnoseCounts,
 };
 
 async function main(): Promise<void> {
