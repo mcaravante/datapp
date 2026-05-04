@@ -79,9 +79,15 @@ function emailEngineModules(): (DynamicModule | typeof EmailModule)[] {
           : {}),
       },
     }),
-    // Default policy: 60 rpm per IP. Ingest endpoints override to 600 rpm
-    // via `@Throttle({ default: { ttl: 60_000, limit: 600 } })`.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
+    // Default policy: 600 rpm per identity. The Next.js admin proxies
+    // every operator's request server-to-server, so all admin traffic
+    // shares ONE source IP. 60 rpm got hit constantly with multiple
+    // operators clicking around (filters + paging + range changes
+    // each fan out 5-8 calls). 600 ≈ 10 rps which is still a hard cap
+    // against runaway loops or attacker scrapers, but doesn't choke
+    // legitimate browsing. Ingest endpoints override locally if they
+    // need more.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 600 }]),
     PrismaModule,
     CryptoModule,
     TenantModule,
