@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api-client';
 import { ExportButton } from '@/components/export-button';
 import { Pagination } from '@/components/pagination';
 import { SortableHeader } from '@/components/sortable-header';
+import { TimeRangeSelector, type RangePresetId } from '@/components/time-range-selector';
 import { formatBuenosAires, formatCurrency, formatNumber } from '@/lib/format';
 import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import type { Locale } from '@/i18n/config';
@@ -46,7 +47,6 @@ const PRESETS = [
   { id: 'all', days: null },
 ] as const;
 
-type PresetId = (typeof PRESETS)[number]['id'];
 
 const STATUS_FILTERS = [
   'all',
@@ -150,7 +150,6 @@ export default async function OrdersListPage({
 
   const t = await getTranslations('orders');
   const tCommon = await getTranslations('common');
-  const tPresets = await getTranslations('presets');
   const tStatus = await getTranslations('orders.statusFilters');
   const locale = (await getLocale()) as Locale;
 
@@ -168,24 +167,12 @@ export default async function OrdersListPage({
         </div>
         <div className="flex items-center gap-2">
           <ExportButton href={exportHref} label={tCommon('exportCsv')} />
-          <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-            {PRESETS.map((p) => {
-              const active = windowParam === p.id;
-              return (
-                <Link
-                  key={p.id}
-                  href={buildFilterHref({ window: p.id, page: undefined })}
-                  className={
-                    active
-                      ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                      : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                  }
-                >
-                  {tPresets(p.id as PresetId)}
-                </Link>
-              );
-            })}
-          </nav>
+          <TimeRangeSelector
+            presets={['7d', '30d', '90d', '365d', 'all']}
+            basePath="/orders"
+            currentParams={{ ...currentParams, page: undefined }}
+            active={windowParam as RangePresetId}
+          />
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { ArgentinaChoropleth } from '@/components/argentina-choropleth';
 import { LineChart } from '@/components/charts/line-chart';
 import { Sparkline } from '@/components/charts/sparkline';
 import { cachedApiFetch } from '@/lib/cached-api-fetch';
-import { RangeSelector } from './range-selector';
+import { TimeRangeSelector } from '@/components/time-range-selector';
 import {
   formatCompactRevenue,
   formatCurrencyArs,
@@ -102,7 +102,15 @@ export default async function OverviewPage({
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        <RangeSelector />
+        <TimeRangeSelector
+          presets={['7d', '30d', '90d', '365d', 'all']}
+          basePath="/"
+          active={
+            !fromParam && !toParam
+              ? (windowParam as '7d' | '30d' | '90d' | '365d' | 'all')
+              : null
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

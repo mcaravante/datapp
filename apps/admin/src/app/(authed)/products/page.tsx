@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { cachedApiFetch } from '@/lib/cached-api-fetch';
 import { ExportButton } from '@/components/export-button';
 import { SortableHeader } from '@/components/sortable-header';
+import { TimeRangeSelector, type RangePresetId } from '@/components/time-range-selector';
 import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import { formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -27,8 +28,6 @@ const PRESETS = [
   { id: '365d', days: 365 },
   { id: 'all', days: null },
 ] as const;
-
-type PresetId = (typeof PRESETS)[number]['id'];
 
 const SORT_FIELDS: readonly TopProductsSortField[] = ['revenue', 'units', 'orders', 'sku', 'name'];
 const DEFAULT_SORT: SortState<TopProductsSortField> = { field: 'revenue', dir: 'desc' };
@@ -96,7 +95,6 @@ export default async function TopProductsPage({
 
   const t = await getTranslations('products');
   const tCommon = await getTranslations('common');
-  const tPresets = await getTranslations('presets');
   const locale = (await getLocale()) as Locale;
 
   return (
@@ -111,24 +109,12 @@ export default async function TopProductsPage({
             href={`/api/export/products?${exportQs.toString()}`}
             label={tCommon('exportCsv')}
           />
-          <nav className="flex gap-1 rounded-md border border-border bg-card p-1 text-xs shadow-soft">
-            {PRESETS.map((p) => {
-              const active = windowParam === p.id;
-              return (
-                <Link
-                  key={p.id}
-                  href={buildFilterHref({ window: p.id })}
-                  className={
-                    active
-                      ? 'rounded bg-primary px-3 py-1.5 font-medium text-primary-foreground'
-                      : 'rounded px-3 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground'
-                  }
-                >
-                  {tPresets(p.id as PresetId)}
-                </Link>
-              );
-            })}
-          </nav>
+          <TimeRangeSelector
+            presets={['7d', '30d', '90d', '365d', 'all']}
+            basePath="/products"
+            currentParams={currentParams}
+            active={windowParam as RangePresetId}
+          />
         </div>
       </div>
 
