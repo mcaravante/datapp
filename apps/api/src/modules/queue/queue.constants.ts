@@ -18,6 +18,10 @@ export const QUEUES = {
   analyticsRfmNightly: 'analytics.rfm.nightly',
   /** Periodic refresh of the abandoned_cart snapshot. */
   cartsAbandonedSync: 'carts.abandoned.sync',
+  /** Daily backfill for orders missing shipping_method / region_id —
+   *  the live sync sees lite Magento payloads and can leave both NULL.
+   *  Idempotent; only touches NULL rows. */
+  ordersBackfill: 'orders.backfill',
   /** Phase 3: scans active campaigns for stages whose `delayHours` has
    *  elapsed and enqueues `emailRecoveryPrepare` jobs. */
   emailRecoverySchedule: 'email.recovery.schedule',
