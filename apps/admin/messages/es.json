@@ -888,7 +888,7 @@
         "subtitle": "Distribución del año actual."
       },
       "other": "Otros",
-      "noData": "No hay datos disponibles para esta dimensión en los pedidos sincronizados. Pegale un re-sync desde Magento para refrescar.",
+      "noData": "No hay datos disponibles para esta dimensión en los pedidos sincronizados. Magento suele dejar este campo en blanco; corré el backfill desde el container del CDP — `node /app/apps/api/dist/cli.js orders:backfill-shipping` (o `orders:backfill-region` para el reporte geográfico). Es idempotente y solo toca pedidos sin el dato.",
       "table": {
         "method": "Método",
         "orders": "Pedidos",

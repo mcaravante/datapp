@@ -888,7 +888,7 @@
         "subtitle": "Current-year distribution."
       },
       "other": "Other",
-      "noData": "No data available for this dimension in the synced orders. Run a re-sync from Magento to refresh.",
+      "noData": "No data available for this dimension. Magento often leaves this field blank at the top level — run the backfill from the CDP container: `node /app/apps/api/dist/cli.js orders:backfill-shipping` (or `orders:backfill-region` for the geo report). Idempotent; only touches orders missing the value.",
       "table": {
         "method": "Method",
         "orders": "Orders",
