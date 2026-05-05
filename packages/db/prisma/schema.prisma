@@ -34,11 +34,6 @@ enum AddressType {
   both
 }
 
-enum SegmentType {
-  static
-  dynamic // Phase 3 — declared so persisted rows can carry it.
-}
-
 enum RfmSegmentLabel {
   champions
   loyal
@@ -149,7 +144,6 @@ model Tenant {
   magentoStores       MagentoStore[]
   customers           CustomerProfile[]
   addresses           CustomerAddress[]
-  segments            CustomerSegment[]
   rfmScores           RfmScore[]
   rfmHistory          RfmScoreHistory[]
   orders              Order[]
@@ -281,7 +275,6 @@ model User {
   passwordResetTokens PasswordResetToken[]
   recoveryCodes       UserRecoveryCode[]
   auditLogs           AuditLog[]
-  segments            CustomerSegment[]
   excludedEmails      ReportExcludedEmail[]
   mediaUploads        MediaAsset[]
 
@@ -486,7 +479,6 @@ model CustomerProfile {
   group           CustomerGroup?          @relation(fields: [customerGroupId], references: [id], onDelete: SetNull)
   addresses       CustomerAddress[]
   orders          Order[]
-  segmentMembers  CustomerSegmentMember[]
   rfmScore        RfmScore?
   rfmHistory      RfmScoreHistory[]
   visitors        Visitor[]
@@ -534,38 +526,6 @@ model CustomerAddress {
   @@index([tenantId, regionId])
   @@index([tenantId, postalCode])
   @@map("customer_address")
-}
-
-model CustomerSegment {
-  id          String      @id @default(uuid(7)) @db.Uuid
-  tenantId    String      @map("tenant_id") @db.Uuid
-  name        String
-  description String?
-  definition  Json        @default("{}") // filter criteria
-  type        SegmentType @default(static)
-  createdById String?     @map("created_by_id") @db.Uuid
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  tenant    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy User?                   @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  members   CustomerSegmentMember[]
-
-  @@unique([tenantId, name])
-  @@map("customer_segment")
-}
-
-model CustomerSegmentMember {
-  segmentId         String   @map("segment_id") @db.Uuid
-  customerProfileId String   @map("customer_profile_id") @db.Uuid
-  addedAt           DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
-
-  segment  CustomerSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
-  customer CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
-
-  @@id([segmentId, customerProfileId])
-  @@index([customerProfileId])
-  @@map("customer_segment_member")
 }
 
 model RfmScore {
