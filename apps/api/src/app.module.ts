@@ -17,6 +17,7 @@ import { UsersModule } from './modules/users/users.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { CustomerGroupsModule } from './modules/customer-groups/customer-groups.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { CartsModule } from './modules/carts/carts.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -100,6 +101,7 @@ function emailEngineModules(): (DynamicModule | typeof EmailModule)[] {
     UsersModule,
     PermissionsModule,
     CustomersModule,
+    CustomerGroupsModule,
     OrdersModule,
     CartsModule,
     CurrencyRatesModule,

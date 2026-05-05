@@ -1,5 +1,6 @@
 import { MagentoHttpClient, type HttpOptions } from './http';
 import { MagentoCustomersResource } from './customers';
+import { MagentoCustomerGroupsResource } from './customer-groups';
 import { MagentoOrdersResource } from './orders';
 import { MagentoProductsResource } from './products';
 import { MagentoCategoriesResource } from './categories';
@@ -24,10 +25,13 @@ export type {
   MagentoCouponGenerateOutput,
   MagentoMaskedId,
 } from './schemas';
+export type { MagentoCustomerGroup } from './customer-groups';
 export { MagentoSalesRulesResource } from './sales-rules';
+export { MagentoCustomerGroupsResource } from './customer-groups';
 
 export interface MagentoClient {
   readonly customers: MagentoCustomersResource;
+  readonly customerGroups: MagentoCustomerGroupsResource;
   readonly orders: MagentoOrdersResource;
   readonly products: MagentoProductsResource;
   readonly categories: MagentoCategoriesResource;
@@ -42,6 +46,7 @@ export function createMagentoClient(options: HttpOptions): MagentoClient {
   const customers = new MagentoCustomersResource(http);
   return {
     customers,
+    customerGroups: new MagentoCustomerGroupsResource(http),
     orders: new MagentoOrdersResource(http),
     products: new MagentoProductsResource(http),
     categories: new MagentoCategoriesResource(http),

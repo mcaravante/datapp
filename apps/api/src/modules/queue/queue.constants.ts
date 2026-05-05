@@ -22,6 +22,10 @@ export const QUEUES = {
    *  the live sync sees lite Magento payloads and can leave both NULL.
    *  Idempotent; only touches NULL rows. */
   ordersBackfill: 'orders.backfill',
+  /** Daily mirror of Magento `customerGroups` into the CDP, plus
+   *  backfill of `customer_profile.customer_group_id` for any rows
+   *  whose name still resolves to NULL. */
+  customerGroupsSync: 'customer-groups.sync',
   /** Phase 3: scans active campaigns for stages whose `delayHours` has
    *  elapsed and enqueues `emailRecoveryPrepare` jobs. */
   emailRecoverySchedule: 'email.recovery.schedule',

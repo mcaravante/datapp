@@ -15,6 +15,7 @@ import { runCreateAdmin } from './cli/create-admin';
 import { runRfmCompute } from './cli/rfm-compute';
 import { runEmailRecoveryE2e } from './cli/email-recovery-e2e';
 import { runDiagnoseCounts } from './cli/diagnose-counts';
+import { runSyncCustomerGroups } from './cli/sync-customer-groups';
 
 type CliCommand = (app: INestApplicationContext, argv: string[]) => Promise<number>;
 
@@ -31,6 +32,7 @@ const COMMANDS: Readonly<Record<string, CliCommand>> = {
   'create-admin': runCreateAdmin,
   'email:e2e': runEmailRecoveryE2e,
   'diag:counts': runDiagnoseCounts,
+  'customer-groups:sync': runSyncCustomerGroups,
 };
 
 async function main(): Promise<void> {

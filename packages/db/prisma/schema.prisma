@@ -170,6 +170,7 @@ model Tenant {
   abandonedCarts      AbandonedCart[]
   excludedEmails      ReportExcludedEmail[]
   methodLabels        AnalyticsMethodLabel[]
+  customerGroups      CustomerGroup[]
   emailTemplates      EmailTemplate[]
   emailCampaigns      EmailCampaign[]
   emailCampaignStages EmailCampaignStage[]
@@ -206,6 +207,35 @@ model AnalyticsMethodLabel {
 
   @@unique([tenantId, kind, code])
   @@map("analytics_method_label")
+}
+
+/// Magento customer group (NOT LOGGED IN, General, Wholesale, …) mirrored
+/// into the CDP. Synced periodically via `GET /V1/customerGroups/search`
+/// and lazily on first lookup. The `code` from Magento is the human-
+/// readable name; we keep the Magento numeric id around so updates from
+/// Magento can be matched even if the group is renamed.
+///
+/// The previous flow stored the group name as a free-form string on
+/// `customer_profile.customer_group`. That column stays as a denormalized
+/// fast-read cache; the FK below is the source of truth for filtering /
+/// counting in the admin "Grupos" surface.
+model CustomerGroup {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  magentoGroupId  Int      @map("magento_group_id")
+  name            String
+  taxClassId      Int?     @map("tax_class_id")
+  taxClassName    String?  @map("tax_class_name")
+  syncedAt        DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members  CustomerProfile[]
+
+  @@unique([tenantId, magentoGroupId])
+  @@unique([tenantId, name])
+  @@map("customer_group")
 }
 
 /// Emails to drop from every analytics aggregation. Used by operators
@@ -438,6 +468,7 @@ model CustomerProfile {
   dob                       DateTime?          @db.Date
   gender                    String?
   customerGroup             String?            @map("customer_group")
+  customerGroupId           String?            @map("customer_group_id") @db.Uuid
   magentoCreatedAt          DateTime?          @map("magento_created_at") @db.Timestamptz(6)
   magentoUpdatedAt          DateTime?          @map("magento_updated_at") @db.Timestamptz(6)
   attributes                Json               @default("{}")
@@ -452,6 +483,7 @@ model CustomerProfile {
   updatedAt                 DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group           CustomerGroup?          @relation(fields: [customerGroupId], references: [id], onDelete: SetNull)
   addresses       CustomerAddress[]
   orders          Order[]
   segmentMembers  CustomerSegmentMember[]
@@ -468,6 +500,7 @@ model CustomerProfile {
   @@index([tenantId, emailHash])
   @@index([tenantId, email])
   @@index([tenantId, customerGroup])
+  @@index([tenantId, customerGroupId])
   @@index([tenantId, magentoUpdatedAt(sort: Desc)])
   @@map("customer_profile")
 }
