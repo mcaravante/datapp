@@ -8,6 +8,7 @@ import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import { formatBuenosAires, formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { CustomerListPage } from '@/lib/types';
+import { ExcludeToggle } from './exclude-toggle';
 
 export const metadata = { title: 'Datapp · Customers' };
 
@@ -223,12 +224,15 @@ export default async function CustomersListPage({
                   {t('table.updated')}
                 </SortableHeader>
               </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('table.exclude')}
+              </th>
             </tr>
           </thead>
           <tbody>
             {result.data.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                   {t('table.empty')}
                 </td>
               </tr>
@@ -271,6 +275,9 @@ export default async function CustomersListPage({
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {c.magento_updated_at ? formatBuenosAires(c.magento_updated_at, locale) : '—'}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <ExcludeToggle email={c.email} initialExcluded={c.is_excluded} />
                 </td>
               </tr>
             ))}

@@ -20,6 +20,8 @@ export interface CustomerListItem {
   total_orders: number | null;
   /** Lifetime spend (sum of real_revenue) — Decimal as string. */
   total_spent: string | null;
+  /** True when this customer's email matches the tenant exclusion list. */
+  is_excluded: boolean;
 }
 
 export interface CustomerListPage {

@@ -199,7 +199,14 @@
       "totalSpent": "Total gastado",
       "magentoId": "ID Magento",
       "updated": "Actualizado",
+      "exclude": "Excluir",
       "empty": "Ningún cliente coincide."
+    },
+    "exclude": {
+      "exclude": "Excluir",
+      "isExcluded": "Excluido",
+      "isExcludedHint": "Este cliente está fuera de los reportes. Click para incluirlo.",
+      "isIncludedHint": "Excluir a este cliente de KPIs, regiones, top productos y demás reportes."
     },
     "footer": "Ordenado por updated_at de Magento desc."
   },

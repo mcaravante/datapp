@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@datapp/db';
 import { PrismaService } from '../../db/prisma.service';
 import { RfmService } from '../rfm/rfm.service';
+import { ExcludedEmailsService } from '../analytics/excluded-emails.service';
 import type { CustomerSortField, ListCustomersQuery } from './dto/list-customers.query';
 
 /** Maps direct CustomerProfile column sort fields to Prisma keys. */
@@ -96,6 +97,11 @@ export interface CustomerListItem {
   /// Lifetime spend (sum of `real_revenue`). Sourced from RFM
   /// (`monetary`). Decimal-safe string; null when no RFM row.
   total_spent: string | null;
+  /// True when the customer's email matches the tenant's exclusion list
+  /// (either the literal email or its bare-domain rule). Drives the
+  /// per-row "Excluir/Incluir" toggle on /customers without a per-cell
+  /// round-trip.
+  is_excluded: boolean;
 }
 
 export interface CustomerListPage {
@@ -181,6 +187,7 @@ export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rfm: RfmService,
+    private readonly excludedEmails: ExcludedEmailsService,
   ) {}
 
   /**
@@ -287,7 +294,7 @@ export class CustomersService {
     const where = buildCustomerWhere(tenantId, query);
     const skip = (query.page - 1) * query.limit;
 
-    const [rows, totalCount] = await Promise.all([
+    const [rows, totalCount, excludedSet] = await Promise.all([
       this.prisma.customerProfile.findMany({
         where,
         orderBy: buildCustomerOrderBy(query.sort, query.dir),
@@ -307,7 +314,26 @@ export class CustomersService {
         },
       }),
       this.prisma.customerProfile.count({ where }),
+      this.excludedEmails.listEmails(tenantId),
     ]);
+
+    // Mirror the analytics matching: literal email OR a bare-domain rule
+    // (`@example.com`) covers the same row. Cheap pre-pass so per-row
+    // checks stay O(1).
+    const excludedLiteral = new Set<string>();
+    const excludedDomains: string[] = [];
+    for (const e of excludedSet) {
+      if (e.startsWith('@')) excludedDomains.push(e);
+      else excludedLiteral.add(e);
+    }
+    const isExcluded = (email: string): boolean => {
+      const lc = email.toLowerCase();
+      if (excludedLiteral.has(lc)) return true;
+      for (const dom of excludedDomains) {
+        if (lc.endsWith(dom)) return true;
+      }
+      return false;
+    };
 
     const totalPages = Math.max(1, Math.ceil(totalCount / query.limit));
 
@@ -324,6 +350,7 @@ export class CustomersService {
         magento_updated_at: r.magentoUpdatedAt?.toISOString() ?? null,
         total_orders: r.rfmScore?.frequency ?? null,
         total_spent: r.rfmScore?.monetary?.toString() ?? null,
+        is_excluded: isExcluded(r.email),
       })),
       page: query.page,
       limit: query.limit,
@@ -404,6 +431,18 @@ export class CustomersService {
     });
     if (!profile) throw new NotFoundException(`Customer ${id} not found`);
 
+    const excludedSet = new Set(await this.excludedEmails.listEmails(tenantId));
+    const lcEmail = profile.email.toLowerCase();
+    let isExcluded = excludedSet.has(lcEmail);
+    if (!isExcluded) {
+      for (const e of excludedSet) {
+        if (e.startsWith('@') && lcEmail.endsWith(e)) {
+          isExcluded = true;
+          break;
+        }
+      }
+    }
+
     // Lifetime metrics + RFM are independent of each other and of the
     // profile read — fan out concurrently so the page is gated by the
     // slowest of the two, not their sum.
@@ -444,6 +483,7 @@ export class CustomersService {
       // consistent.
       total_orders: profile.rfmScore?.frequency ?? null,
       total_spent: profile.rfmScore?.monetary?.toString() ?? null,
+      is_excluded: isExcluded,
       addresses: profile.addresses.map((a) => ({
         id: a.id,
         type: a.type,
