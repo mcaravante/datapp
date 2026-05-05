@@ -204,22 +204,21 @@ services:
 # which silently mounts a fresh empty volume and leaves the previous
 # one orphaned, losing all data from the application's perspective.
 #
-# To prevent that, the named volumes should be pinned to a stable
-# name (eg `name: datapp_postgres_data`), but pinning ONLY when the
-# current live volume already matches that name — otherwise the pin
-# itself orphans the existing data.
+# Migration steps to pin onto stable, external names — the operator
+# RUNS this on the VPS, NOT a code change:
+#   docs/runbooks/postgres-volume-pin.md
+# After the migration, edit this block to:
 #
-# To migrate the live deploy onto a pinned name safely:
-#   1. SSH into the host running Dokploy
-#   2. Run `docker volume ls | grep postgres` to see the current name
-#   3. If it's already `datapp_postgres_data`, pin it here (no-op).
-#   4. Otherwise: pg_dump → stop the stack → rename volume via
-#      `docker volume create datapp_postgres_data` + copy the data
-#      directory → start the stack with the pin in place. See
-#      docs/runbooks/postgres-volume-pin.md (TODO once you do this).
+#   volumes:
+#     postgres_data:
+#       name: datapp_postgres_data
+#       external: true
+#     redis_data:
+#       name: datapp_redis_data
+#       external: true
 #
-# In the meantime, the real defense against silent volume loss is
-# scheduled `pg_dump` to off-host storage. See infra/backups/.
+# Until then, the real defense against silent volume loss is scheduled
+# `pg_dump` to off-host storage. See infra/backups/.
 volumes:
   postgres_data:
   redis_data:
