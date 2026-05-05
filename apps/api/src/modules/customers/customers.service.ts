@@ -67,7 +67,14 @@ export interface CustomerListItem {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  /// Raw `group_id` from Magento (string). Kept for backwards
+  /// compatibility with consumers that filter by id; new surfaces should
+  /// prefer `customer_group_name`.
   customer_group: string | null;
+  /// Human-readable group name resolved through the FK to `customer_group`.
+  /// Null when the profile has no group_id set or the FK hasn't been
+  /// linked yet (new ingest awaiting the next sync).
+  customer_group_name: string | null;
   magento_created_at: string | null;
   magento_updated_at: string | null;
   /// Total orders ever placed. Sourced from RFM (`frequency`) — at
@@ -153,7 +160,10 @@ export class CustomersService {
    * /customers — caching the answer for a minute keeps the dropdown
    * responsive without a stale-data risk worth worrying about.
    */
-  private readonly facetCache = new Map<string, { groups: string[]; expiresAt: number }>();
+  private readonly facetCache = new Map<
+    string,
+    { groups: { id: string; name: string }[]; expiresAt: number }
+  >();
   private static readonly FACET_TTL_MS = 60_000;
 
   constructor(
@@ -161,21 +171,44 @@ export class CustomersService {
     private readonly rfm: RfmService,
   ) {}
 
-  async facets(tenantId: string): Promise<{ customer_groups: string[] }> {
+  /**
+   * Returns the list of customer groups available as filter values on
+   * the /customers page. `id` is the raw Magento `group_id` (which is
+   * what the URL filter compares against `customer_profile.customer_group`),
+   * `name` is the human-readable label sourced from the synced
+   * `customer_group` table.
+   *
+   * Falls back to a DISTINCT over `customer_profile.customer_group` for
+   * any orphan id (rare — happens when a profile carries an old group_id
+   * that no longer exists in Magento).
+   */
+  async facets(tenantId: string): Promise<{ customer_groups: { id: string; name: string }[] }> {
     const cached = this.facetCache.get(tenantId);
     const now = Date.now();
     if (cached && cached.expiresAt > now) {
       return { customer_groups: cached.groups };
     }
-    const rows = await this.prisma.customerProfile.findMany({
-      where: { tenantId, customerGroup: { not: null } },
-      distinct: ['customerGroup'],
-      select: { customerGroup: true },
-      orderBy: { customerGroup: 'asc' },
-    });
-    const groups = rows
+    const [synced, distinctIds] = await Promise.all([
+      this.prisma.customerGroup.findMany({
+        where: { tenantId },
+        select: { magentoGroupId: true, name: true },
+        orderBy: { magentoGroupId: 'asc' },
+      }),
+      this.prisma.customerProfile.findMany({
+        where: { tenantId, customerGroup: { not: null } },
+        distinct: ['customerGroup'],
+        select: { customerGroup: true },
+      }),
+    ]);
+    const byId = new Map(synced.map((g) => [String(g.magentoGroupId), g.name] as const));
+    const orphans = distinctIds
       .map((r) => r.customerGroup)
-      .filter((g): g is string => Boolean(g));
+      .filter((id): id is string => Boolean(id))
+      .filter((id) => !byId.has(id));
+    for (const id of orphans) byId.set(id, id);
+    const groups = Array.from(byId.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => Number(a.id) - Number(b.id));
     this.facetCache.set(tenantId, { groups, expiresAt: now + CustomersService.FACET_TTL_MS });
     return { customer_groups: groups };
   }
@@ -258,6 +291,7 @@ export class CustomersService {
           magentoCreatedAt: true,
           magentoUpdatedAt: true,
           rfmScore: { select: { frequency: true, monetary: true } },
+          group: { select: { name: true } },
         },
       }),
       this.prisma.customerProfile.count({ where }),
@@ -273,6 +307,7 @@ export class CustomersService {
         first_name: r.firstName,
         last_name: r.lastName,
         customer_group: r.customerGroup,
+        customer_group_name: r.group?.name ?? null,
         magento_created_at: r.magentoCreatedAt?.toISOString() ?? null,
         magento_updated_at: r.magentoUpdatedAt?.toISOString() ?? null,
         total_orders: r.rfmScore?.frequency ?? null,
@@ -352,6 +387,7 @@ export class CustomersService {
       include: {
         addresses: { include: { region: true } },
         rfmScore: { select: { frequency: true, monetary: true } },
+        group: { select: { name: true } },
       },
     });
     if (!profile) throw new NotFoundException(`Customer ${id} not found`);
@@ -381,6 +417,7 @@ export class CustomersService {
       first_name: profile.firstName,
       last_name: profile.lastName,
       customer_group: profile.customerGroup,
+      customer_group_name: profile.group?.name ?? null,
       phone: profile.phone,
       dob: profile.dob ? profile.dob.toISOString().slice(0, 10) : null,
       gender: profile.gender,

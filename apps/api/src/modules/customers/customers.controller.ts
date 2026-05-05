@@ -50,7 +50,7 @@ export class CustomersController {
   @Get('facets')
   async facets(
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ customer_groups: string[] }> {
+  ): Promise<{ customer_groups: { id: string; name: string }[] }> {
     return this.customers.facets(this.tenantOrThrow(user));
   }
 

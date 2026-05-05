@@ -10,7 +10,10 @@ export interface CustomerListItem {
   email: string;
   first_name: string | null;
   last_name: string | null;
+  /** Raw Magento group_id (text). Use `customer_group_name` for display. */
   customer_group: string | null;
+  /** Human-readable name from the synced customer_group table. */
+  customer_group_name: string | null;
   magento_created_at: string | null;
   magento_updated_at: string | null;
   /** Total orders ever placed. Sourced from RFM (≤24h stale). */

@@ -51,7 +51,7 @@ interface PageProps {
 }
 
 interface FacetsResponse {
-  customer_groups: string[];
+  customer_groups: { id: string; name: string }[];
 }
 
 export default async function CustomersListPage({
@@ -168,7 +168,7 @@ export default async function CustomersListPage({
           label={t('groupLabel')}
           name="customer_group"
           value={customerGroup ?? ''}
-          options={facets.customer_groups.map((g) => ({ value: g, label: g }))}
+          options={facets.customer_groups.map((g) => ({ value: g.id, label: g.name }))}
           basePath="/customers"
           currentParams={currentParams}
         />
@@ -280,7 +280,9 @@ export default async function CustomersListPage({
                 <td className="px-4 py-3 text-foreground/80">
                   {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{c.customer_group ?? '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {c.customer_group_name ?? c.customer_group ?? '—'}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums text-foreground">
                   {c.total_orders === null ? (
                     <span className="text-muted-foreground">—</span>

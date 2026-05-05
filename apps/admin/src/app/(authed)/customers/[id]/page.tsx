@@ -169,7 +169,7 @@ export default async function CustomerDetailPage({
           {t('subhead', {
             fullName,
             magentoId: customer.magento_customer_id,
-            group: customer.customer_group ?? '—',
+            group: customer.customer_group_name ?? customer.customer_group ?? '—',
           })}
         </p>
       </div>
