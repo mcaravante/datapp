@@ -100,6 +100,17 @@ export class PublicMediaController {
 
   @Get(':id/:filename')
   @Header('Cache-Control', `public, max-age=${ONE_DAY_SECONDS.toString()}, immutable`)
+  // Override Helmet's `Cross-Origin-Resource-Policy: same-origin` default
+  // for this public path. The asset is meant to be embedded by:
+  //   - the admin shell (datapp.com.ar) loading its preview from
+  //     api.datapp.com.ar — different host, blocked under same-origin.
+  //   - third-party email clients (Gmail's image proxy, Outlook, etc.)
+  //     fetching the logo / inline images we ship in transactional
+  //     emails — those are obviously cross-origin too.
+  // The id is uuid v7 (unguessable), and the public list endpoint is
+  // unauthenticated by design, so widening CORP to `cross-origin` does
+  // not leak anything that wasn't already public.
+  @Header('Cross-Origin-Resource-Policy', 'cross-origin')
   async serve(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Param('filename') filename: string,
