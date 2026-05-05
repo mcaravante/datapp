@@ -123,7 +123,7 @@ export default async function OverviewPage({
             <Tile
               label={t('tiles.revenue')}
               value={formatCurrencyArs(kpis.current.revenue, locale)}
-              delta={isAllTime ? null : kpis.delta.revenue_pct}
+              delta={isAllTime ? undefined : kpis.delta.revenue_pct}
               sub={
                 isAllTime
                   ? undefined
@@ -135,7 +135,7 @@ export default async function OverviewPage({
             <Tile
               label={t('tiles.orders')}
               value={formatNumber(kpis.current.orders, locale)}
-              delta={isAllTime ? null : kpis.delta.orders_pct}
+              delta={isAllTime ? undefined : kpis.delta.orders_pct}
               sub={
                 isAllTime
                   ? undefined
@@ -147,7 +147,7 @@ export default async function OverviewPage({
             <Tile
               label={t('tiles.aov')}
               value={formatCurrencyArs(kpis.current.aov, locale)}
-              delta={isAllTime ? null : kpis.delta.aov_pct}
+              delta={isAllTime ? undefined : kpis.delta.aov_pct}
               sub={
                 isAllTime
                   ? undefined
@@ -159,7 +159,7 @@ export default async function OverviewPage({
             <Tile
               label={t('tiles.customers')}
               value={formatNumber(kpis.current.customers, locale)}
-              delta={isAllTime ? null : kpis.delta.customers_pct}
+              delta={isAllTime ? undefined : kpis.delta.customers_pct}
               sub={t('tiles.customerMixCount', {
                 newCount: formatNumber(kpis.current.new_customers, locale),
                 returningCount: formatNumber(kpis.current.returning_customers, locale),
@@ -307,14 +307,18 @@ export default async function OverviewPage({
 interface TileProps {
   label: string;
   value: string;
-  delta: number | null;
-  sub: string;
+  /** `undefined` hides the percentage badge entirely (used by all-time tiles
+   *  that have no comparable previous window). `null` keeps the muted "—"
+   *  badge (delta exists but isn't computable). */
+  delta: number | null | undefined;
+  /** `undefined` hides the sub-line entirely. */
+  sub: string | undefined;
   spark?: number[];
   sparkTone?: string;
 }
 
 function Tile({ label, value, delta, sub, spark, sparkTone }: TileProps): React.ReactElement {
-  const tone = deltaTone(delta);
+  const tone = deltaTone(delta ?? null);
   const toneClass =
     tone === 'up'
       ? 'bg-success/15 text-success'
@@ -328,18 +332,20 @@ function Tile({ label, value, delta, sub, spark, sparkTone }: TileProps): React.
       </div>
       <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-2xl font-semibold tabular-nums text-foreground">{value}</span>
-        <span
-          className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}
-        >
-          {tone === 'up' ? (
-            <TrendUpIcon className="h-3 w-3" />
-          ) : tone === 'down' ? (
-            <TrendDownIcon className="h-3 w-3" />
-          ) : null}
-          {formatDeltaPct(delta)}
-        </span>
+        {delta !== undefined && (
+          <span
+            className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}
+          >
+            {tone === 'up' ? (
+              <TrendUpIcon className="h-3 w-3" />
+            ) : tone === 'down' ? (
+              <TrendDownIcon className="h-3 w-3" />
+            ) : null}
+            {formatDeltaPct(delta)}
+          </span>
+        )}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+      {sub !== undefined && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
       {spark && spark.length > 1 && (
         <div className="mt-3">
           <Sparkline values={spark} tone={sparkTone ?? 'text-primary'} height={28} />
