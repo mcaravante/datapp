@@ -89,6 +89,11 @@ enum SyncEventType {
 }
 
 enum SubscriptionStatus {
+  /// Default for newly synced profiles when Magento doesn't expose an
+  /// explicit subscription state. Treated as "no signal yet, allow"
+  /// by the suppression service — distinct from `unsubscribed`, which
+  /// requires an explicit user/webhook action.
+  unknown
   subscribed
   unsubscribed
   pending
@@ -469,7 +474,7 @@ model CustomerProfile {
   anonymousIds              String[]           @default([]) @map("anonymous_ids")
   // Subscription summary (denormalized cache; canonical state lives in `subscription`).
   isSubscribed              Boolean            @default(false) @map("is_subscribed")
-  subscriptionStatus        SubscriptionStatus @default(unsubscribed) @map("subscription_status")
+  subscriptionStatus        SubscriptionStatus @default(unknown) @map("subscription_status")
   subscriptionConsentAt     DateTime?          @map("subscription_consent_at") @db.Timestamptz(6)
   subscriptionConsentSource String?            @map("subscription_consent_source")
   createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)

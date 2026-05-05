@@ -1,0 +1,11 @@
+-- Adds the `unknown` value to the SubscriptionStatus enum so the
+-- suppression service can distinguish between "explicitly opted out"
+-- (`unsubscribed`) and "we just don't know yet" (`unknown`).
+--
+-- This migration ONLY adds the value. The default-column flip and the
+-- one-time backfill happen in the next migration
+-- (20260505192327_subscription_status_default_unknown). Postgres
+-- requires the ADD VALUE to commit before any other statement in the
+-- same migration can reference the new value, so they have to be in
+-- separate migration files.
+ALTER TYPE "SubscriptionStatus" ADD VALUE 'unknown' BEFORE 'subscribed';
