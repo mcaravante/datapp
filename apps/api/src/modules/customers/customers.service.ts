@@ -20,10 +20,10 @@ function buildCustomerOrderBy(
   dir: 'asc' | 'desc',
 ): Prisma.CustomerProfileOrderByWithRelationInput[] {
   // Sorting by RFM-sourced metrics (total orders / total spent) goes
-  // through the `rfmScore` relation. Customers without an RFM row
-  // (very new customers, never had a nightly run) sort to the bottom
-  // of `desc` queries because Postgres orders NULLS LAST by default
-  // for DESC.
+  // through the `rfmScore` relation. The matching `where` clause filters
+  // to customers that actually have an RFM row (see `buildCustomerWhere`)
+  // because Postgres defaults to NULLS FIRST on DESC, which would surface
+  // empty profiles instead of the real top spenders.
   if (sort === 'total_orders') {
     return [{ rfmScore: { frequency: dir } }, { id: 'desc' }];
   }
@@ -39,7 +39,7 @@ function buildCustomerOrderBy(
 
 function buildCustomerWhere(
   tenantId: string,
-  query: Pick<ListCustomersQuery, 'q' | 'region_id' | 'customer_group' | 'rfm_segment'>,
+  query: Pick<ListCustomersQuery, 'q' | 'region_id' | 'customer_group' | 'rfm_segment' | 'sort'>,
 ): Prisma.CustomerProfileWhereInput {
   const where: Prisma.CustomerProfileWhereInput = { tenantId };
   if (query.q) {
@@ -57,6 +57,18 @@ function buildCustomerWhere(
   }
   if (query.rfm_segment !== undefined && query.rfm_segment.length > 0) {
     where.rfmScore = { is: { segment: { in: query.rfm_segment } } };
+  }
+  // Sorting by RFM-sourced metrics requires the row to actually exist —
+  // otherwise Postgres surfaces empty (NULL) profiles first under DESC
+  // and the table reads as broken. Restricting the resultset to scored
+  // customers is the right behavior anyway: ordering by "lifetime spend"
+  // for a guest with no orders has no defined answer.
+  if (query.sort === 'total_orders' || query.sort === 'total_spent') {
+    if (where.rfmScore !== undefined) {
+      // Already constrained by `rfm_segment` — keep that filter.
+    } else {
+      where.rfmScore = { isNot: null };
+    }
   }
   return where;
 }

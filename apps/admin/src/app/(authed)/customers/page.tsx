@@ -7,7 +7,7 @@ import { SortableHeader } from '@/components/sortable-header';
 import { buildListHref, parseSort, type SortState } from '@/lib/list-state';
 import { formatBuenosAires, formatCurrencyArs, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
-import type { CustomerListPage, RfmSegmentLabel } from '@/lib/types';
+import type { CustomerListPage } from '@/lib/types';
 
 export const metadata = { title: 'Datapp · Customers' };
 
@@ -24,20 +24,6 @@ type SortField = (typeof SORT_FIELDS)[number];
 
 const DEFAULT_SORT: SortState<SortField> = { field: 'magento_updated_at', dir: 'desc' };
 
-const RFM_SEGMENTS: readonly RfmSegmentLabel[] = [
-  'champions',
-  'loyal',
-  'potential_loyalists',
-  'new_customers',
-  'promising',
-  'needing_attention',
-  'about_to_sleep',
-  'at_risk',
-  'cannot_lose_them',
-  'hibernating',
-  'lost',
-];
-
 interface PageProps {
   searchParams: Promise<{
     q?: string;
@@ -46,7 +32,6 @@ interface PageProps {
     sort?: string;
     dir?: string;
     customer_group?: string;
-    rfm_segment?: string | string[];
   }>;
 }
 
@@ -62,7 +47,6 @@ export default async function CustomersListPage({
   const pageParam = sp.page ?? '1';
   const limit = sp.limit ?? '20';
   const customerGroup = sp.customer_group;
-  const rfmFilter = parseRfmFilter(sp.rfm_segment);
   const sort = parseSort<SortField>(sp, SORT_FIELDS, DEFAULT_SORT);
 
   const apiParams = new URLSearchParams();
@@ -70,7 +54,6 @@ export default async function CustomersListPage({
   apiParams.set('page', pageParam);
   apiParams.set('limit', limit);
   if (customerGroup) apiParams.set('customer_group', customerGroup);
-  for (const seg of rfmFilter) apiParams.append('rfm_segment', seg);
   apiParams.set('sort', sort.field);
   apiParams.set('dir', sort.dir);
 
@@ -84,7 +67,6 @@ export default async function CustomersListPage({
     q,
     limit,
     customer_group: customerGroup,
-    rfm_segment: rfmFilter.length > 0 ? rfmFilter : undefined,
     sort: sort.field === DEFAULT_SORT.field ? undefined : sort.field,
     dir: sort.field === DEFAULT_SORT.field && sort.dir === DEFAULT_SORT.dir ? undefined : sort.dir,
   };
@@ -101,14 +83,12 @@ export default async function CustomersListPage({
   const exportParams = new URLSearchParams();
   if (q) exportParams.set('q', q);
   if (customerGroup) exportParams.set('customer_group', customerGroup);
-  for (const seg of rfmFilter) exportParams.append('rfm_segment', seg);
   const exportHref = `/api/export/customers${
     exportParams.toString() ? `?${exportParams.toString()}` : ''
   }`;
 
   const t = await getTranslations('customers');
   const tCommon = await getTranslations('common');
-  const tRfm = await getTranslations('segments.rfmLabels');
   const locale = (await getLocale()) as Locale;
 
   return (
@@ -130,9 +110,6 @@ export default async function CustomersListPage({
 
       <form className="flex flex-wrap items-center gap-2" action="/customers">
         {customerGroup && <input type="hidden" name="customer_group" value={customerGroup} />}
-        {rfmFilter.map((s) => (
-          <input key={s} type="hidden" name="rfm_segment" value={s} />
-        ))}
         {sort.field !== DEFAULT_SORT.field && <input type="hidden" name="sort" value={sort.field} />}
         {!(sort.field === DEFAULT_SORT.field && sort.dir === DEFAULT_SORT.dir) && (
           <input type="hidden" name="dir" value={sort.dir} />
@@ -172,17 +149,9 @@ export default async function CustomersListPage({
           basePath="/customers"
           currentParams={currentParams}
         />
-        <FilterDropdown
-          label={t('rfmLabel')}
-          name="rfm_segment"
-          value={rfmFilter[0] ?? ''}
-          options={RFM_SEGMENTS.map((s) => ({ value: s, label: tRfm(s) }))}
-          basePath="/customers"
-          currentParams={currentParams}
-        />
-        {(customerGroup || rfmFilter.length > 0) && (
+        {customerGroup && (
           <Link
-            href={buildFilterHref({ customer_group: undefined, rfm_segment: undefined })}
+            href={buildFilterHref({ customer_group: undefined })}
             className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             {tCommon('clear')}
@@ -336,13 +305,6 @@ function SearchIcon({ className }: { className?: string }): React.ReactElement {
       <path d="m21 21-4.3-4.3" />
     </svg>
   );
-}
-
-function parseRfmFilter(raw: string | string[] | undefined): RfmSegmentLabel[] {
-  if (!raw) return [];
-  const candidates = Array.isArray(raw) ? raw : [raw];
-  const allowed = new Set<string>(RFM_SEGMENTS);
-  return candidates.filter((c): c is RfmSegmentLabel => allowed.has(c));
 }
 
 interface DropdownOption {
