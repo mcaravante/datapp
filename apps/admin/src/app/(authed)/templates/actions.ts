@@ -73,3 +73,27 @@ export async function previewTemplate(
     body: JSON.stringify({ variables }),
   });
 }
+
+export type SendTestResult =
+  | { status: 'sent'; messageId: string }
+  | { status: 'suppressed'; reason: string; message: string }
+  | { status: 'failed'; message: string };
+
+/**
+ * Send the rendered template to a single email address through Resend
+ * (still gated by EmailSuppressionService, so under EMAIL_DRY_RUN the
+ * recipient must be in the allowlist). Used by the "Enviar prueba"
+ * button on /templates/[id] so operators don't have to wait on the
+ * abandoned-cart scheduler to validate a render.
+ */
+export async function sendTestTemplate(
+  id: string,
+  to: string,
+  variables: Record<string, unknown>,
+): Promise<SendTestResult> {
+  return apiFetch<SendTestResult>(`/v1/admin/email-templates/${id}/send-test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to, variables }),
+  });
+}

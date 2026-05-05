@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../db/prisma.service';
 import { TemplateRendererService, TemplateRenderError } from './template-renderer.service';
@@ -175,6 +176,113 @@ export class EmailService {
       // Transient — let BullMQ retry. The row stays in `pending` so the
       // re-entrancy guard at the top still allows the next attempt.
       throw err;
+    }
+  }
+
+  /**
+   * Render a template + brand shell with synthetic variables and ship a
+   * single email straight to Resend. Used by the "Enviar prueba" button
+   * on /templates/[id] and /campaigns/[id] so the operator can validate
+   * a template against their inbox without waiting on the abandoned-cart
+   * scheduler. Bypasses the `email_send` table on purpose — this is a
+   * test send, not a campaign event, and its outcome lives in the Resend
+   * dashboard.
+   *
+   * Goes through `EmailSuppressionService.shouldSend` so the dry-run
+   * allowlist is still enforced; trying to test-send to an address
+   * outside the allowlist returns a structured `suppressed` outcome
+   * instead of leaking outside.
+   */
+  async sendTest(args: {
+    tenantId: string;
+    templateId: string;
+    to: string;
+    variables: Record<string, unknown>;
+    fromEmailOverride?: string | null;
+  }): Promise<
+    | { status: 'sent'; messageId: string }
+    | { status: 'suppressed'; reason: string; message: string }
+    | { status: 'failed'; message: string }
+  > {
+    const trimmedTo = args.to.trim();
+    if (trimmedTo.length === 0 || !trimmedTo.includes('@')) {
+      throw new BadRequestException('`to` debe ser un email válido');
+    }
+    const lcTo = trimmedTo.toLowerCase();
+
+    const template = await this.prisma.emailTemplate.findUnique({
+      where: { id: args.templateId },
+    });
+    if (!template || template.tenantId !== args.tenantId) {
+      throw new NotFoundException(`Template ${args.templateId} not found`);
+    }
+
+    const decision = await this.suppression.shouldSend({
+      tenantId: args.tenantId,
+      email: lcTo,
+    });
+    if (!decision.allow) {
+      this.logger.log(
+        `sendTest suppressed tenant=${args.tenantId} template=${args.templateId} to=${decision.reason}`,
+      );
+      return {
+        status: 'suppressed',
+        reason: decision.reason,
+        message: decision.message,
+      };
+    }
+
+    let rendered: { subject: string; html: string; text?: string };
+    try {
+      rendered = await this.renderer.render(template, args.variables);
+    } catch (err) {
+      const message = (err as Error).message;
+      this.logger.warn(`sendTest render failed template=${args.templateId}: ${message}`);
+      return { status: 'failed', message: `Render: ${message}` };
+    }
+
+    const branding = await this.branding.resolveForCompose(args.tenantId);
+    const toEmailHash = createHash('sha256').update(lcTo).digest('hex');
+    const unsubscribeToken = buildUnsubscribeToken(
+      { tenantId: args.tenantId, emailHash: toEmailHash },
+      this.encryptionKey,
+    );
+    const unsubscribeUrl = `${this.publicApiUrl}/unsubscribe/${unsubscribeToken}`;
+    const wrappedHtml = composeEmailShell({
+      bodyHtml: rendered.html,
+      branding,
+      unsubscribeUrl,
+    });
+
+    const fromEmail = args.fromEmailOverride || this.defaultFrom;
+    const idempotencyKey = `test:${template.id}:${randomUUID()}`;
+
+    try {
+      const result = await this.resend.send({
+        from: fromEmail,
+        to: lcTo,
+        ...(this.defaultReplyTo ? { replyTo: this.defaultReplyTo } : {}),
+        subject: `[TEST] ${rendered.subject}`,
+        html: wrappedHtml,
+        ...(rendered.text
+          ? { text: `[TEST]\n${rendered.text}\n\n---\nPara desuscribirte: ${unsubscribeUrl}` }
+          : {}),
+        idempotencyKey,
+        unsubscribeUrl,
+        tags: [
+          { name: 'tenant_id', value: args.tenantId },
+          { name: 'template_id', value: template.id },
+          { name: 'send_kind', value: 'test' },
+        ],
+      });
+      this.logger.log(
+        `sendTest delivered tenant=${args.tenantId} template=${template.slug} messageId=${result.messageId}`,
+      );
+      return { status: 'sent', messageId: result.messageId };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`sendTest failed template=${template.slug}: ${message}`);
+      return { status: 'failed', message };
     }
   }
 }

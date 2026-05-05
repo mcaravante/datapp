@@ -17,18 +17,22 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtGuard } from '../auth/jwt.guard';
 import type { AuthenticatedUser } from '../auth/types';
+import { EmailService } from '../email/email.service';
 import { EmailTemplatesService } from './templates.service';
 import {
   CreateEmailTemplateSchema,
   PreviewEmailTemplateSchema,
+  SendTestEmailTemplateSchema,
   UpdateEmailTemplateSchema,
 } from './dto/templates.dto';
 import type {
   CreateEmailTemplateBody,
   EmailTemplateDetail,
   EmailTemplatePreviewResponse,
+  EmailTemplateSendTestResponse,
   EmailTemplateSummary,
   PreviewEmailTemplateBody,
+  SendTestEmailTemplateBody,
   UpdateEmailTemplateBody,
 } from './dto/templates.dto';
 
@@ -37,7 +41,10 @@ import type {
 @ApiBearerAuth()
 @ApiTags('admin:email-templates')
 export class EmailTemplatesController {
-  constructor(private readonly templates: EmailTemplatesService) {}
+  constructor(
+    private readonly templates: EmailTemplatesService,
+    private readonly email: EmailService,
+  ) {}
 
   @Get()
   async list(
@@ -87,6 +94,20 @@ export class EmailTemplatesController {
     @Body(new ZodValidationPipe(PreviewEmailTemplateSchema)) body: PreviewEmailTemplateBody,
   ): Promise<EmailTemplatePreviewResponse> {
     return this.templates.preview(this.tenantOrThrow(user), id, body.variables);
+  }
+
+  @Post(':id/send-test')
+  async sendTest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(SendTestEmailTemplateSchema)) body: SendTestEmailTemplateBody,
+  ): Promise<EmailTemplateSendTestResponse> {
+    return this.email.sendTest({
+      tenantId: this.tenantOrThrow(user),
+      templateId: id,
+      to: body.to,
+      variables: body.variables ?? {},
+    });
   }
 
   private tenantOrThrow(user: AuthenticatedUser): string {

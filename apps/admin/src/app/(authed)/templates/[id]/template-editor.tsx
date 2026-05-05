@@ -1,7 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { previewTemplate, updateTemplate, deleteTemplate } from '../actions';
+import {
+  previewTemplate,
+  sendTestTemplate,
+  updateTemplate,
+  deleteTemplate,
+  type SendTestResult,
+} from '../actions';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import type { EmailTemplateDetail, EmailTemplatePreviewResponse } from '@/lib/types';
 
@@ -31,8 +37,12 @@ export function TemplateEditor({
 
   const [preview, setPreview] = useState<EmailTemplatePreviewResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [testResult, setTestResult] = useState<SendTestResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   const [previewing, startPreview] = useTransition();
+  const [sendingTest, startSendTest] = useTransition();
 
   const dirty =
     name !== template.name ||
@@ -75,6 +85,34 @@ export function TemplateEditor({
         setPreview(out);
       } catch (err) {
         setPreviewError((err as Error).message);
+      }
+    });
+  }
+
+  async function onSendTest(): Promise<void> {
+    setTestError(null);
+    setTestResult(null);
+    const trimmed = testEmail.trim();
+    if (!trimmed.includes('@')) {
+      setTestError('Email inválido');
+      return;
+    }
+    startSendTest(async () => {
+      try {
+        if (dirty) {
+          await updateTemplate(template.id, {
+            name,
+            subject,
+            bodyHtml,
+            bodyText: bodyText.trim() === '' ? null : bodyText,
+            format,
+            isActive,
+          });
+        }
+        const out = await sendTestTemplate(template.id, trimmed, SAMPLE_VARIABLES);
+        setTestResult(out);
+      } catch (err) {
+        setTestError((err as Error).message);
       }
     });
   }
@@ -184,6 +222,58 @@ export function TemplateEditor({
           >
             Eliminar
           </button>
+        </div>
+
+        <div className="mt-3 space-y-2 rounded-md border border-dashed border-border p-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Enviar prueba
+            </label>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Renderiza con las mismas variables del preview y manda el email a través
+              de Resend. Bajo <code className="rounded bg-muted px-1">EMAIL_DRY_RUN</code> el
+              destinatario tiene que estar en{' '}
+              <code className="rounded bg-muted px-1">EMAIL_TEST_RECIPIENT_ALLOWLIST</code>.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="block flex-1 min-w-[220px] rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <button
+                type="button"
+                onClick={onSendTest}
+                disabled={sendingTest || testEmail.trim().length === 0}
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-soft transition hover:bg-primary/90 disabled:opacity-50"
+              >
+                {sendingTest ? 'Enviando…' : 'Enviar prueba'}
+              </button>
+            </div>
+          </div>
+          {testError && (
+            <p className="rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive">
+              {testError}
+            </p>
+          )}
+          {testResult?.status === 'sent' && (
+            <p className="rounded-md border border-success/40 bg-success/10 p-2 text-xs text-success">
+              Enviado · Resend messageId{' '}
+              <code className="rounded bg-success/20 px-1 font-mono">{testResult.messageId}</code>
+            </p>
+          )}
+          {testResult?.status === 'suppressed' && (
+            <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+              Suprimido ({testResult.reason}): {testResult.message}
+            </p>
+          )}
+          {testResult?.status === 'failed' && (
+            <p className="rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive">
+              Falló: {testResult.message}
+            </p>
+          )}
         </div>
       </div>
 

@@ -53,6 +53,20 @@ export const PreviewEmailTemplateSchema = z.object({
 });
 export type PreviewEmailTemplateBody = z.infer<typeof PreviewEmailTemplateSchema>;
 
+export const SendTestEmailTemplateSchema = z.object({
+  /** Recipient email — still passes through the suppression service,
+   * so under EMAIL_DRY_RUN the address must be in the allowlist. */
+  to: z.string().email().max(320),
+  /** Variable context to render with. Same shape as the preview body. */
+  variables: z.record(z.string(), z.unknown()).default({}),
+});
+export type SendTestEmailTemplateBody = z.infer<typeof SendTestEmailTemplateSchema>;
+
+export type EmailTemplateSendTestResponse =
+  | { status: 'sent'; messageId: string }
+  | { status: 'suppressed'; reason: string; message: string }
+  | { status: 'failed'; message: string };
+
 export interface EmailTemplateSummary {
   id: string;
   channel: 'abandoned_cart' | 'transactional' | 'marketing';
