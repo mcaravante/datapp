@@ -11,6 +11,7 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -87,9 +88,12 @@ export class AdminMediaController {
 /**
  * Public path. NOT versioned (`/media/...` without `/v1/`) so the URL
  * doesn't break across API versions and stays embeddable in old emails
- * forever.
+ * forever. `VERSION_NEUTRAL` is required because main.ts enables URI
+ * versioning with `defaultVersion: '1'`, which would otherwise mount
+ * this controller under `/v1/media/...` and break every URL that the
+ * `MediaService` already generated as `/media/...`.
  */
-@Controller('media')
+@Controller({ path: 'media', version: VERSION_NEUTRAL })
 @ApiTags('public:media')
 export class PublicMediaController {
   constructor(private readonly media: MediaService) {}
