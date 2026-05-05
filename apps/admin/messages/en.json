@@ -10,7 +10,7 @@
   "nav": {
     "overview": "Overview",
     "customers": "Customers",
-    "segments": "Segments",
+    "segments": "Customer groups",
     "orders": "Orders",
     "carts": "Abandoned carts",
     "campaigns": "Email campaigns",
@@ -191,7 +191,6 @@
     "searchPlaceholder": "Search email, first name, last name…",
     "groupLabel": "Group:",
     "rfmLabel": "RFM segment:",
-    "saveAsSegment": "Save as segment",
     "table": {
       "email": "Email",
       "name": "Name",
@@ -283,67 +282,33 @@
       "hibernating": "Hibernating",
       "lost": "Lost"
     },
-    "title": "Segments",
-    "subtitle": "Static customer segments. Membership snapshots at create time and refreshes on demand.",
-    "searchPlaceholder": "Search segment…",
-    "newSegment": "New segment",
+    "title": "Customer groups",
+    "subtitle": "Groups synced from Magento. Last sync: {when}.",
     "table": {
+      "id": "Magento ID",
       "name": "Name",
-      "description": "Description",
-      "filters": "Filters",
-      "members": "Members",
-      "updated": "Updated",
-      "emptyPrefix": "No segments yet. ",
-      "emptyAction": "Create one"
+      "taxClass": "Tax class",
+      "members": "Customers",
+      "empty": "No groups synced yet. Click “Sync now” or wait for the 04:32 cron."
     },
-    "filters": {
-      "search": "search",
-      "group": "group",
-      "regions": "regions",
-      "regionsCount": "{count} selected",
-      "rfm": "RFM",
-      "all": "all customers"
+    "sync": {
+      "cta": "Sync now",
+      "running": "Syncing…",
+      "done": "Done. {scanned} groups / {upserted} updated / {profileLinks} customers linked."
     },
     "detail": {
-      "members": "Members",
-      "type": "Type",
-      "lastRefreshed": "Last refreshed",
-      "createdAt": "created {when}",
-      "filterDefinition": "Filter definition",
-      "membersHeading": "Members ({count})",
-      "membersSubtitle": "Showing the first {count}. Member list is a snapshot — use Refresh to recompute against current data.",
+      "magentoIdLabel": "Magento group ID: {id}",
+      "members": "Customers",
+      "taxClass": "Tax class",
+      "lastSyncedAt": "Last synced",
+      "membersHeading": "Customers ({count})",
+      "membersSubtitle": "Showing {count} on this page.",
       "table": {
         "email": "Email",
         "name": "Name",
-        "group": "Group",
-        "added": "Added"
+        "created": "Magento signup"
       },
-      "empty": "No members in this segment.",
-      "refresh": "Refresh",
-      "refreshing": "Refreshing…",
-      "refreshSuccess": "Membership refreshed.",
-      "delete": "Delete",
-      "deleting": "Deleting…",
-      "deleteTitle": "Delete “{name}”?",
-      "deleteBody": "The segment definition and member list will be removed. The customer profiles themselves are not affected."
-    },
-    "form": {
-      "title": "New segment",
-      "subtitle": "Save a customer filter as a static segment. Membership snapshots now and refreshes on demand.",
-      "missingName": "Please give the segment a name.",
-      "errorPrefix": "Could not create segment: {message}",
-      "name": "Name",
-      "namePlaceholder": "VIP champions",
-      "description": "Description (optional)",
-      "descriptionPlaceholder": "Top-spend repeat buyers",
-      "filters": "Filters",
-      "search": "Search (email, first name, last name)",
-      "searchPlaceholder": "@gmail.com",
-      "group": "Customer group",
-      "groupPlaceholder": "General, Wholesalers, …",
-      "rfm": "RFM segments",
-      "rfmHint": "Match customers whose current RFM label is any of the selected.",
-      "submit": "Create segment"
+      "empty": "This group has no linked customers yet. The FK fills during sync; check back after the next tick."
     }
   },
   "orders": {
@@ -956,7 +921,7 @@
     "sectionNames": {
       "overview": "Overview",
       "customers": "Customers",
-      "segments": "Segments",
+      "segments": "Customer groups",
       "orders": "Orders",
       "carts": "Abandoned carts",
       "products": "Top products",

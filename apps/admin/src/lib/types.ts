@@ -606,6 +606,38 @@ export interface SegmentMembersPage {
   next_cursor: string | null;
 }
 
+export interface CustomerGroupSummary {
+  id: string;
+  magento_group_id: number;
+  name: string;
+  tax_class_id: number | null;
+  tax_class_name: string | null;
+  member_count: number;
+  synced_at: string;
+  updated_at: string;
+}
+
+export interface CustomerGroupsListResponse {
+  data: CustomerGroupSummary[];
+}
+
+export interface CustomerGroupMemberRow {
+  id: string;
+  magento_customer_id: string | null;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  magento_created_at: string | null;
+}
+
+export interface CustomerGroupMembersPage {
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
+  data: CustomerGroupMemberRow[];
+}
+
 export interface OrderDetail extends OrderListItem {
   magento_order_id: string;
   subtotal: string;

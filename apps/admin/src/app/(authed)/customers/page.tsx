@@ -106,14 +106,6 @@ export default async function CustomersListPage({
     exportParams.toString() ? `?${exportParams.toString()}` : ''
   }`;
 
-  const segmentParams = new URLSearchParams();
-  if (q) segmentParams.set('q', q);
-  if (customerGroup) segmentParams.set('customer_group', customerGroup);
-  for (const seg of rfmFilter) segmentParams.append('rfm_segment', seg);
-  const segmentHref = `/segments/new${
-    segmentParams.toString() ? `?${segmentParams.toString()}` : ''
-  }`;
-
   const t = await getTranslations('customers');
   const tCommon = await getTranslations('common');
   const tRfm = await getTranslations('segments.rfmLabels');
@@ -132,13 +124,6 @@ export default async function CustomersListPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={segmentHref}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-soft transition hover:bg-muted"
-          >
-            <BookmarkIcon className="h-3.5 w-3.5" />
-            {t('saveAsSegment')}
-          </Link>
           <ExportButton href={exportHref} label={tCommon('exportCsv')} />
         </div>
       </div>
@@ -330,23 +315,6 @@ export default async function CustomersListPage({
         buildHref={buildPageHref}
       />
     </div>
-  );
-}
-
-function BookmarkIcon({ className }: { className?: string }): React.ReactElement {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
   );
 }
 

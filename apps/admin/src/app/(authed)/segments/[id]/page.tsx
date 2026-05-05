@@ -2,33 +2,47 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ApiError, apiFetch } from '@/lib/api-client';
+import { Pagination } from '@/components/pagination';
 import { formatBuenosAires, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
-import type { SegmentMembersPage, SegmentSummary } from '@/lib/types';
-import { FilterChips } from '../page';
-import { SegmentActions } from '@/components/segment-actions';
+import type {
+  CustomerGroupMembersPage,
+  CustomerGroupSummary,
+} from '@/lib/types';
 
-export const metadata = { title: 'Datapp · Segment' };
+export const metadata = { title: 'Datapp · Customer group' };
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }
 
-export default async function SegmentDetailPage({
+function clampPage(raw: string | undefined): number {
+  const parsed = Number(raw ?? '1');
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.min(Math.floor(parsed), 10_000);
+}
+
+const PAGE_SIZE = 20;
+
+export default async function CustomerGroupDetailPage({
   params,
+  searchParams,
 }: PageProps): Promise<React.ReactElement> {
   const { id } = await params;
+  const sp = await searchParams;
+  const page = clampPage(sp.page);
 
-  let segment: SegmentSummary;
+  let group: CustomerGroupSummary;
   try {
-    segment = await apiFetch<SegmentSummary>(`/v1/admin/segments/${id}`);
+    group = await apiFetch<CustomerGroupSummary>(`/v1/admin/customer-groups/${id}`);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
 
-  const members = await apiFetch<SegmentMembersPage>(
-    `/v1/admin/segments/${id}/members?limit=20`,
+  const members = await apiFetch<CustomerGroupMembersPage>(
+    `/v1/admin/customer-groups/${id}/members?page=${page.toString()}&limit=${PAGE_SIZE.toString()}`,
   );
 
   const t = await getTranslations('segments.detail');
@@ -47,41 +61,32 @@ export default async function SegmentDetailPage({
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              {segment.name}
+              {group.name}
             </h1>
-            {segment.description && (
-              <p className="mt-1 text-sm text-muted-foreground">{segment.description}</p>
-            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('magentoIdLabel', { id: group.magento_group_id })}
+            </p>
           </div>
-          <SegmentActions segmentId={segment.id} segmentName={segment.name} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Tile
           label={t('members')}
-          value={formatNumber(segment.member_count, locale)}
+          value={formatNumber(group.member_count, locale)}
           accent="primary"
         />
-        <Tile label={t('type')} value={segment.type} />
+        <Tile label={t('taxClass')} value={group.tax_class_name ?? '—'} />
         <Tile
-          label={t('lastRefreshed')}
-          value={formatBuenosAires(segment.updated_at, locale)}
-          sub={t('createdAt', { when: formatBuenosAires(segment.created_at, locale) })}
+          label={t('lastSyncedAt')}
+          value={formatBuenosAires(group.synced_at, locale)}
         />
       </div>
-
-      <section className="rounded-lg border border-border bg-card p-5 shadow-card">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('filterDefinition')}
-        </h2>
-        <FilterChips definition={segment.definition} />
-      </section>
 
       <section className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="border-b border-border bg-muted/30 px-5 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t('membersHeading', { count: formatNumber(segment.member_count, locale) })}
+            {t('membersHeading', { count: formatNumber(group.member_count, locale) })}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {t('membersSubtitle', { count: members.data.length })}
@@ -92,14 +97,13 @@ export default async function SegmentDetailPage({
             <tr>
               <th className="px-4 py-2 font-semibold">{t('table.email')}</th>
               <th className="px-4 py-2 font-semibold">{t('table.name')}</th>
-              <th className="px-4 py-2 font-semibold">{t('table.group')}</th>
-              <th className="px-4 py-2 font-semibold">{t('table.added')}</th>
+              <th className="px-4 py-2 font-semibold">{t('table.created')}</th>
             </tr>
           </thead>
           <tbody>
             {members.data.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
                   {t('empty')}
                 </td>
               </tr>
@@ -120,14 +124,31 @@ export default async function SegmentDetailPage({
                 <td className="px-4 py-2 text-foreground/80">
                   {[m.first_name, m.last_name].filter(Boolean).join(' ') || '—'}
                 </td>
-                <td className="px-4 py-2 text-muted-foreground">{m.customer_group ?? '—'}</td>
                 <td className="px-4 py-2 text-xs text-muted-foreground">
-                  {formatBuenosAires(m.added_at, locale)}
+                  {m.magento_created_at ? formatBuenosAires(m.magento_created_at, locale) : '—'}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {members.total_pages > 1 && (
+          <div className="border-t border-border bg-muted/20 px-5 py-3">
+            <Pagination
+              page={members.page}
+              totalPages={members.total_pages}
+              totalCount={members.total_count}
+              limit={members.limit}
+              buildHref={(overrides) => {
+                const params = new URLSearchParams();
+                if (overrides.page && overrides.page !== 1) {
+                  params.set('page', String(overrides.page));
+                }
+                const qs = params.toString();
+                return qs ? `/segments/${id}?${qs}` : `/segments/${id}`;
+              }}
+            />
+          </div>
+        )}
       </section>
     </div>
   );
@@ -136,12 +157,10 @@ export default async function SegmentDetailPage({
 function Tile({
   label,
   value,
-  sub,
   accent = 'muted',
 }: {
   label: string;
   value: string;
-  sub?: string;
   accent?: 'primary' | 'muted';
 }): React.ReactElement {
   const tone = accent === 'primary' ? 'border-l-4 border-l-primary' : '';
@@ -153,7 +172,6 @@ function Tile({
         {label}
       </div>
       <div className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }

@@ -10,7 +10,7 @@
   "nav": {
     "overview": "Resumen",
     "customers": "Clientes",
-    "segments": "Segmentos",
+    "segments": "Grupos de clientes",
     "orders": "Pedidos",
     "carts": "Carritos abandonados",
     "campaigns": "Campañas de email",
@@ -191,7 +191,6 @@
     "searchPlaceholder": "Buscar email, nombre o apellido…",
     "groupLabel": "Grupo:",
     "rfmLabel": "Segmento RFM:",
-    "saveAsSegment": "Guardar como segmento",
     "table": {
       "email": "Email",
       "name": "Nombre",
@@ -283,67 +282,33 @@
       "hibernating": "Hibernando",
       "lost": "Perdidos"
     },
-    "title": "Segmentos",
-    "subtitle": "Segmentos estáticos de clientes. La membresía se snapshotea al crear y se refresca a demanda.",
-    "searchPlaceholder": "Buscar segmento…",
-    "newSegment": "Nuevo segmento",
+    "title": "Grupos de clientes",
+    "subtitle": "Grupos sincronizados desde Magento. Última sincronización: {when}.",
     "table": {
+      "id": "ID Magento",
       "name": "Nombre",
-      "description": "Descripción",
-      "filters": "Filtros",
-      "members": "Miembros",
-      "updated": "Actualizado",
-      "emptyPrefix": "Aún no hay segmentos. ",
-      "emptyAction": "Creá uno"
+      "taxClass": "Tax class",
+      "members": "Clientes",
+      "empty": "Aún no hay grupos sincronizados. Tocá “Sincronizar ahora” o esperá al cron de las 04:32."
     },
-    "filters": {
-      "search": "búsqueda",
-      "group": "grupo",
-      "regions": "regiones",
-      "regionsCount": "{count} seleccionadas",
-      "rfm": "RFM",
-      "all": "todos los clientes"
+    "sync": {
+      "cta": "Sincronizar ahora",
+      "running": "Sincronizando…",
+      "done": "Listo. {scanned} grupos / {upserted} actualizados / {profileLinks} clientes vinculados."
     },
     "detail": {
-      "members": "Miembros",
-      "type": "Tipo",
-      "lastRefreshed": "Última actualización",
-      "createdAt": "creado {when}",
-      "filterDefinition": "Definición del filtro",
-      "membersHeading": "Miembros ({count})",
-      "membersSubtitle": "Mostrando los primeros {count}. La lista de miembros es un snapshot — usá Refresh para recalcular contra los datos actuales.",
+      "magentoIdLabel": "Magento group ID: {id}",
+      "members": "Clientes",
+      "taxClass": "Tax class",
+      "lastSyncedAt": "Última sincronización",
+      "membersHeading": "Clientes ({count})",
+      "membersSubtitle": "Mostrando {count} en esta página.",
       "table": {
         "email": "Email",
         "name": "Nombre",
-        "group": "Grupo",
-        "added": "Agregado"
+        "created": "Alta en Magento"
       },
-      "empty": "No hay miembros en este segmento.",
-      "refresh": "Actualizar",
-      "refreshing": "Actualizando…",
-      "refreshSuccess": "Membresía actualizada.",
-      "delete": "Eliminar",
-      "deleting": "Eliminando…",
-      "deleteTitle": "¿Eliminar “{name}”?",
-      "deleteBody": "Se eliminan la definición y la lista de miembros. Los perfiles de cliente no se ven afectados."
-    },
-    "form": {
-      "title": "Nuevo segmento",
-      "subtitle": "Guardá un filtro de clientes como segmento estático. La membresía se calcula ahora y se refresca a demanda.",
-      "missingName": "Necesitás darle un nombre al segmento.",
-      "errorPrefix": "No se pudo crear el segmento: {message}",
-      "name": "Nombre",
-      "namePlaceholder": "VIP campeones",
-      "description": "Descripción (opcional)",
-      "descriptionPlaceholder": "Compradores top con recompra",
-      "filters": "Filtros",
-      "search": "Búsqueda (email, nombre, apellido)",
-      "searchPlaceholder": "@gmail.com",
-      "group": "Grupo de clientes",
-      "groupPlaceholder": "General, Mayoristas, …",
-      "rfm": "Segmentos RFM",
-      "rfmHint": "Hace match con clientes cuya etiqueta RFM actual esté entre las seleccionadas.",
-      "submit": "Crear segmento"
+      "empty": "Este grupo no tiene clientes vinculados todavía. La FK se llena durante la sincronización; volvé a probar después del próximo tick."
     }
   },
   "orders": {
@@ -956,7 +921,7 @@
     "sectionNames": {
       "overview": "Resumen",
       "customers": "Clientes",
-      "segments": "Segmentos",
+      "segments": "Grupos de clientes",
       "orders": "Pedidos",
       "carts": "Carritos abandonados",
       "products": "Top productos",
