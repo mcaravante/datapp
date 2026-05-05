@@ -48,6 +48,21 @@ export const ListCustomersQuerySchema = z.object({
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   sort: CustomerSortField.default('magento_updated_at'),
   dir: z.enum(['asc', 'desc']).default('desc'),
+  /**
+   * Filter by analytics-exclusion membership:
+   *  - `none` (default) — show every customer regardless
+   *  - `only` — only customers whose email is in the exclusion list
+   *  - `hide` — drop excluded customers from the result set
+   */
+  excluded: z.enum(['none', 'only', 'hide']).default('none'),
+  /**
+   * When sorting by `total_orders` / `total_spent`, the WHERE clause
+   * normally restricts to profiles with an RFM row so empty profiles
+   * don't surface first under DESC. Setting this flag keeps the empty
+   * profiles in the result — useful when the operator wants to audit
+   * who hasn't bought anything yet.
+   */
+  include_inactive: z.coerce.boolean().default(false),
 });
 
 export type ListCustomersQuery = z.infer<typeof ListCustomersQuerySchema>;

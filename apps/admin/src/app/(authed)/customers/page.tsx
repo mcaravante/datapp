@@ -33,7 +33,14 @@ interface PageProps {
     sort?: string;
     dir?: string;
     customer_group?: string;
+    excluded?: string;
+    include_inactive?: string;
   }>;
+}
+
+type ExcludedFilter = 'none' | 'only' | 'hide';
+function pickExcluded(raw: string | undefined): ExcludedFilter {
+  return raw === 'only' || raw === 'hide' ? raw : 'none';
 }
 
 interface FacetsResponse {
@@ -48,13 +55,18 @@ export default async function CustomersListPage({
   const pageParam = sp.page ?? '1';
   const limit = sp.limit ?? '20';
   const customerGroup = sp.customer_group;
+  const excludedFilter = pickExcluded(sp.excluded);
+  const includeInactive = sp.include_inactive === '1';
   const sort = parseSort<SortField>(sp, SORT_FIELDS, DEFAULT_SORT);
+  const sortIsRfm = sort.field === 'total_orders' || sort.field === 'total_spent';
 
   const apiParams = new URLSearchParams();
   if (q) apiParams.set('q', q);
   apiParams.set('page', pageParam);
   apiParams.set('limit', limit);
   if (customerGroup) apiParams.set('customer_group', customerGroup);
+  if (excludedFilter !== 'none') apiParams.set('excluded', excludedFilter);
+  if (includeInactive) apiParams.set('include_inactive', 'true');
   apiParams.set('sort', sort.field);
   apiParams.set('dir', sort.dir);
 
@@ -68,6 +80,8 @@ export default async function CustomersListPage({
     q,
     limit,
     customer_group: customerGroup,
+    excluded: excludedFilter === 'none' ? undefined : excludedFilter,
+    include_inactive: includeInactive ? '1' : undefined,
     sort: sort.field === DEFAULT_SORT.field ? undefined : sort.field,
     dir: sort.field === DEFAULT_SORT.field && sort.dir === DEFAULT_SORT.dir ? undefined : sort.dir,
   };
@@ -84,6 +98,8 @@ export default async function CustomersListPage({
   const exportParams = new URLSearchParams();
   if (q) exportParams.set('q', q);
   if (customerGroup) exportParams.set('customer_group', customerGroup);
+  if (excludedFilter !== 'none') exportParams.set('excluded', excludedFilter);
+  if (includeInactive) exportParams.set('include_inactive', 'true');
   const exportHref = `/api/export/customers${
     exportParams.toString() ? `?${exportParams.toString()}` : ''
   }`;
@@ -150,9 +166,46 @@ export default async function CustomersListPage({
           basePath="/customers"
           currentParams={currentParams}
         />
-        {customerGroup && (
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground">{t('excludedLabel')}</span>
+          {(['none', 'hide', 'only'] as const).map((opt) => {
+            const active = excludedFilter === opt;
+            return (
+              <Link
+                key={opt}
+                href={buildFilterHref({ excluded: opt === 'none' ? undefined : opt })}
+                className={
+                  active
+                    ? 'rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground'
+                    : 'rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground transition hover:bg-muted'
+                }
+              >
+                {t(`excludedOptions.${opt}`)}
+              </Link>
+            );
+          })}
+        </div>
+        {sortIsRfm && (
           <Link
-            href={buildFilterHref({ customer_group: undefined })}
+            href={buildFilterHref({ include_inactive: includeInactive ? undefined : '1' })}
+            className={
+              includeInactive
+                ? 'inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary transition hover:bg-primary/20'
+                : 'inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground'
+            }
+            aria-pressed={includeInactive}
+          >
+            <span aria-hidden="true">{includeInactive ? '☑' : '☐'}</span>
+            {t('includeInactive')}
+          </Link>
+        )}
+        {(customerGroup || excludedFilter !== 'none' || includeInactive) && (
+          <Link
+            href={buildFilterHref({
+              customer_group: undefined,
+              excluded: undefined,
+              include_inactive: undefined,
+            })}
             className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             {tCommon('clear')}
@@ -254,7 +307,16 @@ export default async function CustomersListPage({
                   {[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {c.customer_group_name ?? c.customer_group ?? '—'}
+                  {c.customer_group_id ? (
+                    <Link
+                      href={`/segments/${c.customer_group_id}`}
+                      className="text-foreground underline-offset-4 hover:text-primary hover:underline"
+                    >
+                      {c.customer_group_name ?? c.customer_group ?? '—'}
+                    </Link>
+                  ) : (
+                    (c.customer_group_name ?? c.customer_group ?? '—')
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-foreground">
                   {c.total_orders === null ? (

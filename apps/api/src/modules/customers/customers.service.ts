@@ -40,7 +40,12 @@ function buildCustomerOrderBy(
 
 function buildCustomerWhere(
   tenantId: string,
-  query: Pick<ListCustomersQuery, 'q' | 'region_id' | 'customer_group' | 'rfm_segment' | 'sort'>,
+  query: Pick<
+    ListCustomersQuery,
+    'q' | 'region_id' | 'customer_group' | 'rfm_segment' | 'sort' | 'include_inactive'
+  >,
+  excludedEmails: { literal: Set<string>; domains: string[] },
+  excludedFilter: 'none' | 'only' | 'hide',
 ): Prisma.CustomerProfileWhereInput {
   const where: Prisma.CustomerProfileWhereInput = { tenantId };
   if (query.q) {
@@ -61,14 +66,44 @@ function buildCustomerWhere(
   }
   // Sorting by RFM-sourced metrics requires the row to actually exist —
   // otherwise Postgres surfaces empty (NULL) profiles first under DESC
-  // and the table reads as broken. Restricting the resultset to scored
-  // customers is the right behavior anyway: ordering by "lifetime spend"
-  // for a guest with no orders has no defined answer.
-  if (query.sort === 'total_orders' || query.sort === 'total_spent') {
+  // and the table reads as broken. The `include_inactive` flag opts back
+  // into the unfiltered behavior for operators auditing who hasn't
+  // bought yet.
+  if (
+    (query.sort === 'total_orders' || query.sort === 'total_spent') &&
+    !query.include_inactive
+  ) {
     if (where.rfmScore !== undefined) {
       // Already constrained by `rfm_segment` — keep that filter.
     } else {
       where.rfmScore = { isNot: null };
+    }
+  }
+
+  // Optional filter against the analytics-exclusion list. Domain rules
+  // (`@example.com`) translate to `endsWith` on the email column.
+  if (excludedFilter !== 'none') {
+    const emailMatchers: Prisma.CustomerProfileWhereInput[] = [];
+    if (excludedEmails.literal.size > 0) {
+      emailMatchers.push({ email: { in: Array.from(excludedEmails.literal) } });
+    }
+    for (const dom of excludedEmails.domains) {
+      emailMatchers.push({ email: { endsWith: dom } });
+    }
+    if (excludedFilter === 'only') {
+      // No exclusion entries → no rows match "only excluded". Force an
+      // impossible filter so the query returns empty cleanly.
+      where.AND = [
+        ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+        emailMatchers.length > 0
+          ? { OR: emailMatchers }
+          : { id: '00000000-0000-0000-0000-000000000000' },
+      ];
+    } else if (excludedFilter === 'hide' && emailMatchers.length > 0) {
+      where.AND = [
+        ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+        { NOT: { OR: emailMatchers } },
+      ];
     }
   }
   return where;
@@ -84,6 +119,10 @@ export interface CustomerListItem {
   /// compatibility with consumers that filter by id; new surfaces should
   /// prefer `customer_group_name`.
   customer_group: string | null;
+  /// CDP-side UUID of the linked customer_group row, when the FK is
+  /// resolved. Powers the row-level "open this group" link without an
+  /// extra round-trip.
+  customer_group_id: string | null;
   /// Human-readable group name resolved through the FK to `customer_group`.
   /// Null when the profile has no group_id set or the FK hasn't been
   /// linked yet (new ingest awaiting the next sync).
@@ -242,7 +281,19 @@ export class CustomersService {
     query: Omit<ListCustomersQuery, 'cursor' | 'limit'>,
     cap = 50_000,
   ): Promise<{ headers: string[]; rows: unknown[][] }> {
-    const where = buildCustomerWhere(tenantId, query);
+    const excludedSet = await this.excludedEmails.listEmails(tenantId);
+    const excludedLiteral = new Set<string>();
+    const excludedDomains: string[] = [];
+    for (const e of excludedSet) {
+      if (e.startsWith('@')) excludedDomains.push(e);
+      else excludedLiteral.add(e);
+    }
+    const where = buildCustomerWhere(
+      tenantId,
+      query,
+      { literal: excludedLiteral, domains: excludedDomains },
+      query.excluded,
+    );
 
     const rows = await this.prisma.customerProfile.findMany({
       where,
@@ -291,10 +342,22 @@ export class CustomersService {
   }
 
   async list(tenantId: string, query: ListCustomersQuery): Promise<CustomerListPage> {
-    const where = buildCustomerWhere(tenantId, query);
     const skip = (query.page - 1) * query.limit;
+    const excludedSet = await this.excludedEmails.listEmails(tenantId);
+    const excludedLiteral = new Set<string>();
+    const excludedDomains: string[] = [];
+    for (const e of excludedSet) {
+      if (e.startsWith('@')) excludedDomains.push(e);
+      else excludedLiteral.add(e);
+    }
+    const where = buildCustomerWhere(
+      tenantId,
+      query,
+      { literal: excludedLiteral, domains: excludedDomains },
+      query.excluded,
+    );
 
-    const [rows, totalCount, excludedSet] = await Promise.all([
+    const [rows, totalCount] = await Promise.all([
       this.prisma.customerProfile.findMany({
         where,
         orderBy: buildCustomerOrderBy(query.sort, query.dir),
@@ -307,6 +370,7 @@ export class CustomersService {
           firstName: true,
           lastName: true,
           customerGroup: true,
+          customerGroupId: true,
           magentoCreatedAt: true,
           magentoUpdatedAt: true,
           rfmScore: { select: { frequency: true, monetary: true } },
@@ -314,18 +378,8 @@ export class CustomersService {
         },
       }),
       this.prisma.customerProfile.count({ where }),
-      this.excludedEmails.listEmails(tenantId),
     ]);
 
-    // Mirror the analytics matching: literal email OR a bare-domain rule
-    // (`@example.com`) covers the same row. Cheap pre-pass so per-row
-    // checks stay O(1).
-    const excludedLiteral = new Set<string>();
-    const excludedDomains: string[] = [];
-    for (const e of excludedSet) {
-      if (e.startsWith('@')) excludedDomains.push(e);
-      else excludedLiteral.add(e);
-    }
     const isExcluded = (email: string): boolean => {
       const lc = email.toLowerCase();
       if (excludedLiteral.has(lc)) return true;
@@ -345,6 +399,7 @@ export class CustomersService {
         first_name: r.firstName,
         last_name: r.lastName,
         customer_group: r.customerGroup,
+        customer_group_id: r.customerGroupId,
         customer_group_name: r.group?.name ?? null,
         magento_created_at: r.magentoCreatedAt?.toISOString() ?? null,
         magento_updated_at: r.magentoUpdatedAt?.toISOString() ?? null,
@@ -468,6 +523,7 @@ export class CustomersService {
       first_name: profile.firstName,
       last_name: profile.lastName,
       customer_group: profile.customerGroup,
+      customer_group_id: profile.customerGroupId,
       customer_group_name: profile.group?.name ?? null,
       phone: profile.phone,
       dob: profile.dob ? profile.dob.toISOString().slice(0, 10) : null,

@@ -12,6 +12,8 @@ export interface CustomerListItem {
   last_name: string | null;
   /** Raw Magento group_id (text). Use `customer_group_name` for display. */
   customer_group: string | null;
+  /** CDP-side UUID of the linked customer_group row, for row-level navigation. */
+  customer_group_id: string | null;
   /** Human-readable name from the synced customer_group table. */
   customer_group_name: string | null;
   magento_created_at: string | null;
@@ -573,43 +575,6 @@ export type RfmSegmentLabel =
   | 'cannot_lose_them'
   | 'hibernating'
   | 'lost';
-
-export interface SegmentDefinition {
-  q?: string;
-  region_id?: number[];
-  customer_group?: string;
-  rfm_segment?: RfmSegmentLabel[];
-}
-
-export interface SegmentSummary {
-  id: string;
-  name: string;
-  description: string | null;
-  definition: SegmentDefinition;
-  type: string;
-  member_count: number;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SegmentsListResponse {
-  data: SegmentSummary[];
-}
-
-export interface SegmentMemberRow {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  customer_group: string | null;
-  added_at: string;
-}
-
-export interface SegmentMembersPage {
-  data: SegmentMemberRow[];
-  next_cursor: string | null;
-}
 
 export interface CustomerGroupSummary {
   id: string;

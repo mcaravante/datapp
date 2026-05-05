@@ -191,6 +191,13 @@
     "searchPlaceholder": "Search email, first name, last name…",
     "groupLabel": "Group:",
     "rfmLabel": "RFM segment:",
+    "excludedLabel": "Excluded:",
+    "excludedOptions": {
+      "none": "All",
+      "hide": "Hide",
+      "only": "Only"
+    },
+    "includeInactive": "Include customers without activity",
     "table": {
       "email": "Email",
       "name": "Name",
