@@ -109,10 +109,13 @@ export class CustomerGroupsService {
 
   /**
    * Single-shot link of every `customer_profile` whose `customer_group`
-   * string matches a row in `customer_group`. Only touches rows that
-   * are still NULL on the FK, so re-runs are cheap no-ops. The customer
-   * ingest path calls this after each batch so the FK doesn't lag the
-   * string for newly upserted profiles.
+   * string resolves to a known group. Only touches rows that are still
+   * NULL on the FK so re-runs are cheap no-ops.
+   *
+   * The string column on `customer_profile` is the Magento `group_id`
+   * stored as text (see customer-mapper.ts), NOT the human-readable
+   * name — so we join on `magento_group_id::text`. The previous
+   * version joined on `name` and matched zero rows in production.
    */
   async linkProfilesByName(tenantId: string): Promise<number> {
     const result = await this.prisma.$executeRaw(Prisma.sql`
@@ -123,7 +126,7 @@ export class CustomerGroupsService {
         AND cg."tenant_id" = ${tenantId}::uuid
         AND cp."customer_group_id" IS NULL
         AND cp."customer_group" IS NOT NULL
-        AND cp."customer_group" = cg."name"
+        AND cp."customer_group" = cg."magento_group_id"::text
     `);
     return Number(result);
   }
