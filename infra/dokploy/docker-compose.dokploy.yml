@@ -174,7 +174,13 @@ services:
     restart: unless-stopped
     expose: ['80']
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O-', 'http://localhost/loader.js']
+      # 127.0.0.1, not localhost — busybox wget in alpine resolves
+      # localhost to ::1 first but nginx in the runtime image listens
+      # only on IPv4 (`listen 80 default_server;`). Using `localhost`
+      # makes the healthcheck flap to unhealthy and Traefik refuses to
+      # route to the container — that's the bug we hit on the first
+      # deploy.
+      test: ['CMD', 'wget', '-q', '-O-', 'http://127.0.0.1/loader.js']
       interval: 10s
       timeout: 3s
       retries: 3

@@ -42,5 +42,9 @@ FROM nginx:1.27-alpine AS runtime
 COPY infra/docker/loader.nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/apps/loader/dist /usr/share/nginx/html
 EXPOSE 80
+# 127.0.0.1, not localhost — busybox wget in alpine resolves localhost to
+# ::1 first, but nginx here listens only on IPv4. Using the literal IPv4
+# address avoids a flapping unhealthy state that makes Traefik refuse to
+# route to the container.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O- http://localhost/loader.js >/dev/null || exit 1
+  CMD wget -q -O- http://127.0.0.1/loader.js >/dev/null || exit 1
