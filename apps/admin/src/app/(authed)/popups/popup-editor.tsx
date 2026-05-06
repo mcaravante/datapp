@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
   PopupDetail,
@@ -266,12 +266,10 @@ export function PopupEditor({ popup }: Props): React.ReactElement {
               placeholder="<p>HTML que aparece debajo del subtítulo.</p>"
             />
           </Field>
-          <Field label="URL de la imagen (opcional)">
-            <input
+          <Field label="Imagen (opcional)">
+            <ImageUpload
               value={form.imageUrl ?? ''}
-              onChange={(e) => patch('imageUrl', e.target.value)}
-              className={inputCls}
-              placeholder="https://…/banner.jpg"
+              onChange={(value) => patch('imageUrl', value)}
             />
           </Field>
           <div className="grid grid-cols-[1fr_120px] gap-3">
@@ -655,6 +653,119 @@ function Preview({ form }: { form: PopupFormInput }): React.ReactElement {
           </p>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Image source picker. Two modes:
+ *   - Upload — POSTs to `/api/admin/media`, stores the returned URL.
+ *   - Paste URL — typed-in URL, stored as-is.
+ * Either way the popup config persists `imageUrl: string | null`. The
+ * uploader is the same one used by the email-branding logo flow, so
+ * media is centralised in `MediaService` and storefront fetches are
+ * proxied through `loader.datapp.com.ar`-compatible CORS.
+ */
+function ImageUpload({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}): React.ReactElement {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function handleUpload(file: File): Promise<void> {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      if (!file.type.startsWith('image/')) {
+        throw new Error('El archivo no es una imagen.');
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('La imagen supera 5 MB.');
+      }
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/admin/media', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(`Upload falló (${res.status.toString()})`);
+      const json = (await res.json()) as { id: string; url: string; filename: string };
+      onChange(json.url);
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {value ? (
+        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-2">
+          <img
+            src={value}
+            alt=""
+            className="h-14 w-20 rounded-md bg-white object-contain p-1"
+          />
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className={`${inputCls} flex-1 text-xs`}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+          >
+            {uploading ? 'Subiendo…' : 'Cambiar'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="rounded-md border border-destructive/40 bg-card px-2.5 py-1 text-xs text-destructive transition hover:bg-destructive/10"
+          >
+            Quitar
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-stretch gap-2">
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className={`${inputCls} flex-1`}
+            placeholder="https://…/banner.jpg"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+          >
+            {uploading ? 'Subiendo…' : '+ Subir imagen'}
+          </button>
+        </div>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) void handleUpload(file);
+        }}
+      />
+      {uploadError && (
+        <p className="text-[11px] text-destructive">{uploadError}</p>
+      )}
+      <p className="text-[11px] text-muted-foreground">
+        PNG / JPG / WEBP / GIF, máx 5 MB. O pegá un URL si la imagen ya vive en
+        otro lado.
+      </p>
     </div>
   );
 }
