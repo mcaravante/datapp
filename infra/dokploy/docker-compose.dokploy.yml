@@ -159,6 +159,28 @@ services:
     expose: ['3001']
     stop_grace_period: 30s
 
+  # Phase 2 popup-builder loader bundle. Built once with esbuild and
+  # served as static assets via nginx. Cloudflare proxies
+  # loader.datapp.com.ar → this container. The Dockerfile bakes the
+  # default API URL in via the ARG below; Pupemoda's storefront passes
+  # `?api=` in the script src to override.
+  loader:
+    build:
+      context: ../..
+      dockerfile: infra/docker/loader.Dockerfile
+      args:
+        LOADER_DEFAULT_API_URL: ${APP_URL_API}
+    image: datapp-loader:latest
+    restart: unless-stopped
+    expose: ['80']
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O-', 'http://localhost/loader.js']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    stop_grace_period: 10s
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped

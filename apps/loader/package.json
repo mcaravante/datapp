@@ -2,12 +2,17 @@
   "name": "@datapp/loader",
   "version": "0.0.0",
   "private": true,
-  "description": "Public loader script for storefront popups + web event tracking. PHASE 2 — DO NOT IMPLEMENT IN PHASE 1.",
+  "description": "Public loader script — Phase 2 popup builder. Built as a single self-contained JS bundle and served from loader.datapp.com.ar.",
   "scripts": {
-    "build": "echo 'Phase 2 — not implemented'; exit 0",
-    "dev": "echo 'Phase 2 — not implemented'; exit 0",
-    "lint": "echo 'Phase 2 — not implemented'; exit 0",
-    "test": "echo 'Phase 2 — not implemented'; exit 0",
-    "type-check": "echo 'Phase 2 — not implemented'; exit 0"
+    "build": "node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs --watch",
+    "lint": "eslint .",
+    "test": "echo 'Phase 2 — no tests yet'; exit 0",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.21",
+    "esbuild": "0.27.7",
+    "typescript": "5.9.3"
   }
 }
