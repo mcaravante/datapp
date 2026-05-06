@@ -1,8 +1,14 @@
 # ADR 0008 — Phase 2: public loader, popups, web events, identity resolution
 
-- **Status:** proposed
+- **Status:** accepted (with the popup-builder vertical as the first slice)
 - **Date:** 2026-05-05
-- **Supersedes:** the "Phase 2 schema-only" stipulation in `CLAUDE.md` §1 / §6 once accepted.
+- **Supersedes:** the "Phase 2 schema-only" stipulation in `CLAUDE.md` §1 / §6 — for the popup-builder vertical only. Page-view tracking and identity resolution stay closed under §6 until follow-up ADRs open them.
+
+## Update — 2026-05-05 (post-acceptance)
+
+The original draft framed the first vertical as "page_view + identify" tracking. After confirmation with the operator, we **pivoted the first vertical to popup builder** because the ROI is more direct (newsletter capture → emails the Phase 3 engine can immediately use) and the surface area is smaller (no event aggregation pipeline, no rollup partitions).
+
+The page_view + identify slice still sits in this ADR's "out of scope for the first iteration" list — it becomes Phase 2.2 / Phase 2.3 once popups are stable.
 
 ## Context
 

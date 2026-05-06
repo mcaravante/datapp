@@ -31,6 +31,7 @@ import { CouponStrategyModule } from './modules/coupon-strategy/coupon-strategy.
 import { AbandonedCartRecoveryModule } from './modules/abandoned-cart-recovery/abandoned-cart-recovery.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { MediaModule } from './modules/media/media.module';
+import { PopupsModule } from './modules/popups/popups.module';
 import { BrandingModule } from './modules/branding/branding.module';
 
 // Phase 3 — abandoned-cart recovery vertical. Loaded only when the
@@ -109,6 +110,7 @@ function emailEngineModules(): (DynamicModule | typeof EmailModule)[] {
     HealthModule,
     SyncModule,
     MediaModule,
+    PopupsModule,
     BrandingModule,
     ...emailEngineModules(),
   ],

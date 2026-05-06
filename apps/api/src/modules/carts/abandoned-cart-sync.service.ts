@@ -237,7 +237,13 @@ export class AbandonedCartSyncService {
       select: { id: true, magentoCustomerId: true },
     });
     const out = new Map<string, string>();
-    for (const p of profiles) out.set(p.magentoCustomerId, p.id);
+    for (const p of profiles) {
+      // The query filtered to `magentoCustomerId IN (...)`, so the
+      // selected column is non-null in practice; the type is now
+      // `string | null` because popup leads can land without a
+      // Magento id and we keep the selection narrow here.
+      if (p.magentoCustomerId !== null) out.set(p.magentoCustomerId, p.id);
+    }
     return out;
   }
 

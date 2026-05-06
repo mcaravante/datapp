@@ -111,7 +111,9 @@ function buildCustomerWhere(
 
 export interface CustomerListItem {
   id: string;
-  magento_customer_id: string;
+  /// Null for profiles that came in through a popup / lead capture
+  /// before the visitor ever signed up at the Magento storefront.
+  magento_customer_id: string | null;
   email: string;
   first_name: string | null;
   last_name: string | null;

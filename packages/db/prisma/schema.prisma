@@ -142,6 +142,11 @@ model Tenant {
   name      String
   slug      String   @unique
   settings  Json     @default("{}")
+  /// Whitelist of storefront origins allowed to talk to the public
+  /// loader endpoints (`/v1/public/popups`, `/v1/ingest/popup-submission`).
+  /// Empty = closed (loader refuses to render). Format: full origins
+  /// including scheme, e.g. `https://pupemoda.com.ar`.
+  allowedOrigins String[] @default([]) @map("allowed_origins")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -457,7 +462,12 @@ model SyncEventLog {
 model CustomerProfile {
   id                        String             @id @default(uuid(7)) @db.Uuid
   tenantId                  String             @map("tenant_id") @db.Uuid
-  magentoCustomerId         String             @map("magento_customer_id")
+  /// Optional: a CustomerProfile may exist without a Magento account
+  /// when the lead came in through a popup / form before signing up.
+  /// The customer-sync stitches `(tenant, magentoCustomerId)` only for
+  /// rows that have one; identity merge (popup-lead → Magento customer
+  /// once the same email signs up) is the Phase 2.2 follow-up.
+  magentoCustomerId         String?            @map("magento_customer_id")
   email                     String // lowercased on write
   emailHash                 String             @map("email_hash") @db.Char(64) // sha256 hex of lowercased email
   firstName                 String?            @map("first_name")
@@ -951,19 +961,83 @@ model WebEvent {
   @@map("web_event")
 }
 
+/// A capture surface that the public loader script renders inside the
+/// storefront. Currently only `popup` is supported (modal overlay), but
+/// the `kind` discriminator leaves room for inline / sticky-bar / banner
+/// surfaces without another schema change.
+///
+/// `Form` is intentionally normalized: visual config + matching rules
+/// + form fields all live here so the loader can fetch ONE row per
+/// active surface. The denormalised `cached_*` columns are populated by
+/// a per-tenant aggregate that the admin counters surface.
 model Form {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  name      String
-  fields    Json     @default("[]")
-  isActive  Boolean  @default(true) @map("is_active")
+  id              String     @id @default(uuid(7)) @db.Uuid
+  tenantId        String     @map("tenant_id") @db.Uuid
+  /// URL-safe id exposed in analytics + the loader payload. Immutable
+  /// after create — renames happen via `name`.
+  slug            String
+  name            String
+  kind            FormKind   @default(popup)
+  status          FormStatus @default(draft)
+  /// Visual content fragments — kept as separate columns so admin
+  /// list/preview can read individual pieces cheaply.
+  headline        String?
+  subheadline     String?
+  bodyHtml        String?    @map("body_html")
+  imageUrl        String?    @map("image_url")
+  primaryCtaLabel String?    @map("primary_cta_label")
+  /// HEX with leading `#`, validated at the Zod boundary. Drives the
+  /// CTA + accents in the rendered popup.
+  primaryColor    String?    @map("primary_color")
+  /// Operator-authored copy under the form (GDPR / legal). Free-form
+  /// HTML; storefront sees it sanitized at render time.
+  consentText     String?    @map("consent_text")
+  /// Replaces the form once the visitor submits successfully.
+  successMessage  String?    @map("success_message")
+  /// Form schema: array of field defs (name/label/type/required).
+  /// For popups today the realistic shape is a single email field
+  /// plus optional first_name; the JSON keeps it open for future
+  /// custom forms without another migration.
+  fields          Json       @default("[]")
+  /// Visibility rules — when to show. See PopupTriggerSchema in
+  /// packages/shared for the validated shape.
+  /// `time_on_page` (default) shows after `triggerDelaySeconds` since load.
+  trigger         FormTrigger @default(time_on_page)
+  triggerDelaySeconds Int      @default(5)  @map("trigger_delay_seconds")
+  /// `once_per_session` | `once_per_visitor` | `every_visit`. Enforced
+  /// in the loader using localStorage (per-visitor) or sessionStorage
+  /// (per-session) keys.
+  displayFrequency FormDisplayFrequency @default(once_per_session) @map("display_frequency")
+  /// Array of URL-path matchers. Empty array = match everything.
+  /// Each entry: `{ kind: 'starts_with' | 'equals' | 'regex', value: string }`.
+  pageMatchRules  Json     @default("[]") @map("page_match_rules")
+  /// Tiebreaker when multiple popups match the same URL — higher
+  /// `displayPriority` wins. Same priority → newest first.
+  displayPriority Int      @default(0)    @map("display_priority")
+  /// Optional auto-pause after this many shows / submissions. NULL
+  /// disables the cap.
+  showCap         Int?     @map("show_cap")
+  submissionCap   Int?     @map("submission_cap")
+  /// Optional list the lead is added to on submit. NULL = capture
+  /// only, no auto-subscription. The admin UI defaults to the
+  /// tenant's first MarketingList.
+  marketingListId String?  @map("marketing_list_id") @db.Uuid
+  isActive        Boolean  @default(true) @map("is_active")
+  /// Denormalised counters refreshed by the analytics aggregate; they
+  /// drive the list-page columns without a per-row count() round-trip.
+  cachedShowCount       Int @default(0) @map("cached_show_count")
+  cachedSubmissionCount Int @default(0) @map("cached_submission_count")
+  cachedLastSubmittedAt DateTime? @map("cached_last_submitted_at") @db.Timestamptz(6)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  submissions FormSubmission[]
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  marketingList MarketingList?   @relation(fields: [marketingListId], references: [id], onDelete: SetNull)
+  submissions   FormSubmission[]
 
+  @@unique([tenantId, slug])
   @@unique([tenantId, name])
+  @@index([tenantId, status, displayPriority(sort: Desc)])
   @@map("form")
 }
 
@@ -973,7 +1047,19 @@ model FormSubmission {
   formId            String   @map("form_id") @db.Uuid
   visitorId         String?  @map("visitor_id") @db.Uuid
   customerProfileId String?  @map("customer_profile_id") @db.Uuid
+  /// Denormalised email + sha256 hash for log-safe lookups and dedup
+  /// against the suppression list. `payload` keeps the raw form data
+  /// (additional fields the operator added).
+  email             String?
+  emailHash         String?  @map("email_hash") @db.Char(64)
   payload           Json     @default("{}")
+  /// Page where the submission happened — useful for "which product
+  /// page converts the most" reports.
+  pageUrl           String?  @map("page_url")
+  userAgent         String?  @map("user_agent")
+  /// Stored as the original IP, not hashed: used to debug abuse and
+  /// satisfy GDPR right-of-access. Audit entry on every read.
+  ipAddress         String?  @map("ip_address")
   submittedAt       DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
 
   tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -982,7 +1068,34 @@ model FormSubmission {
   customer CustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, formId, submittedAt(sort: Desc)])
+  @@index([tenantId, emailHash])
   @@map("form_submission")
+}
+
+enum FormKind {
+  popup
+  inline
+  bar
+}
+
+enum FormStatus {
+  draft
+  active
+  paused
+  archived
+}
+
+enum FormTrigger {
+  immediate
+  time_on_page
+  scroll_depth
+  exit_intent
+}
+
+enum FormDisplayFrequency {
+  once_per_session
+  once_per_visitor
+  every_visit
 }
 
 // =====================================================================
@@ -1000,6 +1113,7 @@ model MarketingList {
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subscriptions Subscription[]
+  forms         Form[]
 
   @@unique([tenantId, name])
   @@map("marketing_list")
