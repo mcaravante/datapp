@@ -119,3 +119,25 @@ export async function removeMethodLabel(id: string): Promise<ActionResult> {
   revalidatePath('/system');
   return { ok: true };
 }
+
+/**
+ * Replace the storefront origins allowed to call the public popup
+ * loader endpoints. Empty list = popups closed (the default for new
+ * tenants), surfaced in the UI as a warning so it isn't accidentally
+ * left empty after editing.
+ */
+export async function updateAllowedOrigins(origins: string[]): Promise<ActionResult> {
+  try {
+    await apiFetch('/v1/admin/tenant/settings/allowed-origins', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ allowed_origins: origins }),
+    });
+  } catch (err) {
+    if (err instanceof ApiError) return { ok: false, error: err.body || err.message };
+    throw err;
+  }
+  await revalidateTenantCache();
+  revalidatePath('/system');
+  return { ok: true };
+}

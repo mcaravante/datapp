@@ -762,3 +762,95 @@ export interface SuppressionsListResponse {
   total: number;
 }
 
+/* ---------- Phase 2 — popups + tenant settings ---------- */
+
+export type PopupKind = 'popup' | 'inline' | 'bar';
+export type PopupStatus = 'draft' | 'active' | 'paused' | 'archived';
+export type PopupTrigger =
+  | 'immediate'
+  | 'time_on_page'
+  | 'scroll_depth'
+  | 'exit_intent';
+export type PopupDisplayFrequency =
+  | 'once_per_session'
+  | 'once_per_visitor'
+  | 'every_visit';
+export type PopupFieldType = 'email' | 'text' | 'tel' | 'checkbox';
+export type PopupPageMatchKind = 'equals' | 'starts_with' | 'regex';
+
+export interface PopupField {
+  name: string;
+  label: string;
+  type: PopupFieldType | string;
+  required: boolean;
+  placeholder?: string;
+}
+
+export interface PopupPageMatchRule {
+  kind: PopupPageMatchKind;
+  value: string;
+}
+
+export interface PopupSummary {
+  id: string;
+  slug: string;
+  name: string;
+  kind: PopupKind;
+  status: PopupStatus;
+  trigger: PopupTrigger;
+  trigger_delay_seconds: number;
+  display_frequency: PopupDisplayFrequency;
+  display_priority: number;
+  page_match_rules: PopupPageMatchRule[];
+  show_count: number;
+  submission_count: number;
+  last_submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PopupDetail extends PopupSummary {
+  headline: string | null;
+  subheadline: string | null;
+  body_html: string | null;
+  image_url: string | null;
+  primary_cta_label: string | null;
+  primary_color: string | null;
+  consent_text: string | null;
+  success_message: string | null;
+  fields: PopupField[];
+  show_cap: number | null;
+  submission_cap: number | null;
+  marketing_list_id: string | null;
+}
+
+export interface PopupListResponse {
+  data: PopupSummary[];
+}
+
+export interface PopupSubmissionRow {
+  id: string;
+  form_id: string;
+  form_slug: string;
+  form_name: string;
+  email: string | null;
+  page_url: string | null;
+  payload: Record<string, unknown>;
+  submitted_at: string;
+}
+
+export interface PopupSubmissionsPage {
+  data: PopupSubmissionRow[];
+  page: number;
+  limit: number;
+  total_count: number;
+  total_pages: number;
+}
+
+export interface TenantSettings {
+  id: string;
+  slug: string;
+  name: string;
+  allowed_origins: string[];
+}
+

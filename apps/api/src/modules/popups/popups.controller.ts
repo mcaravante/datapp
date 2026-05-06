@@ -4,6 +4,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -11,8 +12,10 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -71,6 +74,21 @@ export class PopupsAdminController {
       query.limit,
       query.form_id,
     );
+  }
+
+  @Get(':id/submissions.csv')
+  async exportSubmissions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const tenantId = this.tenantOrThrow(user);
+    const popup = await this.popups.findById(tenantId, id);
+    const csv = await this.popups.exportSubmissionsCsv(tenantId, id);
+    const filename = `popup-${popup.slug}-leads.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
   }
 
   @Get(':id')

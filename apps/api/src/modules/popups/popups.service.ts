@@ -127,6 +127,40 @@ export class PopupsService {
     };
   }
 
+  /**
+   * CSV export of every submission for a single popup. Streams the
+   * full set in one shot — popup leads are low-volume by nature
+   * (≪ orders) so we don't paginate. Quoted fields with `"` escapes
+   * for any value that contains a comma, quote, or newline.
+   */
+  async exportSubmissionsCsv(tenantId: string, formId: string): Promise<string> {
+    const rows = await this.prisma.formSubmission.findMany({
+      where: { tenantId, formId },
+      orderBy: { submittedAt: 'desc' },
+      include: { form: { select: { slug: true } } },
+    });
+    const header = ['submitted_at', 'email', 'page_url', 'form_slug', 'payload'];
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      const cells = [
+        r.submittedAt.toISOString(),
+        r.email ?? '',
+        r.pageUrl ?? '',
+        r.form.slug,
+        JSON.stringify(r.payload ?? {}),
+      ].map(this.csvCell);
+      lines.push(cells.join(','));
+    }
+    return lines.join('\n');
+  }
+
+  private csvCell = (raw: string): string => {
+    if (/[",\n\r]/.test(raw)) {
+      return `"${raw.replace(/"/g, '""')}"`;
+    }
+    return raw;
+  };
+
   /* ---------- Public loader ---------- */
 
   /**

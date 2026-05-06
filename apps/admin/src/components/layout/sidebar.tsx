@@ -16,6 +16,7 @@ type NavLabelKey =
   | 'templates'
   | 'emailBranding'
   | 'emailSuppression'
+  | 'popups'
   | 'products'
   | 'coupons'
   | 'regions'
@@ -163,6 +164,12 @@ const NAV_GROUPS: readonly NavGroup[] = [
     key: 'email',
     labelKey: 'email',
     items: [
+      {
+        href: '/popups',
+        labelKey: 'popups',
+        icon: PopupIcon,
+        match: (p) => p.startsWith('/popups'),
+      },
       {
         href: '/campaigns',
         labelKey: 'campaigns',
@@ -852,6 +859,25 @@ function ActivityIcon({ className }: { className?: string }): React.ReactElement
       aria-hidden="true"
     >
       <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  );
+}
+
+function PopupIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 9h18" />
+      <circle cx="7" cy="7" r="0.6" fill="currentColor" />
     </svg>
   );
 }
