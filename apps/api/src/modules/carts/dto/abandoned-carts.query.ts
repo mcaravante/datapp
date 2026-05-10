@@ -19,11 +19,14 @@ export const AbandonedCartsQuerySchema = z.object({
   /** Cap on how many carts to return per page. */
   limit: z.coerce.number().int().min(1).max(500).default(20),
   /**
-   * When true, drop carts placed as guest (no Magento customer linked).
-   * Operators usually focus on signed-in customers because there's no
-   * way to email a guest abandonment.
+   * Drop carts placed as guest (no Magento customer linked). Defaults
+   * to true because there's no email to send a recovery to — guests
+   * are dead weight in this surface. The flag is still parsed so
+   * legacy URLs (`?hide_guests=true`) keep working, and the admin
+   * could in principle pass `?hide_guests=false` to opt back in for
+   * debugging.
    */
-  hide_guests: z.coerce.boolean().default(false),
+  hide_guests: z.coerce.boolean().default(true),
 });
 
 export type AbandonedCartsQuery = z.infer<typeof AbandonedCartsQuerySchema>;

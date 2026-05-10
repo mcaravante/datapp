@@ -301,6 +301,8 @@ export interface CouponsResponse {
 export type AbandonedCartStatus = 'open' | 'recovered' | 'expired';
 export type AbandonedCartRange = '7d' | '30d' | '90d' | 'all';
 
+export type RecoveryAttribution = 'organic' | 'email' | 'email_coupon';
+
 export interface AbandonedCartRow {
   /** CDP UUID — used in detail-page URLs and admin actions. */
   id: string;
@@ -325,6 +327,11 @@ export interface AbandonedCartRow {
   expired_at: string | null;
   /** Minutes since `abandoned_at` (open) or until recovery (recovered). */
   age_minutes: number;
+  /** Set on `status === 'recovered'` rows; null otherwise. */
+  recovery_attribution: RecoveryAttribution | null;
+  recovery_coupon_code: string | null;
+  recovery_email_send_id: string | null;
+  recovery_email_campaign_id: string | null;
 }
 
 export interface AbandonedCartRecoveryKpis {
@@ -335,6 +342,9 @@ export interface AbandonedCartRecoveryKpis {
   recovered_revenue: string;
   open_at_risk: string;
   recovery_rate: number | null;
+  recovered_via_email_coupon: number;
+  recovered_via_email: number;
+  recovered_revenue_attributed: string;
 }
 
 export interface AbandonedCartsResponse {
