@@ -697,9 +697,6 @@ model OrderItem {
   addedFrom          String?   @map("added_from") // e.g. 'related_products_pdp'; null when not added from a tracked surface
   sourceProductId    Int?      @map("source_product_id") // Magento product ID of the PDP that hosted the carousel
   sourceProductSku   String?   @map("source_product_sku")
-  firstAddedAt       DateTime? @map("first_added_at") @db.Timestamptz(6)
-  carouselPosition   Int?      @map("carousel_position") // zero-based index inside the carousel
-  pdpUrl             String?   @map("pdp_url") @db.Text
   attributes         Json      @default("{}") // Magento custom options + product options
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 

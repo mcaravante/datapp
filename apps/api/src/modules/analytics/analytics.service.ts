@@ -39,6 +39,12 @@ import type {
   BreakdownResponse,
   BreakdownRow,
 } from './dto/breakdown.dto';
+import type {
+  AttributionProductRow,
+  AttributionQuery,
+  AttributionResponse,
+  AttributionTotals,
+} from './dto/attribution.dto';
 
 const BA_TZ = 'America/Argentina/Buenos_Aires';
 
@@ -270,6 +276,127 @@ export class AnalyticsService {
       sort: query.sort,
       dir: query.dir,
       data,
+    };
+  }
+
+  /**
+   * Attribution report — items added to cart from tracked surfaces
+   * (today, the related-products carousel on the PDP) and the revenue
+   * they drove. Revenue is `row_total` summed at order_item level, so
+   * it tracks gross sales; for "really collected" use the CSV export
+   * or filter the underlying orders by status downstream.
+   */
+  async attribution(
+    tenantId: string,
+    query: AttributionQuery,
+  ): Promise<AttributionResponse> {
+    const r: ResolvedRange = resolveRange(query);
+    const exclude = await this.excludedEmailsClause(tenantId, Prisma.sql`o.customer_email`);
+    const sourceFilter = query.source
+      ? Prisma.sql`AND oi.added_from = ${query.source}`
+      : Prisma.empty;
+
+    const [totalsRow] = await this.prisma.$queryRaw<
+      {
+        items_count: bigint;
+        units_ordered: number | null;
+        orders_count: bigint;
+        revenue: Prisma.Decimal | null;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        COUNT(*)::bigint AS items_count,
+        SUM(oi.qty_ordered)::float8 AS units_ordered,
+        COUNT(DISTINCT oi.order_id)::bigint AS orders_count,
+        COALESCE(SUM(oi.row_total), 0)::numeric(20,4) AS revenue
+      FROM order_item oi
+      JOIN "order" o ON o.id = oi.order_id
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        AND oi.added_from IS NOT NULL
+        ${sourceFilter}
+        ${exclude}
+    `);
+
+    const totals: AttributionTotals = {
+      itemsCount: Number(totalsRow?.items_count ?? 0),
+      unitsOrdered: Number(totalsRow?.units_ordered ?? 0),
+      ordersCount: Number(totalsRow?.orders_count ?? 0),
+      revenue: (totalsRow?.revenue ?? new Prisma.Decimal(0)).toString(),
+    };
+
+    const sourceRows = await this.prisma.$queryRaw<
+      {
+        source: string;
+        items_count: bigint;
+        orders_count: bigint;
+        revenue: Prisma.Decimal;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        oi.added_from AS source,
+        COUNT(*)::bigint AS items_count,
+        COUNT(DISTINCT oi.order_id)::bigint AS orders_count,
+        COALESCE(SUM(oi.row_total), 0)::numeric(20,4) AS revenue
+      FROM order_item oi
+      JOIN "order" o ON o.id = oi.order_id
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        AND oi.added_from IS NOT NULL
+        ${sourceFilter}
+        ${exclude}
+      GROUP BY oi.added_from
+      ORDER BY revenue DESC
+    `);
+
+    const topRows = await this.prisma.$queryRaw<
+      {
+        sku: string;
+        name: string;
+        units: number;
+        orders: bigint;
+        revenue: Prisma.Decimal;
+      }[]
+    >(Prisma.sql`
+      SELECT
+        oi.sku,
+        (ARRAY_AGG(oi.name ORDER BY length(oi.name) DESC, oi.name ASC))[1] AS name,
+        SUM(oi.qty_ordered)::float8 AS units,
+        COUNT(DISTINCT oi.order_id)::bigint AS orders,
+        COALESCE(SUM(oi.row_total), 0)::numeric(20,4) AS revenue
+      FROM order_item oi
+      JOIN "order" o ON o.id = oi.order_id
+      WHERE o.tenant_id = ${tenantId}::uuid
+        AND o.placed_at >= ${r.from}
+        AND o.placed_at <  ${r.to}
+        AND oi.added_from IS NOT NULL
+        ${sourceFilter}
+        ${exclude}
+      GROUP BY oi.sku
+      ORDER BY revenue DESC NULLS LAST, oi.sku ASC
+      LIMIT ${query.limit}
+    `);
+
+    const topProducts: AttributionProductRow[] = topRows.map((row) => ({
+      sku: row.sku,
+      name: row.name,
+      units: Number(row.units),
+      orders: Number(row.orders),
+      revenue: row.revenue.toString(),
+    }));
+
+    return {
+      range: { from: r.from.toISOString(), to: r.to.toISOString() },
+      totals,
+      bySource: sourceRows.map((row) => ({
+        source: row.source,
+        itemsCount: Number(row.items_count),
+        ordersCount: Number(row.orders_count),
+        revenue: row.revenue.toString(),
+      })),
+      topProducts,
     };
   }
 

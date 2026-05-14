@@ -28,6 +28,11 @@ import {
   type TopProductsResponse,
 } from './dto/top-products.dto';
 import { GeoQuerySchema, type GeoQuery, type GeoResponse } from './dto/geo.dto';
+import {
+  AttributionQuerySchema,
+  type AttributionQuery,
+  type AttributionResponse,
+} from './dto/attribution.dto';
 import { TimingQuerySchema, type TimingQuery, type TimingResponse } from './dto/timing.dto';
 import { CohortsQuerySchema, type CohortsQuery, type CohortsResponse } from './dto/cohorts.dto';
 import {
@@ -181,6 +186,14 @@ export class AnalyticsController {
     @Query(new ZodValidationPipe(TopProductsQuerySchema)) query: TopProductsQuery,
   ): Promise<TopProductsResponse> {
     return this.analytics.topProducts(this.tenantOrThrow(user), query);
+  }
+
+  @Get('attribution')
+  async attribution(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(AttributionQuerySchema)) query: AttributionQuery,
+  ): Promise<AttributionResponse> {
+    return this.analytics.attribution(this.tenantOrThrow(user), query);
   }
 
   @Get('geo')
