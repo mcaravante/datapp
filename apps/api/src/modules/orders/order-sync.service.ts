@@ -214,9 +214,6 @@ function itemCreateData(
     addedFrom: i.attribution?.addedFrom ?? null,
     sourceProductId: i.attribution?.sourceProductId ?? null,
     sourceProductSku: i.attribution?.sourceProductSku ?? null,
-    firstAddedAt: i.attribution?.firstAddedAt ?? null,
-    carouselPosition: i.attribution?.carouselPosition ?? null,
-    pdpUrl: i.attribution?.pdpUrl ?? null,
     attributes: i.attributes as Prisma.InputJsonValue,
   };
 }

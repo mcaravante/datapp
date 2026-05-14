@@ -155,9 +155,6 @@ describe('mapOrder', () => {
               added_from: 'related_products_pdp',
               source_product_id: 99,
               source_product_sku: 'PROD-PARENT',
-              first_added_at: '2024-01-15 09:45:00',
-              carousel_position: 2,
-              pdp_url: 'https://example.com/parent-product.html',
             },
           },
         },
@@ -169,10 +166,7 @@ describe('mapOrder', () => {
       addedFrom: 'related_products_pdp',
       sourceProductId: 99,
       sourceProductSku: 'PROD-PARENT',
-      carouselPosition: 2,
-      pdpUrl: 'https://example.com/parent-product.html',
     });
-    expect(item?.attribution?.firstAddedAt?.toISOString()).toBe('2024-01-15T09:45:00.000Z');
   });
 
   it('returns null attribution when added_from is missing', () => {
@@ -183,27 +177,6 @@ describe('mapOrder', () => {
       items: [{ ...baseItem, extension_attributes: { pupe_attribution: { added_from: '' } } }],
     });
     expect(m.items[0]?.attribution).toBeNull();
-  });
-
-  it('tolerates an invalid first_added_at without throwing', () => {
-    const baseItem = baseOrder.items[0];
-    if (!baseItem) throw new Error('fixture missing item');
-    const m = map({
-      ...baseOrder,
-      items: [
-        {
-          ...baseItem,
-          extension_attributes: {
-            pupe_attribution: {
-              added_from: 'related_products_pdp',
-              first_added_at: 'not-a-date',
-            },
-          },
-        },
-      ],
-    });
-    expect(m.items[0]?.attribution?.addedFrom).toBe('related_products_pdp');
-    expect(m.items[0]?.attribution?.firstAddedAt).toBeNull();
   });
 
   it('counts items and unique SKUs', () => {

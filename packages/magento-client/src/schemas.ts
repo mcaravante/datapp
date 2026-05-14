@@ -89,9 +89,6 @@ export const MagentoOrderItemAttributionSchema = z
     added_from: z.string(),
     source_product_id: z.number().nullable().optional(),
     source_product_sku: z.string().nullable().optional(),
-    first_added_at: z.string().nullable().optional(),
-    carousel_position: z.number().nullable().optional(),
-    pdp_url: z.string().nullable().optional(),
   })
   .passthrough();
 export type MagentoOrderItemAttribution = z.infer<typeof MagentoOrderItemAttributionSchema>;

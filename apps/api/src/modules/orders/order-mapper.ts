@@ -6,9 +6,6 @@ export interface MappedOrderItemAttribution {
   addedFrom: string;
   sourceProductId: number | null;
   sourceProductSku: string | null;
-  firstAddedAt: Date | null;
-  carouselPosition: number | null;
-  pdpUrl: string | null;
 }
 
 export interface MappedOrderItem {
@@ -233,18 +230,12 @@ function mapAttribution(raw: MagentoOrderItem): MappedOrderItemAttribution | nul
     added_from?: unknown;
     source_product_id?: unknown;
     source_product_sku?: unknown;
-    first_added_at?: unknown;
-    carousel_position?: unknown;
-    pdp_url?: unknown;
   };
   if (typeof a.added_from !== 'string' || a.added_from === '') return null;
   return {
     addedFrom: a.added_from,
     sourceProductId: typeof a.source_product_id === 'number' ? a.source_product_id : null,
     sourceProductSku: typeof a.source_product_sku === 'string' ? a.source_product_sku : null,
-    firstAddedAt: parseUtcOrNull(a.first_added_at),
-    carouselPosition: typeof a.carousel_position === 'number' ? a.carousel_position : null,
-    pdpUrl: typeof a.pdp_url === 'string' ? a.pdp_url : null,
   };
 }
 
@@ -275,15 +266,6 @@ function parseUtc(iso: string): Date {
     throw new Error(`Invalid Magento timestamp: ${iso}`);
   }
   return d;
-}
-
-function parseUtcOrNull(value: unknown): Date | null {
-  if (typeof value !== 'string' || value === '') return null;
-  try {
-    return parseUtc(value);
-  } catch {
-    return null;
-  }
 }
 
 function toDecimalString(v: number): string {
