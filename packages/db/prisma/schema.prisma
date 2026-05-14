@@ -678,23 +678,30 @@ model Order {
 }
 
 model OrderItem {
-  id                 String   @id @default(uuid(7)) @db.Uuid
-  tenantId           String   @map("tenant_id") @db.Uuid
-  orderId            String   @map("order_id") @db.Uuid
-  magentoOrderItemId String   @map("magento_order_item_id")
-  productId          String?  @map("product_id") @db.Uuid // nullable: product may not be synced yet
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  orderId            String    @map("order_id") @db.Uuid
+  magentoOrderItemId String    @map("magento_order_item_id")
+  productId          String?   @map("product_id") @db.Uuid // nullable: product may not be synced yet
   sku                String
   name               String
-  qtyOrdered         Decimal  @map("qty_ordered") @db.Decimal(20, 4)
-  qtyInvoiced        Decimal  @default(0) @map("qty_invoiced") @db.Decimal(20, 4)
-  qtyRefunded        Decimal  @default(0) @map("qty_refunded") @db.Decimal(20, 4)
-  qtyShipped         Decimal  @default(0) @map("qty_shipped") @db.Decimal(20, 4)
-  price              Decimal  @db.Decimal(20, 4)
-  discountAmount     Decimal  @default(0) @map("discount_amount") @db.Decimal(20, 4)
-  taxAmount          Decimal  @default(0) @map("tax_amount") @db.Decimal(20, 4)
-  rowTotal           Decimal  @map("row_total") @db.Decimal(20, 4)
-  attributes         Json     @default("{}") // Magento custom options + product options
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  qtyOrdered         Decimal   @map("qty_ordered") @db.Decimal(20, 4)
+  qtyInvoiced        Decimal   @default(0) @map("qty_invoiced") @db.Decimal(20, 4)
+  qtyRefunded        Decimal   @default(0) @map("qty_refunded") @db.Decimal(20, 4)
+  qtyShipped         Decimal   @default(0) @map("qty_shipped") @db.Decimal(20, 4)
+  price              Decimal   @db.Decimal(20, 4)
+  discountAmount     Decimal   @default(0) @map("discount_amount") @db.Decimal(20, 4)
+  taxAmount          Decimal   @default(0) @map("tax_amount") @db.Decimal(20, 4)
+  rowTotal           Decimal   @map("row_total") @db.Decimal(20, 4)
+  // First-touch attribution captured at add-to-cart by the Pupe_RelatedProductsAttribution Magento module.
+  addedFrom          String?   @map("added_from") // e.g. 'related_products_pdp'; null when not added from a tracked surface
+  sourceProductId    Int?      @map("source_product_id") // Magento product ID of the PDP that hosted the carousel
+  sourceProductSku   String?   @map("source_product_sku")
+  firstAddedAt       DateTime? @map("first_added_at") @db.Timestamptz(6)
+  carouselPosition   Int?      @map("carousel_position") // zero-based index inside the carousel
+  pdpUrl             String?   @map("pdp_url") @db.Text
+  attributes         Json      @default("{}") // Magento custom options + product options
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -703,6 +710,7 @@ model OrderItem {
   @@unique([orderId, magentoOrderItemId])
   @@index([tenantId, sku])
   @@index([tenantId, productId])
+  @@index([tenantId, addedFrom])
   @@map("order_item")
 }
 

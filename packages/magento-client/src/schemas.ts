@@ -78,6 +78,24 @@ export const MagentoCustomerSchema = z
   .passthrough();
 export type MagentoCustomer = z.infer<typeof MagentoCustomerSchema>;
 
+/**
+ * First-touch attribution payload emitted by the Magento module
+ * `Pupe_RelatedProductsAttribution`. Present on order items that were
+ * added to cart from a tracked surface (currently only the related
+ * products carousel on the PDP).
+ */
+export const MagentoOrderItemAttributionSchema = z
+  .object({
+    added_from: z.string(),
+    source_product_id: z.number().nullable().optional(),
+    source_product_sku: z.string().nullable().optional(),
+    first_added_at: z.string().nullable().optional(),
+    carousel_position: z.number().nullable().optional(),
+    pdp_url: z.string().nullable().optional(),
+  })
+  .passthrough();
+export type MagentoOrderItemAttribution = z.infer<typeof MagentoOrderItemAttributionSchema>;
+
 export const MagentoOrderItemSchema = z
   .object({
     item_id: z.number(),
@@ -94,6 +112,12 @@ export const MagentoOrderItemSchema = z
     row_total: z.number(),
     product_type: z.string().optional(),
     product_option: z.unknown().optional(),
+    extension_attributes: z
+      .object({
+        pupe_attribution: MagentoOrderItemAttributionSchema.optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 export type MagentoOrderItem = z.infer<typeof MagentoOrderItemSchema>;

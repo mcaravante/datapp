@@ -15,6 +15,7 @@ export type {
   MagentoAddress,
   MagentoOrder,
   MagentoOrderItem,
+  MagentoOrderItemAttribution,
   MagentoStatusHistory,
   MagentoProduct,
   MagentoCategory,

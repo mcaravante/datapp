@@ -2,6 +2,15 @@ import { createHash } from 'node:crypto';
 import type { MagentoAddress, MagentoOrder, MagentoOrderItem } from '@datapp/magento-client';
 import type { RegionResolverService } from '../geo/region-resolver.service';
 
+export interface MappedOrderItemAttribution {
+  addedFrom: string;
+  sourceProductId: number | null;
+  sourceProductSku: string | null;
+  firstAddedAt: Date | null;
+  carouselPosition: number | null;
+  pdpUrl: string | null;
+}
+
 export interface MappedOrderItem {
   magentoOrderItemId: string;
   sku: string;
@@ -14,6 +23,7 @@ export interface MappedOrderItem {
   discountAmount: string;
   taxAmount: string;
   rowTotal: string;
+  attribution: MappedOrderItemAttribution | null;
   attributes: Record<string, unknown>;
 }
 
@@ -191,6 +201,7 @@ function mapItem(raw: MagentoOrderItem): MappedOrderItem {
     'tax_amount',
     'row_total',
     'product_id',
+    'extension_attributes',
   ]);
   const attributes: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {
@@ -208,7 +219,32 @@ function mapItem(raw: MagentoOrderItem): MappedOrderItem {
     discountAmount: toDecimalString(raw.discount_amount ?? 0),
     taxAmount: toDecimalString(raw.tax_amount ?? 0),
     rowTotal: toDecimalString(raw.row_total),
+    attribution: mapAttribution(raw),
     attributes,
+  };
+}
+
+function mapAttribution(raw: MagentoOrderItem): MappedOrderItemAttribution | null {
+  const ext = raw.extension_attributes;
+  if (!ext || typeof ext !== 'object') return null;
+  const attr = (ext as { pupe_attribution?: unknown }).pupe_attribution;
+  if (!attr || typeof attr !== 'object') return null;
+  const a = attr as {
+    added_from?: unknown;
+    source_product_id?: unknown;
+    source_product_sku?: unknown;
+    first_added_at?: unknown;
+    carousel_position?: unknown;
+    pdp_url?: unknown;
+  };
+  if (typeof a.added_from !== 'string' || a.added_from === '') return null;
+  return {
+    addedFrom: a.added_from,
+    sourceProductId: typeof a.source_product_id === 'number' ? a.source_product_id : null,
+    sourceProductSku: typeof a.source_product_sku === 'string' ? a.source_product_sku : null,
+    firstAddedAt: parseUtcOrNull(a.first_added_at),
+    carouselPosition: typeof a.carousel_position === 'number' ? a.carousel_position : null,
+    pdpUrl: typeof a.pdp_url === 'string' ? a.pdp_url : null,
   };
 }
 
@@ -239,6 +275,15 @@ function parseUtc(iso: string): Date {
     throw new Error(`Invalid Magento timestamp: ${iso}`);
   }
   return d;
+}
+
+function parseUtcOrNull(value: unknown): Date | null {
+  if (typeof value !== 'string' || value === '') return null;
+  try {
+    return parseUtc(value);
+  } catch {
+    return null;
+  }
 }
 
 function toDecimalString(v: number): string {
