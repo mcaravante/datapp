@@ -21,6 +21,7 @@ type NavLabelKey =
   | 'coupons'
   | 'regions'
   | 'insights'
+  | 'attribution'
   | 'reports'
   | 'sync'
   | 'users'
@@ -88,7 +89,14 @@ const NAV_GROUPS: readonly NavGroup[] = [
         href: '/insights',
         labelKey: 'insights',
         icon: ActivityIcon,
-        match: (p) => p.startsWith('/insights'),
+        match: (p) => p === '/insights' || (p.startsWith('/insights/') && !p.startsWith('/insights/attribution')),
+        section: 'insights',
+      },
+      {
+        href: '/insights/attribution',
+        labelKey: 'attribution',
+        icon: FunnelIcon,
+        match: (p) => p.startsWith('/insights/attribution'),
         section: 'insights',
       },
       {
@@ -878,6 +886,23 @@ function PopupIcon({ className }: { className?: string }): React.ReactElement {
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M3 9h18" />
       <circle cx="7" cy="7" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function FunnelIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 4h18l-7 9v7l-4-2v-5z" />
     </svg>
   );
 }
